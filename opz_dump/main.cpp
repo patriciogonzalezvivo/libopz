@@ -17,6 +17,7 @@ std::string header = name + " " + version + " by Patricio Gonzalez Vivo ( patric
 int main(int argc, char** argv) {
     T3::OPZ_RtMidi  opz;
     opz.connect();
+    opz.verbose = 2;
 
     while (true)
         opz.keepawake();

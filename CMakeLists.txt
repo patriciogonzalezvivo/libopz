@@ -4,25 +4,11 @@ set(VERSION 0.1)
 project(opz     VERSION ${VERSION}
                 LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
-
+# The compiled library code is here
 add_subdirectory(deps)
+add_subdirectory(src)
 
-file(GLOB ROOT_SOURCE "${PROJECT_SOURCE_DIR}/src/*.cpp")
-
-add_executable(opz
-    ${ROOT_SOURCE}
-)
-
-target_include_directories(opz PRIVATE
-    deps
-)
-
-target_link_libraries(opz PRIVATE
-    rtmidi
-)
-
-install(TARGETS opz
-        RUNTIME DESTINATION bin)
+# Only do these if this is the main project, and not if it is included through add_subdirectory
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+    add_subdirectory(opz_dump)
+endif()

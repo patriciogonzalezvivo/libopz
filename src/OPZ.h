@@ -200,6 +200,8 @@ public:
 
     static void     process_message(double _deltatime, std::vector<unsigned char>* _message, void* _userData);
 
+    size_t          verbose;
+
 protected:
 
     void            process_sysex(std::vector<unsigned char>* _message);

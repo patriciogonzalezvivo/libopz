@@ -67,7 +67,8 @@ std::string track_name[] = {
     "KICK", "SNARE", "PERC", "SAMPLE", "BASS", "LEAD", "ARP", "CHORD", "FX1", "FX2", "TAPE", "MASTER", "PERFORM", "MODULE", "LIGHT", "MOTION", "NONE" 
 };
 
-OPZ::OPZ() :    
+OPZ::OPZ() :
+verbose(0),
 m_volume(0.0f), 
 m_track(KICK), 
 m_page(PAGE_ONE), 
@@ -95,29 +96,32 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
     const sysex_header &seh = (const sysex_header&)*buffer;
     
     if (memcmp(OPZ_VENDOR_ID, seh.vendor_id, sizeof(OPZ_VENDOR_ID)) != 0){
-        printf("Vendor ID %02hhx:%02hhx:%02hhx is not the expected ID %02hhx:%02hhx:%02hhx\n",seh.vendor_id[0],seh.vendor_id[1],seh.vendor_id[2],OPZ_VENDOR_ID[0],OPZ_VENDOR_ID[1],OPZ_VENDOR_ID[2]);
+        printf("Vendor ID %02X:%02X:%02X is not the expected ID %02X:%02X:%02X\n",seh.vendor_id[0],seh.vendor_id[1],seh.vendor_id[2],OPZ_VENDOR_ID[0],OPZ_VENDOR_ID[1],OPZ_VENDOR_ID[2]);
         return;
     }
     if ((seh.protocol_version == 0) || (seh.protocol_version > OPZ_MAX_PROTOCOL_VERSION)){
-        printf("Unexpected protocol version %02hhx, was expecting > 0 and <= %02hhx\n", seh.protocol_version, OPZ_MAX_PROTOCOL_VERSION);
+        printf("Unexpected protocol version %02X, was expecting > 0 and <= %02X\n", seh.protocol_version, OPZ_MAX_PROTOCOL_VERSION);
         return;
     }
     
     switch (seh.parm_id) {
         case 0x01: {
             // Universal response ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#01-universal-response )
-            // printf("Msg %02hhx: Universal response\n", seh.parm_id);
+            if (verbose)
+                printf("Msg %02X (Universal response)\n", seh.parm_id);
         } break;
 
         case 0x02: {
             // Track Setting ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#02-track-settings )
-            printf("Msg %02hhx: Track Setting\n", seh.parm_id);
+            if (verbose)
+                printf("Msg %02X (Track Setting)\n", seh.parm_id);
 
         } break;
 
         case 0x03: {
             // Keyboard Setting ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#03-keyboard-setting )
-            printf("Msg %02hhx: Keyboard Setting:", seh.parm_id);
+            if (verbose)
+                printf("Msg %02X (Keyboard Setting)\n", seh.parm_id);
             // std::cout << " " << hex_msg(buffer, length) ;
 
             // const track_state &ti = (const track_state &)buffer[sizeof(sysex_header)-1];
@@ -125,27 +129,32 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
             m_track = (track)ti.track;
 
             memcpy(&(m_track_state[m_track]), &ti, sizeof(track_state));
-            std::cout << "update track " << track_name[m_track];
-            printf(", data %02hhx %02hhx\n", m_track_state[m_track].value_p1, m_track_state[m_track].value_p2);
+            
+            if (verbose > 1) {
+                std::cout << "  Update track " << track_name[m_track];
+                printf(", data %02X %02X\n", m_track_state[m_track].value_p1, m_track_state[m_track].value_p2);
+            }
             
         } break;
 
         case 0x04: {
-            printf("Msg %02hhx: ", seh.parm_id);
-            std::cout << hex_msg(buffer, length) << std::endl;
+            if (verbose)
+                printf("Msg %02X (unknown)\n", seh.parm_id);
 
             m_volume = ( ((int)buffer[6] == 0)? (int)buffer[8] : 127 + (int)buffer[8] )/254.0;
             m_microphone_mode = buffer[10];
 
-            printf(" Volumen    %f\n", m_volume);
-            printf(" ????????   %02x\n", buffer[9] );
-            printf(" Microphone %02x\n", m_microphone_mode);
+            if (verbose > 1) {
+                printf(" Volumen    %f\n", m_volume);
+                printf(" ????????   %02x\n", buffer[9] );
+                printf(" Microphone %02x\n", m_microphone_mode);
+            }
         } break;
 
         case 0x06: {
             // Button States ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#06-button-states )
-            printf("Msg %02hhx (Button States)\n", seh.parm_id);
-            // std::cout << hex_msg(buffer, length) << std::endl;
+            if (verbose)
+                printf("Msg %02X (Button States)\n", seh.parm_id);
 
             CAST_MESSAGE(key_state, ki);
             memcpy(&(m_key_prev_state), &m_key_state, sizeof(m_key_state));
@@ -157,136 +166,159 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 m_key_track = -1;
 
             m_page = (page)( (int)(m_key_state.page2x) * 2 + (int)(m_key_state.page) );
-            std::cout << "  track: " << track_name[m_track] << std::endl;
-            std::cout << "  page:  " << page_name[m_page] << std::endl;
 
-            if (m_key_state.step < 16)
-                std::cout << "  track_key: " << track_name[m_key_track] << std::endl;
+            if (verbose > 1) {
+                // std::cout << "  track: " << track_name[m_track] << std::endl;
+                // std::cout << "  page:  " << page_name[m_page] << std::endl;
+                // if (m_key_state.step < 16)
+                //     std::cout << "  track_key: " << track_name[m_key_track] << std::endl;
 
-            // printf( "page2x:    %i\n", m_key_state.page2x);
-            // printf( "mixer:     %i\n", m_key_state.mixer);
-            // printf( "record:    %i\n", m_key_state.record);
-            // printf( "key14:     %i\n", m_key_state.key14);
+                printf( "page2x:    %i\n", m_key_state.page2x);
+                printf( "mixer:     %i\n", m_key_state.mixer);
+                printf( "record:    %i\n", m_key_state.record);
+                printf( "key14:     %i\n", m_key_state.key14);
 
-            // printf( "key15:     %i\n", m_key_state.key15);
-            // printf( "key16:     %i\n", m_key_state.key16);
-            // printf( "key17:     %i\n", m_key_state.key17);
-            // printf( "key18:     %i\n", m_key_state.key18);
+                printf( "key15:     %i\n", m_key_state.key15);
+                printf( "key16:     %i\n", m_key_state.key16);
+                printf( "key17:     %i\n", m_key_state.key17);
+                printf( "key18:     %i\n", m_key_state.key18);
 
-            // printf( "key21:     %i\n", m_key_state.key21);
-            // printf( "key22:     %i\n", m_key_state.key22);
-            // printf( "key23:     %i\n", m_key_state.key23);
-            // printf( "key24:     %i\n", m_key_state.key24);
+                printf( "key21:     %i\n", m_key_state.key21);
+                printf( "key22:     %i\n", m_key_state.key22);
+                printf( "key23:     %i\n", m_key_state.key23);
+                printf( "key24:     %i\n", m_key_state.key24);
 
-            // printf( "key25:     %i\n", m_key_state.key25);
-            // printf( "key26:     %i\n", m_key_state.key26);
-            // printf( "page:      %i\n", m_key_state.page);
-            // printf( "key28:     %i\n", m_key_state.key28);
+                printf( "key25:     %i\n", m_key_state.key25);
+                printf( "key26:     %i\n", m_key_state.key26);
+                printf( "page:      %i\n", m_key_state.page);
+                printf( "key28:     %i\n", m_key_state.key28);
 
-            // printf( "step:      %i \n", m_key_state.step) ;
-        
-            // printf( "shift:     %i\n", m_key_state.shift);
-            // printf( "tempo:     %i\n", m_key_state.tempo);
-            // printf( "key38:     %i\n", m_key_state.key38);
+                printf( "step:      %i \n", m_key_state.step) ;
+            
+                printf( "shift:     %i\n", m_key_state.shift);
+                printf( "tempo:     %i\n", m_key_state.tempo);
+                printf( "key38:     %i\n", m_key_state.key38);
 
-            // printf( "key41:     %i\n", m_key_state.key41);
-            // printf( "key42:     %i\n", m_key_state.key42);
-            // printf( "key43:     %i\n", m_key_state.key43);
-            // printf( "key44:     %i\n", m_key_state.key44);
+                printf( "key41:     %i\n", m_key_state.key41);
+                printf( "key42:     %i\n", m_key_state.key42);
+                printf( "key43:     %i\n", m_key_state.key43);
+                printf( "key44:     %i\n", m_key_state.key44);
 
-            // printf( "key45:     %i\n", m_key_state.key45);
-            // printf( "screen:    %i\n", m_key_state.screen);
-            // printf( "stop:      %i\n", m_key_state.stop);
-            // printf( "key48:     %i\n", m_key_state.key48);
+                printf( "key45:     %i\n", m_key_state.key45);
+                printf( "screen:    %i\n", m_key_state.screen);
+                printf( "stop:      %i\n", m_key_state.stop);
+                printf( "key48:     %i\n", m_key_state.key48);
 
-            // printf( "track:     %i\n", m_key_state.track);
-            // printf( "project:   %i\n", m_key_state.project);
-            // printf( "key53:     %i\n", m_key_state.key53);
-            // printf( "key54:     %i\n", m_key_state.key54);
+                printf( "track:     %i\n", m_key_state.track);
+                printf( "project:   %i\n", m_key_state.project);
+                printf( "key53:     %i\n", m_key_state.key53);
+                printf( "key54:     %i\n", m_key_state.key54);
 
-            // printf( "key55:     %i\n", m_key_state.key55);
-            // printf( "key56:     %i\n", m_key_state.key56);
-            // printf( "key57:     %i\n", m_key_state.key57);
-            // printf( "key58:     %i\n", m_key_state.key58);
+                printf( "key55:     %i\n", m_key_state.key55);
+                printf( "key56:     %i\n", m_key_state.key56);
+                printf( "key57:     %i\n", m_key_state.key57);
+                printf( "key58:     %i\n", m_key_state.key58);
+            }            
             
         } break;
 
         case 0x07: {
             // Sequencer Settings ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#07-sequencer-settings )
-            printf("Msg %02hhx (Sequencer Settings) ", seh.parm_id);
-            std::cout << hex_msg(buffer, length) << std::endl;
+            if (verbose)
+                printf("Msg %02X (Sequencer Settings)\n", seh.parm_id);
+
+            if (verbose > 1)
+                std::cout << "  " << hex_msg(buffer, length) << std::endl;
+            
         } break;
 
         case 0x09: {
             // Pattern ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#09-pattern )
-            printf("Msg %02hhx (Pattern) ", seh.parm_id);
-            std::cout << hex_msg(buffer, length) << std::endl;
+            if (verbose)
+                printf("Msg %02X (Pattern)\n", seh.parm_id);
+            
+            if (verbose > 1)
+                std::cout << "  " << hex_msg(buffer, length) << std::endl;
+            
         } break;
 
         case 0x0c: {
             // Global Data ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#0c-global-data )
-            printf("Msg %02hhx (Global Data) ", seh.parm_id);
-            std::cout << hex_msg(buffer, length) << std::endl;
+            if (verbose)
+                printf("Msg %02X (Global Data)\n", seh.parm_id);
+
+            if (verbose > 1)
+                std::cout << "  " << hex_msg(buffer, length) << std::endl;
+            
         } break;
 
         case 0x0e: {
             // Sound preset ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#0e-sound-preset )
-            printf("Msg %02hhx (Sound preset) ", seh.parm_id);
             m_key_track = buffer[7];
-
-            // std::cout << hex_msg(buffer, length) << " " << std::endl;
-            // std::cout << "track: " << track_name[m_track] << std::endl;
-            // std::cout << "  active page:  " << page_name[m_page] << std::endl;
+            if (verbose)
+                printf("Msg %02X (Sound preset)\n", seh.parm_id);
 
             CAST_MESSAGE(sound_state, si);
             memcpy(&(m_sound_state[m_track]), &si, sizeof(sound_state));
 
-            // printf( "   byte1X:     %i %i %i %i  %i %i %i %i\n", si.byte11, si.param1_hf, si.param2_hf, si.attack_hf, si.decay_hf, si.sustain_hf, si.release_hf, si.byte18);
-            // printf( "   param1:     %i\n", si.param1);
-            // printf( "   param2:     %i\n", si.param2);
+            if (verbose > 1) {
+                std::cout << "  Active track: " << track_name[m_track] << " page:  " << page_name[m_page] << std::endl;
 
-            // printf( "   attack:     %i\n", si.attack);
-            // printf( "   decay:      %i\n", si.decay);
-            // printf( "   sustain:    %i\n", si.sustain);
-            // printf( "   release:    %i\n", si.release);
+                printf( "   byte1X:     %i %i %i %i  %i %i %i %i\n", si.byte11, si.param1_hf, si.param2_hf, si.attack_hf, si.decay_hf, si.sustain_hf, si.release_hf, si.byte18);
+                printf( "   param1:     %i\n", si.param1);
+                printf( "   param2:     %i\n", si.param2);
 
-            // printf( "   byte2X:     %i %i %i %i  %i %i %i %i\n", si.fx1_hf, si.fx2_hf, si.filter_hf, si.resonance_hf, si.pan_hf, si.level_hf, si.portamento_hf, si.byte28);
-            // printf( "   fx1:        %i\n", si.fx1);
-            // printf( "   fx2:        %i\n", si.fx2);
-            // printf( "   filter:     %i\n", si.filter);
-            // printf( "   resonance:  %i\n", si.resonance);
-            // printf( "   pan:        %i\n", si.pan);
-            // printf( "   level:      %i\n", si.level);
-            // printf( "   portamendo: %i\n", si.portamento);
+                printf( "   attack:     %i\n", si.attack);
+                printf( "   decay:      %i\n", si.decay);
+                printf( "   sustain:    %i\n", si.sustain);
+                printf( "   release:    %i\n", si.release);
 
-            // printf( "   byte3X:     %i %i %i %i  %i %i %i %i\n", si.lfo_depth_hf, si.lfo_speed_hf, si.lfo_value_hf, si.lfo_shape_hf, si.note_style_hf, si.byte36, si.byte37, si.byte38);
-            // printf( "   lfo_depth:  %i\n", si.lfo_depth);
-            // printf( "   lfo_speed:  %i\n", si.lfo_speed);
-            // printf( "   lfo_value:  %i\n", si.lfo_value);
-            // printf( "   lfo_shape:  %i\n", si.lfo_shape);
+                printf( "   byte2X:     %i %i %i %i  %i %i %i %i\n", si.fx1_hf, si.fx2_hf, si.filter_hf, si.resonance_hf, si.pan_hf, si.level_hf, si.portamento_hf, si.byte28);
+                printf( "   fx1:        %i\n", si.fx1);
+                printf( "   fx2:        %i\n", si.fx2);
+                printf( "   filter:     %i\n", si.filter);
+                printf( "   resonance:  %i\n", si.resonance);
+                printf( "   pan:        %i\n", si.pan);
+                printf( "   level:      %i\n", si.level);
+                printf( "   portamendo: %i\n", si.portamento);
 
-            // printf( "   note_style:  %i\n", si.note_style_hf);
+                printf( "   byte3X:     %i %i %i %i  %i %i %i %i\n", si.lfo_depth_hf, si.lfo_speed_hf, si.lfo_value_hf, si.lfo_shape_hf, si.note_style_hf, si.byte36, si.byte37, si.byte38);
+                printf( "   lfo_depth:  %i\n", si.lfo_depth);
+                printf( "   lfo_speed:  %i\n", si.lfo_speed);
+                printf( "   lfo_value:  %i\n", si.lfo_value);
+                printf( "   lfo_shape:  %i\n", si.lfo_shape);
 
+                printf( "   note_style:  %i\n", si.note_style_hf);
+            }
         } break;
 
         case 0x10: {
             // Compressed MIDI Config ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#10-zlib-compressed-midi-config )
-            printf("Msg %02hhx: Compressed MIDI Config\n", seh.parm_id);
+            if (verbose)
+                printf("Msg %02X (Compressed MIDI Config)\n", seh.parm_id);
         } break;
 
         case 0x11: {
-            printf("Msg %02hhx: ", seh.parm_id);
-            std::cout << hex_msg(buffer, length) << std::endl;
+            if (verbose)
+                printf("Msg %02X (unknown)\n", seh.parm_id);
+
+            if (verbose > 1)
+                std::cout << "  " << hex_msg(buffer, length) << std::endl;
+            
         } break;
 
         case 0x12: {
             // Sound State ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#12-sound-state )
-            printf("Msg %02hhx: Sound State\n", seh.parm_id);
+            if (verbose)
+                printf("Msg %02X (Sound State)\n", seh.parm_id);
         } break;
 
         default: {
-            printf("Msg %02hhx: ", seh.parm_id);
-            std::cout << hex_full(buffer, length) << std::endl;
+            if (verbose)
+                printf("Msg %02X (unknown)\n", seh.parm_id);
+
+            if (verbose > 1)
+                std::cout << "  " << hex_full(buffer, length) << std::endl;
         }
     }
 
