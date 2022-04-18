@@ -1,0 +1,15 @@
+language: cpp
+compiler: clang
+sudo: false
+dist: xenial
+addons:
+  apt:
+    packages:
+      - ninja-build
+      - libasound2-dev
+      - libjack-jackd2-dev
+script:
+  - mkdir build
+  - cd build
+  - cmake .. -GNinja
+  - cmake --build .
