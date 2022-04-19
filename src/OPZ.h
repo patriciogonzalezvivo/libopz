@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include <vector>
+#include <functional>
 
 namespace T3 {
 
@@ -44,6 +45,15 @@ enum sound_prop {
     SOUND_FX1,          SOUND_FX2,      SOUND_PAN,          SOUND_LEVEL,
     LFO_DEPTH,          LFO_SPEED,      LFO_VALUE,          LFO_SHAPE,
     NOTE_LENGHT,        QUANTIZE,       PORTAMENTO
+};
+
+// All but the musical keyboard
+enum key_id {
+    KEY_POWER = 0,
+    KEY_PROJECT, KEY_MIXER, KEY_TEMPO, KEY_SCREEN,
+    KEY_TRACK, KEY_KICK, KEY_SNARE, KEY_PERC, KEY_SAMPLE, KEY_BASS, KEY_LEAD, KEY_ARP, KEY_CHORD, KEY_FX1, KEY_FX2, KEY_TAPE, KEY_MASTER, KEY_PERFORM, KEY_MODULE, KEY_LIGHT, KEY_MOTION,
+    KEY_RECORD, KEY_PLAY, KEY_STOP,
+    KEY_MINUS, KEY_PLUS, KEY_SHIFT
 };
 
 #pragma pack(1)
@@ -187,10 +197,17 @@ public:
     bool            connect();
     void            disconnect();
 
+    static void     process_message(double _deltatime, std::vector<unsigned char>* _message, void* _userData);
+    static std::string& toString( key_id _id );
+    static std::string& toString( track  _id );
+    static std::string& toString( page   _id );
+
     void            update();
 
-    const std::vector<unsigned char>* getInitMsg() const;
-    const std::vector<unsigned char>* getHeartBeat() const;
+    void            setKeyCallback(std::function<void(key_id, int)> _callback) { m_key = _callback; m_key_enable = true; }
+
+    static const std::vector<unsigned char>* getInitMsg();
+    static const std::vector<unsigned char>* getHeartBeat();
 
     track           getSelectedTrack() const { return m_track; }
     page            getSelectedPage() const { return m_page; }
@@ -198,12 +215,9 @@ public:
     float           getVolume() const { return m_volume; }
     float           getSoundProperty(track _track, sound_prop _prop);
 
-    static void     process_message(double _deltatime, std::vector<unsigned char>* _message, void* _userData);
-
     size_t          verbose;
 
 protected:
-
     void            process_sysex(std::vector<unsigned char>* _message);
     void            process_event(std::vector<unsigned char>* _message);
 
@@ -214,12 +228,14 @@ protected:
 
     float           m_volume;
 
-    int             m_key_track; 
     track           m_track;
     page            m_page;
 
     unsigned char   m_microphone_mode;
     bool            m_play;
+
+    std::function<void(key_id, int)> m_key;
+    bool            m_key_enable;
 };
 
 }

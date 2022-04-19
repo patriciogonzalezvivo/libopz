@@ -50,11 +50,11 @@ std::vector<unsigned char> master_heartbeat = {
 }; 
 
 std::string key_name[] = {
-    "pager2x",      "mixer",        "record",       "KEY14",        "KEY15",        "KEY16",    "KEY17",    "KEY18",
-    "KEY21",        "KEY22",        "KEY23",        "KEY24",        "KEY25",        "KEY26",    "page",     "KEY28",
-    "track_0bit",   "track_1bit",   "track_2bit",   "track_3bit",   "track_4bit",   "shift",    "tempo",    "KEY38",
-    "KEY41",        "KEY42",        "KEY43",        "KEY44",        "screen",       "stop",     "KEY47",    "KEY48",
-    "track",        "project",      "KEY53",        "KEY54",        "KEY55",        "KEY56",    "KEY57",    "KEY58"
+    "KEY_POWER",
+    "KEY_PROJECT", "KEY_MIXER", "KEY_TEMPO", "KEY_SCREEN",
+    "KEY_TRACK", "KEY_KICK", "KEY_SNARE", "KEY_PERC", "KEY_SAMPLE", "KEY_BASS", "KEY_LEAD", "KEY_ARP", "KEY_CHORD", "KEY_FX1", "KEY_FX2", "KEY_TAPE", "KEY_MASTER", "KEY_PERFORM", "KEY_MODULE", "KEY_LIGHT", "KEY_MOTION",
+    "KEY_RECORD", "KEY_PLAY", "KEY_STOP",
+    "KEY_MINUS", "KEY_PLUS", "KEY_SHIFT"
 };
 
 // https://teenage.engineering/guides/op-z/parameter-pages
@@ -64,7 +64,7 @@ std::string page_name[] = {
 
 // https://teenage.engineering/guides/op-z/tracks
 std::string track_name[] = { 
-    "KICK", "SNARE", "PERC", "SAMPLE", "BASS", "LEAD", "ARP", "CHORD", "FX1", "FX2", "TAPE", "MASTER", "PERFORM", "MODULE", "LIGHT", "MOTION", "NONE" 
+    "KICK", "SNARE", "PERC", "SAMPLE", "BASS", "LEAD", "ARP", "CHORD", "FX1", "FX2", "TAPE", "MASTER", "PERFORM", "MODULE", "LIGHT", "MOTION", "UNKNOWN" 
 };
 
 OPZ::OPZ() :
@@ -73,11 +73,15 @@ m_volume(0.0f),
 m_track(KICK), 
 m_page(PAGE_ONE), 
 m_microphone_mode(0),
-m_play(false) {
+m_play(false),
+m_key_enable(false) {
 }
 
-const std::vector<unsigned char>* OPZ::getInitMsg() const { return &initial_message; }
-const std::vector<unsigned char>* OPZ::getHeartBeat() const { return &master_heartbeat; }
+const std::vector<unsigned char>* OPZ::getInitMsg() { return &initial_message; }
+const std::vector<unsigned char>* OPZ::getHeartBeat() { return &master_heartbeat; }
+std::string& OPZ::toString( key_id _id ) { return key_name[_id]; }
+std::string& OPZ::toString( track  _id ) { return track_name[_id]; }
+std::string& OPZ::toString( page   _id ) { return page_name[_id]; }
 
 void OPZ::process_message(double _deltatime, std::vector<unsigned char>* _message, void* _userData) {
     OPZ *device = static_cast<OPZ*>(_userData);
@@ -106,9 +110,12 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
     
     switch (seh.parm_id) {
         case 0x01: {
-            // Universal response ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#01-universal-response )
-            if (verbose)
-                printf("Msg %02X (Universal response)\n", seh.parm_id);
+            // // Universal response ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#01-universal-response )
+            // if (verbose)
+            //     printf("Msg %02X (Universal response)\n", seh.parm_id);
+
+            // if (verbose > 1)
+            //     std::cout << "  " << hex_msg(buffer, length) << std::endl;
         } break;
 
         case 0x02: {
@@ -116,13 +123,18 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
             if (verbose)
                 printf("Msg %02X (Track Setting)\n", seh.parm_id);
 
+            if (verbose > 1)
+                std::cout << "  " << hex_msg(buffer, length) << std::endl;
+
         } break;
 
         case 0x03: {
             // Keyboard Setting ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#03-keyboard-setting )
             if (verbose)
                 printf("Msg %02X (Keyboard Setting)\n", seh.parm_id);
-            // std::cout << " " << hex_msg(buffer, length) ;
+
+            if (verbose > 1)
+                std::cout << "  " << hex_msg(buffer, length) << std::endl;
 
             // const track_state &ti = (const track_state &)buffer[sizeof(sysex_header)-1];
             CAST_MESSAGE(track_state, ti);
@@ -130,8 +142,8 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
 
             memcpy(&(m_track_state[m_track]), &ti, sizeof(track_state));
             
-            if (verbose > 1) {
-                std::cout << "  Update track " << track_name[m_track];
+            if (verbose > 2) {
+                std::cout << "  Update track " << toString(m_track);
                 printf(", data %02X %02X\n", m_track_state[m_track].value_p1, m_track_state[m_track].value_p2);
             }
             
@@ -141,14 +153,20 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
             if (verbose)
                 printf("Msg %02X (unknown)\n", seh.parm_id);
 
+            if (verbose > 1)
+                std::cout << "  " << hex_msg(buffer, length) << std::endl;
+
             m_volume = ( ((int)buffer[6] == 0)? (int)buffer[8] : 127 + (int)buffer[8] )/254.0;
             m_microphone_mode = buffer[10];
 
-            if (verbose > 1) {
+            if (verbose > 2) {
                 printf(" Volumen    %f\n", m_volume);
                 printf(" ????????   %02x\n", buffer[9] );
                 printf(" Microphone %02x\n", m_microphone_mode);
             }
+
+            if (m_key_enable)
+                m_key(KEY_POWER, m_volume * 100);
         } break;
 
         case 0x06: {
@@ -156,22 +174,16 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
             if (verbose)
                 printf("Msg %02X (Button States)\n", seh.parm_id);
 
+            if (verbose > 1)
+                std::cout << "  " << hex_msg(buffer, length) << std::endl;
+
             CAST_MESSAGE(key_state, ki);
             memcpy(&(m_key_prev_state), &m_key_state, sizeof(m_key_state));
             memcpy(&(m_key_state), &ki, sizeof(m_key_state));
 
-            if (m_key_state.step < 16) 
-                m_key_track = (int)m_key_state.step;
-            else 
-                m_key_track = -1;
-
-            m_page = (page)( (int)(m_key_state.page2x) * 2 + (int)(m_key_state.page) );
-
-            if (verbose > 1) {
-                // std::cout << "  track: " << track_name[m_track] << std::endl;
-                // std::cout << "  page:  " << page_name[m_page] << std::endl;
-                // if (m_key_state.step < 16)
-                //     std::cout << "  track_key: " << track_name[m_key_track] << std::endl;
+            if (verbose > 2) {
+                std::cout << "  track: " << toString(m_track) << std::endl;
+                std::cout << "  page:  " << toString(m_page) << std::endl;
 
                 printf( "page2x:    %i\n", m_key_state.page2x);
                 printf( "mixer:     %i\n", m_key_state.mixer);
@@ -218,8 +230,44 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf( "key56:     %i\n", m_key_state.key56);
                 printf( "key57:     %i\n", m_key_state.key57);
                 printf( "key58:     %i\n", m_key_state.key58);
-            }            
-            
+            }      
+
+            m_page = (page)( (int)(m_key_state.page2x) * 2 + (int)(m_key_state.page) );
+
+            if (m_key_enable) {
+
+                if (m_key_state.project) m_key( KEY_PROJECT, 1);
+                if (m_key_prev_state.project && !m_key_state.project ) m_key( KEY_PROJECT, 0);
+                
+                if (m_key_state.mixer) m_key( KEY_MIXER, 1);
+                if (m_key_prev_state.mixer && !m_key_state.mixer) m_key( KEY_MIXER, 0);
+
+                if (m_key_state.tempo) m_key( KEY_TEMPO, 1);
+                if (m_key_prev_state.tempo && !m_key_state.tempo) m_key( KEY_TEMPO, 0);
+                
+                if (m_key_state.screen) m_key( KEY_SCREEN, 1);
+                if (m_key_prev_state.screen && !m_key_state.screen) m_key( KEY_SCREEN, 0);
+
+                if (m_key_state.track) m_key( KEY_TRACK, 1);
+                if (m_key_prev_state.track && !m_key_state.track) m_key( KEY_TRACK, 0);
+
+                if (m_key_state.step < 16) m_key( key_id( 6+(int)m_key_state.step ), 1);
+                if (m_key_prev_state.step < 16 && m_key_state.step >= 16) m_key( key_id( 6+(int)m_key_prev_state.step ), 0);
+
+                if (m_key_state.record) m_key( KEY_RECORD, 1);
+                if (m_key_prev_state.record && !m_key_state.record) m_key( KEY_RECORD, 0);
+
+                // TODO: KEY_PLAY
+
+                if (m_key_state.stop) m_key( KEY_STOP, 1);
+                if (m_key_prev_state.stop && !m_key_state.stop) m_key( KEY_STOP, 0);
+
+                // TODO: KEY_MINUX / KEY_PLUS
+
+                if (m_key_state.shift) m_key( KEY_SHIFT, 1);
+                if (m_key_prev_state.shift && !m_key_state.shift) m_key( KEY_SHIFT, 0);
+            }
+
         } break;
 
         case 0x07: {
@@ -254,14 +302,18 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
 
         case 0x0e: {
             // Sound preset ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#0e-sound-preset )
-            m_key_track = buffer[7];
             if (verbose)
                 printf("Msg %02X (Sound preset)\n", seh.parm_id);
+
+            if (verbose > 1)
+                std::cout << "  " << hex_msg(buffer, length) << std::endl;
+
+            m_track = (track)buffer[7];
 
             CAST_MESSAGE(sound_state, si);
             memcpy(&(m_sound_state[m_track]), &si, sizeof(sound_state));
 
-            if (verbose > 1) {
+            if (verbose > 2) {
                 std::cout << "  Active track: " << track_name[m_track] << " page:  " << page_name[m_page] << std::endl;
 
                 printf( "   byte1X:     %i %i %i %i  %i %i %i %i\n", si.byte11, si.param1_hf, si.param2_hf, si.attack_hf, si.decay_hf, si.sustain_hf, si.release_hf, si.byte18);
@@ -296,6 +348,9 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
             // Compressed MIDI Config ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#10-zlib-compressed-midi-config )
             if (verbose)
                 printf("Msg %02X (Compressed MIDI Config)\n", seh.parm_id);
+
+            if (verbose > 1)
+                std::cout << "  " << hex_msg(buffer, length) << std::endl;
         } break;
 
         case 0x11: {
@@ -311,6 +366,9 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
             // Sound State ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#12-sound-state )
             if (verbose)
                 printf("Msg %02X (Sound State)\n", seh.parm_id);
+
+            if (verbose > 1)
+                std::cout << "  " << hex_msg(buffer, length) << std::endl;
         } break;
 
         default: {
