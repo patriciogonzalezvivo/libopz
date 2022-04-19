@@ -31,12 +31,12 @@ const uint8_t SYSTEM_RESET        = 0xFF;
 const uint8_t OPZ_VENDOR_ID[3] = {0x00, 0x20, 0x76};
 const uint8_t OPZ_MAX_PROTOCOL_VERSION = 0x01;
 
-enum track {
-    KICK = 0, SNARE, PERC, SAMPLE, BASS, LEAD, ARP, CHORD, FX1, FX2, TAPE, MASTER, PERFORM, MODULE, LIGHT, MOTION  
-};
-
 enum page {
     PAGE_ONE = 0, PAGE_TWO, PAGE_TREE, PAGE_FOUR
+};
+
+enum track {
+    KICK = 0, SNARE, PERC, SAMPLE, BASS, LEAD, ARP, CHORD, FX1, FX2, TAPE, MASTER, PERFORM, MODULE, LIGHT, MOTION  
 };
 
 enum sound_prop {
@@ -56,7 +56,7 @@ enum key_id {
     KEY_MINUS, KEY_PLUS, KEY_SHIFT
 };
 
-#pragma pack(1)
+// #pragma pack(1)
 typedef struct {
     uint8_t sysex_id;
     uint8_t vendor_id[3];
@@ -64,7 +64,7 @@ typedef struct {
     uint8_t parm_id;
 } sysex_header, *p_sysex_header;
 
-#pragma pack(1)
+// #pragma pack(1)
 typedef struct {
     uint8_t parm_id;
     uint8_t value_p1;
@@ -72,13 +72,13 @@ typedef struct {
     uint8_t track;
 } track_state, *p_track_state;
 
-#pragma pack(1)
+// #pragma pack(1)
 typedef struct {
     uint8_t parm_id;
 } encoder_info, *p_encoder_info;
 
 
-#pragma pack(1)
+// #pragma pack(1)
 typedef struct {
     uint8_t parm_id;    // 5 bit  
                         // 6 bit
@@ -138,7 +138,7 @@ typedef struct {
 
 } sound_state,        *p_sound_state;     
 
-#pragma pack(1)
+// #pragma pack(1)
 typedef struct {
     uint8_t parm_id;
     
@@ -201,6 +201,7 @@ public:
     static std::string& toString( key_id _id );
     static std::string& toString( track  _id );
     static std::string& toString( page   _id );
+    static std::string& toString( sound_prop _id);
 
     void            update();
 

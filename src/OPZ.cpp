@@ -67,6 +67,14 @@ std::string track_name[] = {
     "KICK", "SNARE", "PERC", "SAMPLE", "BASS", "LEAD", "ARP", "CHORD", "FX1", "FX2", "TAPE", "MASTER", "PERFORM", "MODULE", "LIGHT", "MOTION", "UNKNOWN" 
 };
 
+std::string sound_prop_name[] = { 
+    "SOUND_PARAM1",     "SOUND_PARAM2",   "SOUND_FILTER",       "SOUND_RESONANCE", 
+    "ENVELOPE_ATTACK",  "ENVELOPE_DECAY", "ENVELOPE_SUSTAIN",   "ENVELOPE_RELEASE",
+    "SOUND_FX1",        "SOUND_FX2",      "SOUND_PAN",          "SOUND_LEVEL",
+    "LFO_DEPTH",        "LFO_SPEED",      "LFO_VALUE",          "LFO_SHAPE",
+    "NOTE_LENGHT",      "QUANTIZE",       "PORTAMENTO"
+};
+
 OPZ::OPZ() :
 verbose(0),
 m_volume(0.0f), 
@@ -77,11 +85,12 @@ m_play(false),
 m_key_enable(false) {
 }
 
-const std::vector<unsigned char>* OPZ::getInitMsg() { return &initial_message; }
-const std::vector<unsigned char>* OPZ::getHeartBeat() { return &master_heartbeat; }
 std::string& OPZ::toString( key_id _id ) { return key_name[_id]; }
 std::string& OPZ::toString( track  _id ) { return track_name[_id]; }
 std::string& OPZ::toString( page   _id ) { return page_name[_id]; }
+std::string& OPZ::toString( sound_prop _id ) { return sound_prop_name[_id]; } 
+const std::vector<unsigned char>* OPZ::getInitMsg() { return &initial_message; }
+const std::vector<unsigned char>* OPZ::getHeartBeat() { return &master_heartbeat; }
 
 void OPZ::process_message(double _deltatime, std::vector<unsigned char>* _message, void* _userData) {
     OPZ *device = static_cast<OPZ*>(_userData);
@@ -376,7 +385,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("Msg %02X (unknown)\n", seh.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << hex_full(buffer, length) << std::endl;
+                std::cout << "  " << hex_msg(buffer, length) << std::endl;
         }
     }
 
