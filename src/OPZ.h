@@ -56,7 +56,6 @@ enum key_id {
     KEY_MINUS, KEY_PLUS, KEY_SHIFT
 };
 
-// #pragma pack(1)
 typedef struct {
     uint8_t sysex_id;
     uint8_t vendor_id[3];
@@ -64,21 +63,17 @@ typedef struct {
     uint8_t parm_id;
 } sysex_header, *p_sysex_header;
 
-// #pragma pack(1)
 typedef struct {
     uint8_t parm_id;
     uint8_t value_p1;
     uint8_t value_p2;
     uint8_t track;
-} track_state, *p_track_state;
+} keyboard_state, *p_keyboard_state;
 
-// #pragma pack(1)
 typedef struct {
     uint8_t parm_id;
-} encoder_info, *p_encoder_info;
+} encoder_state, *p_encoder_state;
 
-
-// #pragma pack(1)
 typedef struct {
     uint8_t parm_id;    // 5 bit  
                         // 6 bit
@@ -138,7 +133,6 @@ typedef struct {
 
 } property_state,        *p_property_state;     
 
-// #pragma pack(1)
 typedef struct {
     uint8_t parm_id;
     
@@ -190,6 +184,90 @@ typedef struct {
     
 } key_state, *p_key_state;
 
+typedef struct {
+    uint8_t parm_id;
+
+    uint8_t byte1;
+    // uint8_t bit11 : 1;
+    // uint8_t bit12 : 1;
+    // uint8_t bit13 : 1;
+    // uint8_t bit14 : 1;
+    // uint8_t bit15 : 1;
+    // uint8_t bit16 : 1;
+    // uint8_t bit17 : 1;
+    // uint8_t bit18 : 1;
+
+    uint8_t byte2;
+    // uint8_t bit21 : 1;
+    // uint8_t bit22 : 1;
+    // uint8_t bit23 : 1;
+    // uint8_t bit24 : 1;
+    // uint8_t bit25 : 1;
+    // uint8_t bit26 : 1;
+    // uint8_t bit27 : 1;
+    // uint8_t bit28 : 1;
+
+
+    uint8_t byte3;
+    // uint8_t bit31 : 1;
+    // uint8_t bit32 : 1;
+    // uint8_t bit33 : 1;
+    // uint8_t bit34 : 1;
+    // uint8_t bit35 : 1;
+    // uint8_t bit36 : 1;
+    // uint8_t bit37 : 1;
+    // uint8_t bit38 : 1;
+
+    uint8_t value_id;
+
+
+    uint8_t byte5;
+    // uint8_t bit51 : 1;
+    // uint8_t bit52 : 1;
+    // uint8_t bit53 : 1;
+    // uint8_t bit54 : 1;
+    // uint8_t bit55 : 1;
+    // uint8_t bit56 : 1;
+    // uint8_t bit57 : 1;
+    // uint8_t bit58 : 1;
+
+    uint8_t byte6;
+    // uint8_t bit61 : 1;
+    // uint8_t bit62 : 1;
+    // uint8_t bit63 : 1;
+    // uint8_t bit64 : 1;
+    // uint8_t bit65 : 1;
+    // uint8_t bit66 : 1;
+    // uint8_t bit67 : 1;
+    // uint8_t bit68 : 1;
+
+
+    uint8_t byte7;
+    // uint8_t bit71 : 1;
+    // uint8_t bit72 : 1;
+    // uint8_t bit73 : 1;
+    // uint8_t bit74 : 1;
+    // uint8_t bit75 : 1;
+    // uint8_t bit76 : 1;
+    // uint8_t bit77 : 1;
+    // uint8_t bit78 : 1;
+
+
+    uint8_t byte8;
+    // uint8_t bit81 : 1;
+    // uint8_t bit82 : 1;
+    // uint8_t bit83 : 1;
+    // uint8_t bit84 : 1;
+    // uint8_t bit85 : 1;
+    // uint8_t bit86 : 1;
+    // uint8_t bit87 : 1;
+    // uint8_t bit88 : 1;
+
+    uint8_t value_hf;
+    uint8_t value;
+
+} track_state, *p_track_state;
+
 class OPZ {
 public:
     OPZ();
@@ -222,8 +300,9 @@ protected:
     void            process_sysex(std::vector<unsigned char>* _message);
     void            process_event(std::vector<unsigned char>* _message);
 
-    track_state     m_track_state[16];
+    keyboard_state  m_keyboard_state[16];
     property_state  m_property_state[16];
+    track_state     m_track_state[16];
     float           m_note_lenght[16];
     float           m_quantize[16];
 

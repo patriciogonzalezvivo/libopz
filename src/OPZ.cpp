@@ -130,14 +130,36 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
         case 0x02: {
             // Track Setting ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#02-track-settings )
 
-
             if (verbose)
                 printf("Msg %02X (Track Setting)\n", seh.parm_id);
 
             if (verbose > 1)
                 std::cout << "  " << hex_msg(buffer, length) << std::endl;
 
-            // Some of the values appears to sets Quantize and Note Length
+            CAST_MESSAGE(track_state, ti);
+            memcpy(&(m_track_state[m_track]), &ti, sizeof(track_state));
+
+            if (verbose > 2) {
+                printf( "   byte1:      %02X\n", ti.byte1);
+                // printf( "   byte1X:     %i %i %i %i  %i %i %i %i\n", ti.bit18, ti.bit17, ti.bit16, ti.bit15, ti.bit14, ti.bit13, ti.bit12, ti.bit11);
+                printf( "   byte2:      %02X\n", ti.byte2);
+                // printf( "   byte2X:     %i %i %i %i  %i %i %i %i\n", ti.bit28, ti.bit27, ti.bit26, ti.bit25, ti.bit24, ti.bit23, ti.bit22, ti.bit21);
+                printf( "   byte3:      %02X\n", ti.byte3);
+                // printf( "   byte3X:     %i %i %i %i  %i %i %i %i\n", ti.bit38, ti.bit37, ti.bit36, ti.bit35, ti.bit34, ti.bit33, ti.bit32, ti.bit31);
+
+                printf( "   value_id:   %02X\n", ti.value_id);
+
+                printf( "   byte5:      %02X\n", ti.byte5);
+                // printf( "   byte5X:     %i %i %i %i  %i %i %i %i\n", ti.bit58, ti.bit57, ti.bit56, ti.bit55, ti.bit54, ti.bit53, ti.bit52, ti.bit51);
+                printf( "   byte6:      %02X\n", ti.byte6);
+                // printf( "   byte6X:     %i %i %i %i  %i %i %i %i\n", ti.bit68, ti.bit67, ti.bit66, ti.bit65, ti.bit64, ti.bit63, ti.bit62, ti.bit61);
+                printf( "   byte7:      %02X\n", ti.byte7);
+                // printf( "   byte7X:     %i %i %i %i  %i %i %i %i\n", ti.bit78, ti.bit77, ti.bit76, ti.bit75, ti.bit74, ti.bit73, ti.bit72, ti.bit71);
+                printf( "   byte8:      %02X\n", ti.byte8);
+                // printf( "   byte8X:     %i %i %i %i  %i %i %i %i\n", ti.bit88, ti.bit87, ti.bit86, ti.bit85, ti.bit84, ti.bit83, ti.bit82, ti.bit81);
+
+                printf( "   value: %f\n", (ti.value + ti.value_hf * 128) / 255.0f );
+            }
 
 
         } break;
@@ -150,27 +172,27 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
             if (verbose > 1)
                 std::cout << "  " << hex_msg(buffer, length) << std::endl;
 
-            // const track_state &ti = (const track_state &)buffer[sizeof(sysex_header)-1];
-            CAST_MESSAGE(track_state, ti);
-            m_track = (track)ti.track;
+            // const keyboard_state &ti = (const keyboard_state &)buffer[sizeof(sysex_header)-1];
+            CAST_MESSAGE(keyboard_state, ki);
+            m_track = (track)ki.track;
 
-            memcpy(&(m_track_state[m_track]), &ti, sizeof(track_state));
+            memcpy(&(m_keyboard_state[m_track]), &ki, sizeof(keyboard_state));
             
             if (verbose > 2) {
                 std::cout << "  Update track " << toString(m_track);
-                printf(", data %02X %02X\n", m_track_state[m_track].value_p1, m_track_state[m_track].value_p2);
+                printf(", data %02X %02X\n", m_keyboard_state[m_track].value_p1, m_keyboard_state[m_track].value_p2);
             }
             
         } break;
 
         case 0x04: {
             if (verbose)
-                printf("Msg %02X (unknown)\n", seh.parm_id);
+                printf("Msg %02X (IN/OUT?)\n", seh.parm_id);
 
             if (verbose > 1)
                 std::cout << "  " << hex_msg(buffer, length) << std::endl;
 
-            m_volume = ( ((int)buffer[6] == 0)? (int)buffer[8] : 127 + (int)buffer[8] )/254.0;
+            m_volume = ( ((int)buffer[6] == 0)? (int)buffer[8] : 128 + (int)buffer[8] )/255.0;
             m_microphone_mode = buffer[10];
 
             if (verbose > 2) {
@@ -367,15 +389,6 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 std::cout << "  " << hex_msg(buffer, length) << std::endl;
         } break;
 
-        case 0x11: {
-            if (verbose)
-                printf("Msg %02X (unknown)\n", seh.parm_id);
-
-            if (verbose > 1)
-                std::cout << "  " << hex_msg(buffer, length) << std::endl;
-            
-        } break;
-
         case 0x12: {
             // Sound State ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#12-sound-state )
             if (verbose)
@@ -498,48 +511,48 @@ void OPZ::process_event(std::vector<unsigned char>* _message) {
 
 float OPZ::getSoundProperty(track _track, property _prop) {
     if (_prop == SOUND_PARAM1)
-        return (m_property_state[m_track].param1 + m_property_state[m_track].param1_hf * 127) / 255.0f;
+        return (m_property_state[m_track].param1 + m_property_state[m_track].param1_hf * 128) / 255.0f;
     else if (_prop == SOUND_PARAM2)
-        return (m_property_state[m_track].param2 + m_property_state[m_track].param2_hf * 127) / 255.0f;
+        return (m_property_state[m_track].param2 + m_property_state[m_track].param2_hf * 128) / 255.0f;
     else if (_prop == SOUND_FILTER)
-        return (m_property_state[m_track].filter + m_property_state[m_track].filter_hf * 127) / 255.0f; 
+        return (m_property_state[m_track].filter + m_property_state[m_track].filter_hf * 128) / 255.0f; 
     else if (_prop == SOUND_RESONANCE)
-        return (m_property_state[m_track].resonance + m_property_state[m_track].resonance_hf * 127) / 255.0f;
+        return (m_property_state[m_track].resonance + m_property_state[m_track].resonance_hf * 128) / 255.0f;
 
     // TODO
     //      - I got the names wrong
     else if (_prop == ENVELOPE_ATTACK) // S
-        return (m_property_state[m_track].attack + m_property_state[m_track].attack_hf * 127) / 255.0f;
+        return (m_property_state[m_track].attack + m_property_state[m_track].attack_hf * 128) / 255.0f;
     else if (_prop == ENVELOPE_DECAY) // A
-        return (m_property_state[m_track].decay + m_property_state[m_track].decay_hf * 127) / 255.0f;
+        return (m_property_state[m_track].decay + m_property_state[m_track].decay_hf * 128) / 255.0f;
     else if (_prop == ENVELOPE_SUSTAIN) // H
-        return (m_property_state[m_track].sustain + m_property_state[m_track].sustain_hf * 127) / 255.0f; 
+        return (m_property_state[m_track].sustain + m_property_state[m_track].sustain_hf * 128) / 255.0f; 
     else if (_prop == ENVELOPE_RELEASE) // D
-        return (m_property_state[m_track].release + m_property_state[m_track].release_hf * 127) / 255.0f; 
+        return (m_property_state[m_track].release + m_property_state[m_track].release_hf * 128) / 255.0f; 
 
     else if (_prop == LFO_DEPTH)
-        return (m_property_state[m_track].lfo_depth + m_property_state[m_track].lfo_depth_hf * 127) / 255.0f;
+        return (m_property_state[m_track].lfo_depth + m_property_state[m_track].lfo_depth_hf * 128) / 255.0f;
     else if (_prop == LFO_SPEED) // RATE
-        return (m_property_state[m_track].lfo_speed + m_property_state[m_track].lfo_speed_hf * 127) / 255.0f;
+        return (m_property_state[m_track].lfo_speed + m_property_state[m_track].lfo_speed_hf * 128) / 255.0f;
     else if (_prop == LFO_VALUE) // DEST
-        return (m_property_state[m_track].lfo_value + m_property_state[m_track].lfo_value_hf * 127) / 255.0f; 
+        return (m_property_state[m_track].lfo_value + m_property_state[m_track].lfo_value_hf * 128) / 255.0f; 
     else if (_prop == LFO_SHAPE)
-        return (m_property_state[m_track].lfo_shape + m_property_state[m_track].lfo_shape_hf * 127) / 255.0f;
+        return (m_property_state[m_track].lfo_shape + m_property_state[m_track].lfo_shape_hf * 128) / 255.0f;
 
     else if (_prop == SOUND_FX1)
-        return (m_property_state[m_track].fx1 + m_property_state[m_track].fx1_hf * 127) / 255.0f;
+        return (m_property_state[m_track].fx1 + m_property_state[m_track].fx1_hf * 128) / 255.0f;
     else if (_prop == SOUND_FX2)
-        return (m_property_state[m_track].fx2 + m_property_state[m_track].fx2_hf * 127) / 127.0f - 1.0f;
+        return (m_property_state[m_track].fx2 + m_property_state[m_track].fx2_hf * 128) / 128.0f - 1.0f;
     else if (_prop == SOUND_PAN)
-        return (m_property_state[m_track].pan + m_property_state[m_track].pan_hf * 127) / 255.0f; 
+        return (m_property_state[m_track].pan + m_property_state[m_track].pan_hf * 128) / 255.0f; 
     else if (_prop == SOUND_LEVEL)
-        return (m_property_state[m_track].level + m_property_state[m_track].level_hf * 127) / 255.0f;
+        return (m_property_state[m_track].level + m_property_state[m_track].level_hf * 128) / 255.0f;
 
     else if (_prop = NOTE_STYLE)
-        return (m_property_state[m_track].note_style + m_property_state[m_track].portamento_hf * 127) / 255.0f;
+        return (m_property_state[m_track].note_style + m_property_state[m_track].portamento_hf * 128) / 255.0f;
 
     else if (_prop == PORTAMENTO)
-        return (m_property_state[m_track].portamento + m_property_state[m_track].portamento_hf * 127) / 255.0f;
+        return (m_property_state[m_track].portamento + m_property_state[m_track].portamento_hf * 128) / 255.0f;
 
     return 0.0f;
 }
