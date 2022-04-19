@@ -67,7 +67,7 @@ std::string track_name[] = {
     "KICK", "SNARE", "PERC", "SAMPLE", "BASS", "LEAD", "ARP", "CHORD", "FX1", "FX2", "TAPE", "MASTER", "PERFORM", "MODULE", "LIGHT", "MOTION", "UNKNOWN" 
 };
 
-std::string sound_prop_name[] = { 
+std::string property_name[] = { 
     "SOUND_PARAM1",     "SOUND_PARAM2",   "SOUND_FILTER",       "SOUND_RESONANCE", 
     "ENVELOPE_ATTACK",  "ENVELOPE_DECAY", "ENVELOPE_SUSTAIN",   "ENVELOPE_RELEASE",
     "SOUND_FX1",        "SOUND_FX2",      "SOUND_PAN",          "SOUND_LEVEL",
@@ -88,7 +88,7 @@ m_key_enable(false) {
 std::string& OPZ::toString( key_id _id ) { return key_name[_id]; }
 std::string& OPZ::toString( track  _id ) { return track_name[_id]; }
 std::string& OPZ::toString( page   _id ) { return page_name[_id]; }
-std::string& OPZ::toString( sound_prop _id ) { return sound_prop_name[_id]; } 
+std::string& OPZ::toString( property _id ) { return property_name[_id]; } 
 const std::vector<unsigned char>* OPZ::getInitMsg() { return &initial_message; }
 const std::vector<unsigned char>* OPZ::getHeartBeat() { return &master_heartbeat; }
 
@@ -129,11 +129,16 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
 
         case 0x02: {
             // Track Setting ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#02-track-settings )
+
+
             if (verbose)
                 printf("Msg %02X (Track Setting)\n", seh.parm_id);
 
             if (verbose > 1)
                 std::cout << "  " << hex_msg(buffer, length) << std::endl;
+
+            // Some of the values appears to sets Quantize and Note Length
+
 
         } break;
 
@@ -319,8 +324,8 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
 
             m_track = (track)buffer[7];
 
-            CAST_MESSAGE(sound_state, si);
-            memcpy(&(m_sound_state[m_track]), &si, sizeof(sound_state));
+            CAST_MESSAGE(property_state, si);
+            memcpy(&(m_property_state[m_track]), &si, sizeof(property_state));
 
             if (verbose > 2) {
                 std::cout << "  Active track: " << track_name[m_track] << " page:  " << page_name[m_page] << std::endl;
@@ -349,7 +354,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf( "   lfo_value:  %i\n", si.lfo_value);
                 printf( "   lfo_shape:  %i\n", si.lfo_shape);
 
-                printf( "   note_style:  %i\n", si.note_style_hf);
+                printf( "   note_style:  %i\n", si.note_style);
             }
         } break;
 
@@ -491,47 +496,50 @@ void OPZ::process_event(std::vector<unsigned char>* _message) {
     // std::cout << std::endl;
 }
 
-float OPZ::getSoundProperty(track _track, sound_prop _prop) {
+float OPZ::getSoundProperty(track _track, property _prop) {
     if (_prop == SOUND_PARAM1)
-        return (m_sound_state[m_track].param1 + m_sound_state[m_track].param1_hf * 127) / 255.0f;
+        return (m_property_state[m_track].param1 + m_property_state[m_track].param1_hf * 127) / 255.0f;
     else if (_prop == SOUND_PARAM2)
-        return (m_sound_state[m_track].param2 + m_sound_state[m_track].param2_hf * 127) / 255.0f;
+        return (m_property_state[m_track].param2 + m_property_state[m_track].param2_hf * 127) / 255.0f;
     else if (_prop == SOUND_FILTER)
-        return (m_sound_state[m_track].filter + m_sound_state[m_track].filter_hf * 127) / 255.0f; 
+        return (m_property_state[m_track].filter + m_property_state[m_track].filter_hf * 127) / 255.0f; 
     else if (_prop == SOUND_RESONANCE)
-        return (m_sound_state[m_track].resonance + m_sound_state[m_track].resonance_hf * 127) / 255.0f;
+        return (m_property_state[m_track].resonance + m_property_state[m_track].resonance_hf * 127) / 255.0f;
 
     // TODO
     //      - I got the names wrong
     else if (_prop == ENVELOPE_ATTACK) // S
-        return (m_sound_state[m_track].attack + m_sound_state[m_track].attack_hf * 127) / 255.0f;
+        return (m_property_state[m_track].attack + m_property_state[m_track].attack_hf * 127) / 255.0f;
     else if (_prop == ENVELOPE_DECAY) // A
-        return (m_sound_state[m_track].decay + m_sound_state[m_track].decay_hf * 127) / 255.0f;
+        return (m_property_state[m_track].decay + m_property_state[m_track].decay_hf * 127) / 255.0f;
     else if (_prop == ENVELOPE_SUSTAIN) // H
-        return (m_sound_state[m_track].sustain + m_sound_state[m_track].sustain_hf * 127) / 255.0f; 
+        return (m_property_state[m_track].sustain + m_property_state[m_track].sustain_hf * 127) / 255.0f; 
     else if (_prop == ENVELOPE_RELEASE) // D
-        return (m_sound_state[m_track].release + m_sound_state[m_track].release_hf * 127) / 255.0f; 
+        return (m_property_state[m_track].release + m_property_state[m_track].release_hf * 127) / 255.0f; 
 
     else if (_prop == LFO_DEPTH)
-        return (m_sound_state[m_track].lfo_depth + m_sound_state[m_track].lfo_depth_hf * 127) / 255.0f;
+        return (m_property_state[m_track].lfo_depth + m_property_state[m_track].lfo_depth_hf * 127) / 255.0f;
     else if (_prop == LFO_SPEED) // RATE
-        return (m_sound_state[m_track].lfo_speed + m_sound_state[m_track].lfo_speed_hf * 127) / 255.0f;
+        return (m_property_state[m_track].lfo_speed + m_property_state[m_track].lfo_speed_hf * 127) / 255.0f;
     else if (_prop == LFO_VALUE) // DEST
-        return (m_sound_state[m_track].lfo_value + m_sound_state[m_track].lfo_value_hf * 127) / 255.0f; 
+        return (m_property_state[m_track].lfo_value + m_property_state[m_track].lfo_value_hf * 127) / 255.0f; 
     else if (_prop == LFO_SHAPE)
-        return (m_sound_state[m_track].lfo_shape + m_sound_state[m_track].lfo_shape_hf * 127) / 255.0f;
+        return (m_property_state[m_track].lfo_shape + m_property_state[m_track].lfo_shape_hf * 127) / 255.0f;
 
     else if (_prop == SOUND_FX1)
-        return (m_sound_state[m_track].fx1 + m_sound_state[m_track].fx1_hf * 127) / 255.0f;
+        return (m_property_state[m_track].fx1 + m_property_state[m_track].fx1_hf * 127) / 255.0f;
     else if (_prop == SOUND_FX2)
-        return (m_sound_state[m_track].fx2 + m_sound_state[m_track].fx2_hf * 127) / 127.0f - 1.0f;
+        return (m_property_state[m_track].fx2 + m_property_state[m_track].fx2_hf * 127) / 127.0f - 1.0f;
     else if (_prop == SOUND_PAN)
-        return (m_sound_state[m_track].pan + m_sound_state[m_track].pan_hf * 127) / 255.0f; 
+        return (m_property_state[m_track].pan + m_property_state[m_track].pan_hf * 127) / 255.0f; 
     else if (_prop == SOUND_LEVEL)
-        return (m_sound_state[m_track].level + m_sound_state[m_track].level_hf * 127) / 255.0f;
+        return (m_property_state[m_track].level + m_property_state[m_track].level_hf * 127) / 255.0f;
+
+    else if (_prop = NOTE_STYLE)
+        return (m_property_state[m_track].note_style + m_property_state[m_track].portamento_hf * 127) / 255.0f;
 
     else if (_prop == PORTAMENTO)
-        return (m_sound_state[m_track].portamento + m_sound_state[m_track].portamento_hf * 127) / 255.0f;
+        return (m_property_state[m_track].portamento + m_property_state[m_track].portamento_hf * 127) / 255.0f;
 
     return 0.0f;
 }

@@ -39,12 +39,12 @@ enum track {
     KICK = 0, SNARE, PERC, SAMPLE, BASS, LEAD, ARP, CHORD, FX1, FX2, TAPE, MASTER, PERFORM, MODULE, LIGHT, MOTION  
 };
 
-enum sound_prop {
+enum property {
     SOUND_PARAM1 = 0,   SOUND_PARAM2,   SOUND_FILTER,       SOUND_RESONANCE, 
     ENVELOPE_ATTACK,    ENVELOPE_DECAY, ENVELOPE_SUSTAIN,   ENVELOPE_RELEASE,
     SOUND_FX1,          SOUND_FX2,      SOUND_PAN,          SOUND_LEVEL,
     LFO_DEPTH,          LFO_SPEED,      LFO_VALUE,          LFO_SHAPE,
-    NOTE_LENGHT,        QUANTIZE,       PORTAMENTO
+    NOTE_LENGHT,        NOTE_STYLE,     QUANTIZE,           PORTAMENTO
 };
 
 // All but the musical keyboard
@@ -136,7 +136,7 @@ typedef struct {
 
     uint8_t note_style; // 27
 
-} sound_state,        *p_sound_state;     
+} property_state,        *p_property_state;     
 
 // #pragma pack(1)
 typedef struct {
@@ -201,7 +201,7 @@ public:
     static std::string& toString( key_id _id );
     static std::string& toString( track  _id );
     static std::string& toString( page   _id );
-    static std::string& toString( sound_prop _id);
+    static std::string& toString( property _id);
 
     void            update();
 
@@ -214,7 +214,7 @@ public:
     page            getSelectedPage() const { return m_page; }
 
     float           getVolume() const { return m_volume; }
-    float           getSoundProperty(track _track, sound_prop _prop);
+    float           getSoundProperty(track _track, property _prop);
 
     size_t          verbose;
 
@@ -223,7 +223,10 @@ protected:
     void            process_event(std::vector<unsigned char>* _message);
 
     track_state     m_track_state[16];
-    sound_state     m_sound_state[16];
+    property_state  m_property_state[16];
+    float           m_note_lenght[16];
+    float           m_quantize[16];
+
     key_state       m_key_state;
     key_state       m_key_prev_state;
 
