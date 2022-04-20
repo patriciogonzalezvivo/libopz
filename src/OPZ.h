@@ -40,13 +40,26 @@ enum page_id {
     PAGE_ONE = 0, PAGE_TWO, PAGE_TREE, PAGE_FOUR
 };
 
-enum track_parameter_id {
-    TRACK_PLUG = 0,     TRACK_PLUG1,        TRACK_PLUG2,    TRACK_PLUG3,
-    TRACK_STEP_COUNT,   TRACK_UNKNOWN,      STEP_LENGTH,    TRACK_QUANTIZE,
-    TRACK_NOTE_STYLE,   TRACK_NOTE_LENGTH,  TRACK_UNUSED1,  TRACK_UNUSED2
+enum pattern_parameter_id {
+    KICK_PLUG = 0,  KICK_PLUG1,     KICK_PLUG2,     KICK_PLUG3,     KICK_STEP_COUNT,    KICK_UNKNOWN,   KICK_STEP_LENGTH,   KICK_QUANTIZE,  KICK_NOTE_STYLE,    KICK_NOTE_LENGTH,   KICK_BYTE1,     KICK_BYTE2,
+    SNARE_PLUG,     SNARE_PLUG1,    SNARE_PLUG2,    SNARE_PLUG3,    SNARE_STEP_COUNT,   SNARE_UNKNOWN,  SNARE_STEP_LENGTH,  SNARE_QUANTIZE, SNARE_NOTE_STYLE,   SNARE_NOTE_LENGTH,  SNARE_BYTE1,    SNARE_BYTE2,
+    PERC_PLUG,      PERC_PLUG1,     PERC_PLUG2,     PERC_PLUG3,     PERC_STEP_COUNT,    PERC_UNKNOWN,   PERC_STEP_LENGTH,   PERC_QUANTIZE,  PERC_NOTE_STYLE,    PERC_NOTE_LENGTH,   PERC_BYTE1,     PERC_BYTE2,
+    SAMPLE_PLUG,    SAMPLE_PLUG1,   SAMPLE_PLUG2,   SAMPLE_PLUG3,   SAMPLE_STEP_COUNT,  SAMPLE_UNKNOWN, SAMPLE_STEP_LENGTH, SAMPLE_QUANTIZE, SAMPLE_NOTE_STYLE, SAMPLE_NOTE_LENGTH, SAMPLE_BYTE1,   SAMPLE_BYTE2,
+    BASS_PLUG,      BASS_PLUG1,     BASS_PLUG2,     BASS_PLUG3,     BASS_STEP_COUNT,    BASS_UNKNOWN,   BASS_STEP_LENGTH,   BASS_QUANTIZE,  BASS_NOTE_STYLE,    BASS_NOTE_LENGTH,   BASS_BYTE1,     BASS_BYTE2,
+    LEAD_PLUG,      LEAD_PLUG1,     LEAD_PLUG2,     LEAD_PLUG3,     LEAD_STEP_COUNT,    LEAD_UNKNOWN,   LEAD_STEP_LENGTH,   LEAD_QUANTIZE,  LEAD_NOTE_STYLE,    LEAD_NOTE_LENGTH,   LEAD_BYTE1,     LEAD_BYTE2,
+    ARC_PLUG,       ARC_PLUG1,      ARC_PLUG2,      ARC_PLUG3,      ARC_STEP_COUNT,     ARC_UNKNOWN,    ARC_STEP_LENGTH,    ARC_QUANTIZE,   ARC_NOTE_STYLE,     ARC_NOTE_LENGTH,    ARC_BYTE1,      ARC_BYTE2,
+    CHORD_PLUG,     CHORD_PLUG1,    CHORD_PLUG2,    CHORD_PLUG3,    CHORD_STEP_COUNT,   CHORD_UNKNOWN,  CHORD_STEP_LENGTH,  CHORD_QUANTIZE, CHORD_NOTE_STYLE,   CHORD_NOTE_LENGTH,  CHORD_BYTE1,    CHORD_BYTE2,
+    FX1_PLUG,       FX1_PLUG1,      FX1_PLUG2,      FX1_PLUG3,      FX1_STEP_COUNT,     FX1_UNKNOWN,    FX1_STEP_LENGTH,    FX1_QUANTIZE,   FX1_NOTE_STYLE,     FX1_NOTE_LENGTH,    FX1_BYTE1,      FX1_BYTE2,
+    FX2_PLUG,       FX2_PLUG1,      FX2_PLUG2,      FX2_PLUG3,      FX2_STEP_COUNT,     FX2_UNKNOWN,    FX2_STEP_LENGTH,    FX2_QUANTIZE,   FX2_NOTE_STYLE,     FX2_NOTE_LENGTH,    FX2_BYTE1,      FX2_BYTE2,
+    TAPE_PLUG,      TAPE_PLUG1,     TAPE_PLUG2,     TAPE_PLUG3,     TAPE_STEP_COUNT,    TAPE_UNKNOWN,   TAPE_STEP_LENGTH,   TAPE_QUANTIZE,  TAPE_NOTE_STYLE,    TAPE_NOTE_LENGTH,   TAPE_BYTE1,     TAPE_BYTE2,
+    MASTER_PLUG,    MASTER_PLUG1,   MASTER_PLUG2,   MASTER_PLUG3,   MASTER_STEP_COUNT,  MASTER_UNKNOWN, MASTER_STEP_LENGTH, MASTER_QUANTIZE,MASTER_NOTE_STYLE,  MASTER_NOTE_LENGTH, MASTER_BYTE1,   MASTER_BYTE2,
+    PERFORM_PLUG,   PERFORM_PLUG1,  PERFORM_PLUG2,  PERFORM_PLUG3,  PERFORM_STEP_COUNT, PERFORM_UNKNOWN,PERFORM_STEP_LENGTH,PERFORM_QUANTIZE,PERFORM_NOTE_STYLE,PERFORM_NOTE_LENGTH,PERFORM_BYTE1,  PERFORM_BYTE2,
+    MODULE_PLUG,    MODULE_PLUG1,   MODULE_PLUG2,   MODULE_PLUG3,   MODULE_STEP_COUNT,  MODULE_UNKNOWN, MODULE_STEP_LENGTH, MODULE_QUANTIZE,MODULE_NOTE_STYLE,  MODULE_NOTE_LENGTH, MODULE_BYTE1,   MODULE_BYTE2,
+    LIGHT_PLUG,     LIGHT_PLUG1,    LIGHT_PLUG2,    LIGHT_PLUG3,    LIGHT_STEP_COUNT,   LIGHT_UNKNOWN,  LIGHT_STEP_LENGTH,  LIGHT_QUANTIZE, LIGHT_NOTE_STYLE,   LIGHT_NOTE_LENGTH,  LIGHT_BYTE1,    LIGHT_BYTE2,
+    MOTION_PLUG,    MOTION_PLUG1,   MOTION_PLUG2,   MOTION_PLUG3,   MOTION_STEP_COUNT,  MOTION_UNKNOWN, MOTION_STEP_LENGTH, MOTION_QUANTIZE,MOTION_NOTE_STYLE,  MOTION_NOTE_LENGTH, MOTION_BYTE1,   MOTION_BYTE2
 };
 
-enum track_page_parameter_id {
+enum track_parameter_id {
     SOUND_PARAM1 = 0,   SOUND_PARAM2,   SOUND_FILTER,       SOUND_RESONANCE, 
     ENVELOPE_ATTACK,    ENVELOPE_DECAY, ENVELOPE_SUSTAIN,   ENVELOPE_RELEASE,
     SOUND_FX1,          SOUND_FX2,      SOUND_PAN,          SOUND_LEVEL,
@@ -71,127 +84,72 @@ typedef struct {
 } sysex_header, *p_sysex_header;
 
 typedef struct {
-    uint8_t parm_id;
     uint8_t value_p1;
     uint8_t value_p2;
     uint8_t track;
 } track_keyboard, *p_track_keyboard;
 
 typedef struct {
-    uint8_t parm_id;        // 5 byte  
-
-                            // 6 byte
-    uint8_t byte11 : 1;         //  - ??
-    uint8_t param1_hf : 1;      //  - param1 half flag
-    uint8_t param2_hf : 1;      //  - param2 half flag
-    uint8_t attack_hf : 1;      //  - attack half flag
-    uint8_t decay_hf : 1;       //  - decay half flag
-    uint8_t sustain_hf : 1;     //  - sustain half flag
-    uint8_t release_hf : 1;     //  - release half flag
-    uint8_t byte18 : 1;         //  - ??
-
-    uint8_t track;          // 7 byte
-    uint8_t param1;         // 8 byte
-    uint8_t param2;         // 9 byte
-    uint8_t attack;         // 10 byte
-    uint8_t decay;          // 11 byte
-    uint8_t sustain;        // 12 byte
-    uint8_t release;        // 13 byte
-
-                            // 16 byte
-    uint8_t fx1_hf : 1;         //  -fx1 half flag
-    uint8_t fx2_hf : 1;         // - fx2 half flag
-    uint8_t filter_hf : 1;      // - filter half flag
-    uint8_t resonance_hf : 1;   // - resonance half flag
-    uint8_t pan_hf : 1;         // - pan half flag
-    uint8_t level_hf : 1;       // - level half flag
-    uint8_t portamento_hf : 1;  // - portamento half flag
-    uint8_t byte28 : 1;
-
-    uint8_t fx1;            // 14 byte
-    uint8_t fx2;            // 15 byte
-    uint8_t filter;         // 17 byte
-    uint8_t resonance;      // 18 byte
-    uint8_t pan;            // 19 byte
-    uint8_t level;          // 20 byte
-    uint8_t portamento;     // 21 byte
-                            // 22 byte
-    uint8_t lfo_depth_hf : 1;   // - LFO depth half flag   
-    uint8_t lfo_speed_hf : 1;   // - LFO speed half flag
-    uint8_t lfo_value_hf : 1;   // - LFO value half flag
-    uint8_t lfo_shape_hf : 1;   // - LFO shape half flag
-    uint8_t note_style_hf : 1;  // - note style half flag
-    uint8_t byte36 : 1;         // - ??
-    uint8_t byte37 : 1;         // - ??
-    uint8_t byte38 : 1;         // - ??
-
-    uint8_t lfo_depth;      // 23 byte
-    uint8_t lfo_speed;      // 24 byte
-    uint8_t lfo_value;      // 25 byte
-    uint8_t lfo_shape;      // 26 byte
-    uint8_t note_style;     // 27 byte
-
-} track_page_parameter,        *p_track_page_parameter;     
+    uint8_t track;
+    uint8_t param1;
+    uint8_t param2;
+    uint8_t attack;
+    uint8_t decay;
+    uint8_t sustain;
+    uint8_t release;
+    uint8_t fx1;    
+    uint8_t fx2;
+    uint8_t filter;
+    uint8_t resonance;
+    uint8_t pan;
+    uint8_t level;
+    uint8_t portamento;
+    uint8_t lfo_depth;
+    uint8_t lfo_speed;
+    uint8_t lfo_value;
+    uint8_t lfo_shape;
+    uint8_t note_style;
+} track_parameter,        *p_track_parameter;     
 
 typedef struct {
-    uint8_t parm_id;
-
-    uint8_t unknown1[3];
+    uint8_t unknown1[2];
     uint8_t value_type;
     uint8_t unknown2[4];
-    uint8_t value_hf;
     uint8_t value;
-
 } track_chunk, *p_track_chunk;
 
 typedef struct {
-    uint8_t parm_id;
-    
-    uint8_t page2x : 1;
-    uint8_t mixer : 1;
-    uint8_t record : 1;
-    uint8_t key14 : 1;  
-    
-    uint8_t key15 : 1;
-    uint8_t key16 : 1;
-    uint8_t key17 : 1;
-    uint8_t key18 : 1;
-    
-    uint8_t key21 : 1;
-    uint8_t key22 : 1;
-    uint8_t key23 : 1;
-    uint8_t key24 : 1;
-    
-    uint8_t key25 : 1;
-    uint8_t key26 : 1;
-    uint8_t page : 1;
-    uint8_t key28 : 1;
-    
+    uint8_t bit11 : 1;
+    uint8_t bit12 : 1;
+    uint8_t bit13 : 1;  
+    uint8_t bit14 : 1;
+    uint8_t bit15 : 1;
+    uint8_t bit16 : 1;
+    uint8_t page : 2;
+// 
     uint8_t step : 5;
 
     uint8_t shift : 1;
     uint8_t tempo : 1;
-    uint8_t key38 : 1;
-    
-    uint8_t key41 : 1;
-    uint8_t key42 : 1;
-    uint8_t key43 : 1;
-    uint8_t key44 : 1;
-    
-    uint8_t key45 : 1;
+    uint8_t mixer : 1;
+    // 
+    uint8_t bit31 : 1;
+    uint8_t bit32 : 1;
+    uint8_t bit33 : 1;  
+    uint8_t bit34 : 1;
+    uint8_t bit35 : 1;
     uint8_t screen : 1;
     uint8_t stop : 1;
-    uint8_t key48 : 1; 
-    
+    uint8_t record : 1;
+    //
     uint8_t track : 1;
     uint8_t project : 1;
-    uint8_t key53 : 1;
-    uint8_t key54 : 1;
-    
-    uint8_t key55 : 1;
-    uint8_t key56 : 1;
-    uint8_t key57 : 1;
-    uint8_t key58 : 1;
+    uint8_t bit43 : 1;  
+    uint8_t bit44 : 1;
+    uint8_t bit45 : 1;
+    uint8_t bit46 : 1;
+    uint8_t bit47 : 1;
+    uint8_t bit48 : 1;
     
 } key_state, *p_key_state;
 
@@ -206,8 +164,8 @@ public:
     static std::string& toString( key_id _id );
     static std::string& toString( page_id   _id );
     static std::string& toString( track_id  _id );
-    static std::string& toString( track_parameter_id _id );
-    static std::string& toString( track_page_parameter_id _id);
+    static std::string& toString( pattern_parameter_id _id );
+    static std::string& toString( track_parameter_id _id);
 
     void            update();
 
@@ -220,7 +178,7 @@ public:
     page_id            getActivePage() const { return m_active_page; }
 
     float           getVolume() const { return m_volume; }
-    float           getTrackPageParameter(track_id _track, track_page_parameter_id _prop);
+    float           getTrackPageParameter(track_id _track, track_parameter_id _prop);
 
     size_t          verbose;
 
@@ -229,7 +187,7 @@ protected:
     void            process_event(std::vector<unsigned char>* _message);
 
     track_keyboard  m_track_keyboard[16];
-    track_page_parameter  m_track_page_parameter[16];
+    track_parameter  m_track_parameter[16];
     float           m_note_lenght[16];
     float           m_quantize[16];
 

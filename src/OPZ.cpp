@@ -10,33 +10,7 @@ namespace T3 {
 
 // TOOLS
 #define BIT(x,b) ((x & (1<<b)))
-#define CAST_MESSAGE(TYP, NAM) const TYP & NAM = (const TYP &)buffer[sizeof(sysex_header)-1]
-
-char *hex_full(unsigned char *cp, size_t n) {
-    char *s = (char*)malloc(3*n + 1);
-
-    if (s == NULL)
-        return s;
-
-    for (size_t k = 0; k < n; ++k)
-        sprintf(s + 3*k, "%02X ", cp[k]);
-
-    s[3*n] = '\0';
-    return s;
-}
-
-char *hex_msg(unsigned char *cp, size_t n) {
-    char *s = (char*)malloc(3*(n-6) + 1);
-
-    if (s == NULL)
-        return s;
-
-    for (size_t k = 6; k < n-1; ++k)
-        sprintf(s + 3*(k-6), "%02X ", cp[k]);
-
-    s[3*(n-6)] = '\0';
-    return s;
-}
+#define CAST_MESSAGE(TYP, NAM) const TYP & NAM = (const TYP &)data[0]
 
 // https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol
 std::vector<unsigned char> initial_message = {
@@ -67,13 +41,26 @@ std::string track_name[] = {
     "KICK", "SNARE", "PERC", "SAMPLE", "BASS", "LEAD", "ARP", "CHORD", "FX1", "FX2", "TAPE", "MASTER", "PERFORM", "MODULE", "LIGHT", "MOTION", "UNKNOWN" 
 };
 
-std::string track_parameter_name[] = { 
-    "TRACK_PLUG",       "TRACK_PLUG1",        "TRACK_PLUG2",        "TRACK_PLUG3",
-    "TRACK_STEP_COUNT", "TRACK_UNKNOWN",      "TRACK_STEP_LENGTH",  "TRACK_QUANTIZE",
-    "TRACK_NOTE_STYLE", "TRACK_NOTE_LENGTH",  "TRACK_UNUSED1",      "TRACK_UNUSED2"
+std::string pattern_parameter_name[] = { 
+    "KICK_PLUG",    "KICK_PLUG1",   "KICK_PLUG2",   "KICK_PLUG3",   "KICK_STEP_COUNT",  "KICK_UNKNOWN", "KICK_STEP_LENGTH", "KICK_QUANTIZE",    "KICK_NOTE_STYLE",  "KICK_NOTE_LENGTH", "KICK_BYTE1",   "KICK_BYTE2",
+    "SNARE_PLUG",   "SNARE_PLUG1",  "SNARE_PLUG2",  "SNARE_PLUG3",  "SNARE_STEP_COUNT", "SNARE_UNKNOWN","SNARE_STEP_LENGTH","SNARE_QUANTIZE",   "SNARE_NOTE_STYLE", "SNARE_NOTE_LENGTH","SNARE_BYTE1", "SNARE_BYTE2",
+    "PERC_PLUG",    "PERC_PLUG1",   "PERC_PLUG2",   "PERC_PLUG3",   "PERC_STEP_COUNT",  "PERC_UNKNOWN", "PERC_STEP_LENGTH", "PERC_QUANTIZE",    "PERC_NOTE_STYLE",  "PERC_NOTE_LENGTH","PERC_BYTE1",    "PERC_BYTE2",
+    "SAMPLE_PLUG",  "SAMPLE_PLUG1", "SAMPLE_PLUG2", "SAMPLE_PLUG3", "SAMPLE_STEP_COUNT",  "SAMPLE_UNKNOWN", "SAMPLE_STEP_LENGTH", "SAMPLE_QUANTIZE", "SAMPLE_NOTE_STYLE", "SAMPLE_NOTE_LENGTH", "SAMPLE_BYTE1",   "SAMPLE_BYTE2",
+    "BASS_PLUG",    "BASS_PLUG1",   "BASS_PLUG2",   "BASS_PLUG3",   "BASS_STEP_COUNT",    "BASS_UNKNOWN",   "BASS_STEP_LENGTH",   "BASS_QUANTIZE",  "BASS_NOTE_STYLE",    "BASS_NOTE_LENGTH",   "BASS_BYTE1",     "BASS_BYTE2",
+    "LEAD_PLUG",    "LEAD_PLUG1",   "LEAD_PLUG2",   "LEAD_PLUG3", "LEAD_STEP_COUNT",    "LEAD_UNKNOWN",   "LEAD_STEP_LENGTH",   "LEAD_QUANTIZE",  "LEAD_NOTE_STYLE",    "LEAD_NOTE_LENGTH",   "LEAD_BYTE1",     "LEAD_BYTE2",
+    "ARC_PLUG",     "ARC_PLUG1",    "ARC_PLUG2",    "ARC_PLUG3",      "ARC_STEP_COUNT",     "ARC_UNKNOWN",    "ARC_STEP_LENGTH",    "ARC_QUANTIZE",   "ARC_NOTE_STYLE",     "ARC_NOTE_LENGTH",    "ARC_BYTE1",      "ARC_BYTE2",
+    "CHORD_PLUG",   "CHORD_PLUG1",  "CHORD_PLUG2",  "CHORD_PLUG3",    "CHORD_STEP_COUNT",   "CHORD_UNKNOWN",  "CHORD_STEP_LENGTH",  "CHORD_QUANTIZE", "CHORD_NOTE_STYLE",   "CHORD_NOTE_LENGTH",  "CHORD_BYTE1",    "CHORD_BYTE2",
+    "FX1_PLUG",     "FX1_PLUG1",    "FX1_PLUG2",    "FX1_PLUG3",      "FX1_STEP_COUNT",     "FX1_UNKNOWN",    "FX1_STEP_LENGTH",    "FX1_QUANTIZE",   "FX1_NOTE_STYLE",     "FX1_NOTE_LENGTH",    "FX1_BYTE1",      "FX1_BYTE2",
+    "FX2_PLUG",     "FX2_PLUG1",    "FX2_PLUG2",    "FX2_PLUG3",      "FX2_STEP_COUNT",     "FX2_UNKNOWN",    "FX2_STEP_LENGTH",    "FX2_QUANTIZE",   "FX2_NOTE_STYLE",     "FX2_NOTE_LENGTH",    "FX2_BYTE1",      "FX2_BYTE2",
+    "TAPE_PLUG",    "TAPE_PLUG1",   "TAPE_PLUG2",   "TAPE_PLUG3",     "TAPE_STEP_COUNT",    "TAPE_UNKNOWN",   "TAPE_STEP_LENGTH",   "TAPE_QUANTIZE",  "TAPE_NOTE_STYLE",    "TAPE_NOTE_LENGTH",   "TAPE_BYTE1",     "TAPE_BYTE2",
+    "MASTER_PLUG",  "MASTER_PLUG1", "MASTER_PLUG2", "MASTER_PLUG3",   "MASTER_STEP_COUNT",  "MASTER_UNKNOWN", "MASTER_STEP_LENGTH", "MASTER_QUANTIZE","MASTER_NOTE_STYLE",  "MASTER_NOTE_LENGTH", "MASTER_BYTE1",   "MASTER_BYTE2",
+    "PERFORM_PLUG", "PERFORM_PLUG1","PERFORM_PLUG2","PERFORM_PLUG3",  "PERFORM_STEP_COUNT", "PERFORM_UNKNOWN","PERFORM_STEP_LENGTH","PERFORM_QUANTIZE","PERFORM_NOTE_STYLE","PERFORM_NOTE_LENGTH","PERFORM_BYTE1",  "PERFORM_BYTE2",
+    "MODULE_PLUG",  "MODULE_PLUG1", "MODULE_PLUG2", "MODULE_PLUG3",   "MODULE_STEP_COUNT",  "MODULE_UNKNOWN", "MODULE_STEP_LENGTH", "MODULE_QUANTIZE","MODULE_NOTE_STYLE",  "MODULE_NOTE_LENGTH", "MODULE_BYTE1",   "MODULE_BYTE2",
+    "LIGHT_PLUG",   "LIGHT_PLUG1",  "LIGHT_PLUG2",  "LIGHT_PLUG3",    "LIGHT_STEP_COUNT",   "LIGHT_UNKNOWN",  "LIGHT_STEP_LENGTH",  "LIGHT_QUANTIZE", "LIGHT_NOTE_STYLE",   "LIGHT_NOTE_LENGTH",  "LIGHT_BYTE1",    "LIGHT_BYTE2",
+    "MOTION_PLUG",  "MOTION_PLUG1", "MOTION_PLUG2",   "MOTION_PLUG3",   "MOTION_STEP_COUNT",  "MOTION_UNKNOWN", "MOTION_STEP_LENGTH", "MOTION_QUANTIZE","MOTION_NOTE_STYLE",  "MOTION_NOTE_LENGTH", "MOTION_BYTE1",   "MOTION_BYTE2"
 };
 
-std::string track_page_parameter_name[] = { 
+std::string track_parameter_name[] = { 
     "SOUND_PARAM1",     "SOUND_PARAM2",     "SOUND_FILTER",     "SOUND_RESONANCE", 
     "ENVELOPE_ATTACK",  "ENVELOPE_DECAY",   "ENVELOPE_SUSTAIN", "ENVELOPE_RELEASE",
     "SOUND_FX1",        "SOUND_FX2",        "SOUND_PAN",        "SOUND_LEVEL",
@@ -81,6 +68,40 @@ std::string track_page_parameter_name[] = {
     "NOTE_LENGHT",      "NOTE_STYLE",       "QUANTIZE",         "PORTAMENTO"
 };
 
+char *hex(unsigned char *cp, size_t n) {
+    char *s = (char*)malloc(3*n + 1);
+
+    if (s == NULL)
+        return s;
+
+    for (size_t k = 0; k < n; ++k)
+        sprintf(s + 3*(k), "%02X ", cp[k]);
+
+    s[3*n] = '\0';
+    return s;
+}
+
+// 
+size_t decodeSysEx(const unsigned char* inData, unsigned char* outData, size_t inLength, bool inFlipHeaderBits) {
+    size_t count  = 0;
+    unsigned char msbStorage = 0;
+    unsigned char byteIndex  = 0;
+
+    for (size_t i = 0; i < inLength; ++i) {
+        if ((i % 8) == 0) {
+            msbStorage = inData[i];
+            byteIndex  = 6;
+        }
+        else {
+            const unsigned char body     = inData[i];
+            const unsigned char shift    = inFlipHeaderBits ? 6 - byteIndex : byteIndex;
+            const unsigned char msb      = u_int8_t(((msbStorage >> shift) & 1) << 7);
+            byteIndex--;
+            outData[count++] = msb | body;
+        }
+    }
+    return count;
+}
 
 OPZ::OPZ() :
 verbose(0),
@@ -96,7 +117,7 @@ std::string& OPZ::toString( key_id _id ) { return key_name[_id]; }
 std::string& OPZ::toString( page_id  _id ) { return page_name[_id]; }
 std::string& OPZ::toString( track_id _id ) { return track_name[_id]; }
 std::string& OPZ::toString( track_parameter_id _id ) { return track_parameter_name[_id]; } 
-std::string& OPZ::toString( track_page_parameter_id _id ) { return track_page_parameter_name[_id]; } 
+std::string& OPZ::toString( pattern_parameter_id _id ) { return pattern_parameter_name[_id]; } 
 const std::vector<unsigned char>* OPZ::getInitMsg() { return &initial_message; }
 const std::vector<unsigned char>* OPZ::getHeartBeat() { return &master_heartbeat; }
 
@@ -110,46 +131,52 @@ void OPZ::process_message(double _deltatime, std::vector<unsigned char>* _messag
 }
 
 void OPZ::process_sysex(std::vector<unsigned char>* _message){
-    // TODO: check that first bit of buffer is 'F000207601'
 
-    unsigned char *buffer = &_message->at(0);
-    size_t length = _message->size();
-    const sysex_header &seh = (const sysex_header&)*buffer;
-    
-    if (memcmp(OPZ_VENDOR_ID, seh.vendor_id, sizeof(OPZ_VENDOR_ID)) != 0){
-        printf("Vendor ID %02X:%02X:%02X is not the expected ID %02X:%02X:%02X\n",seh.vendor_id[0],seh.vendor_id[1],seh.vendor_id[2],OPZ_VENDOR_ID[0],OPZ_VENDOR_ID[1],OPZ_VENDOR_ID[2]);
+    // if (verbose > 1) {
+        // std::cout << hex(&_message->at(0), _message->size()) << "(" << _message->size() << " bytes)" << std::endl;
+
+    const sysex_header &header = (const sysex_header&)_message->at(0);
+    if (memcmp(OPZ_VENDOR_ID, header.vendor_id, sizeof(OPZ_VENDOR_ID)) != 0){
+        printf("Vendor ID %02X:%02X:%02X is not the expected ID %02X:%02X:%02X\n", header.vendor_id[0],header.vendor_id[1],header.vendor_id[2],OPZ_VENDOR_ID[0],OPZ_VENDOR_ID[1],OPZ_VENDOR_ID[2]);
         return;
     }
-    if ((seh.protocol_version == 0) || (seh.protocol_version > OPZ_MAX_PROTOCOL_VERSION)){
-        printf("Unexpected protocol version %02X, was expecting > 0 and <= %02X\n", seh.protocol_version, OPZ_MAX_PROTOCOL_VERSION);
+
+    if ((header.protocol_version == 0) || (header.protocol_version > OPZ_MAX_PROTOCOL_VERSION)){
+        printf("Unexpected protocol version %02X, was expecting > 0 and <= %02X\n", header.protocol_version, OPZ_MAX_PROTOCOL_VERSION);
         return;
     }
+
+    // TODO: check that first bit of data is 'F000207601'
+
+    // decode 7bit into raw 8bit
+    unsigned char *data = new unsigned char[_message->size()-7];
+    size_t length = decodeSysEx(&_message->at(6), data, _message->size() - 7, true);
     
-    switch (seh.parm_id) {
+    switch (header.parm_id) {
         case 0x01: {
             // // Universal response ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#01-universal-response )
             // if (verbose)
-            //     printf("Msg %02X (Universal response)\n", seh.parm_id);
+            //     printf("Msg %02X (Universal response)\n", header.parm_id);
 
             // if (verbose > 1)
-            //     std::cout << "  " << hex_msg(buffer, length) << "(" << length << " bytes)" << std::endl;
+            //     std::cout << "  " << hex(data, length) << "(" << length << " bytes)" << std::endl;
         } break;
 
         case 0x02: {
             // Track Setting ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#02-track-settings )
 
             if (verbose)
-                printf("Msg %02X (Track Setting)\n", seh.parm_id);
+                printf("Msg %02X (Track Setting)\n", header.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << hex_msg(buffer, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "  " << hex(data, length) << "(" << length << " bytes)" << std::endl;
 
             CAST_MESSAGE(track_chunk, ti);
             // memcpy(&(m_track_chunk[m_active_track]), &ti, sizeof(track_chunk));
 
             if (verbose > 2) {
-                std::cout << "   value type: " << toString((track_parameter_id)ti.value_type) << std::endl;
-                std::cout << "   value:      " << ((ti.value + ti.value_hf * 128) / 255.0f) << std::endl;
+                std::cout << "   value type: " << toString((pattern_parameter_id)ti.value_type) << std::endl;
+                std::cout << "   value:      " << ((int)ti.value / 255.0f) << std::endl;
             }
 
         } break;
@@ -157,12 +184,12 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
         case 0x03: {
             // Keyboard Setting ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#03-keyboard-setting )
             if (verbose)
-                printf("Msg %02X (Keyboard Setting)\n", seh.parm_id);
+                printf("Msg %02X (Keyboard Setting)\n", header.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << hex_msg(buffer, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "  " << hex(data, length) << "(" << length << " bytes)" << std::endl;
 
-            // const track_keyboard &ti = (const track_keyboard &)buffer[sizeof(sysex_header)-1];
+            // const track_keyboard &ti = (const track_keyboard &)data[sizeof(sysex_header)-1];
             CAST_MESSAGE(track_keyboard, ki);
             m_active_track = (track_id)ki.track;
 
@@ -177,17 +204,19 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
 
         case 0x04: {
             if (verbose)
-                printf("Msg %02X (IN/OUT?)\n", seh.parm_id);
+                printf("Msg %02X (IN/OUT?)\n", header.parm_id);
 
-            if (verbose > 1)
-                std::cout << "  " << hex_msg(buffer, length) << "(" << length << " bytes)" << std::endl;
+            if (verbose > 1) {
+                std::cout << "  " << hex(data, length) << "(" << length << " bytes)" << std::endl;
+            }
 
-            m_volume = ( ((int)buffer[6] == 0)? (int)buffer[8] : 128 + (int)buffer[8] )/255.0;
-            m_microphone_mode = buffer[10];
+            m_volume = data[1]/255.0;
+            m_microphone_mode = data[3];
 
             if (verbose > 2) {
-                printf(" Volumen    %f\n", m_volume);
-                printf(" ????????   %02x\n", buffer[9] );
+                printf(" ????????   %02x\n", data[0] );
+                printf(" Volumen    %f\n",  m_volume);
+                printf(" ????????   %02x\n", data[2] );
                 printf(" Microphone %02x\n", m_microphone_mode);
             }
 
@@ -198,67 +227,34 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
         case 0x06: {
             // Button States ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#06-button-states )
             if (verbose)
-                printf("Msg %02X (Button States)\n", seh.parm_id);
+                printf("Msg %02X (Button States)\n", header.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << hex_msg(buffer, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "  " << hex(data, length) << "(" << length << " bytes)" << std::endl;
 
             CAST_MESSAGE(key_state, ki);
             memcpy(&(m_key_prev_state), &m_key_state, sizeof(m_key_state));
             memcpy(&(m_key_state), &ki, sizeof(m_key_state));
+            m_active_page = (page_id)m_key_state.page;
 
             if (verbose > 2) {
                 std::cout << "  track: " << toString(m_active_track) << std::endl;
                 std::cout << "  page:  " << toString(m_active_page) << std::endl;
 
-                printf( "page2x:    %i\n", m_key_state.page2x);
-                printf( "mixer:     %i\n", m_key_state.mixer);
-                printf( "record:    %i\n", m_key_state.record);
-                printf( "key14:     %i\n", m_key_state.key14);
-
-                printf( "key15:     %i\n", m_key_state.key15);
-                printf( "key16:     %i\n", m_key_state.key16);
-                printf( "key17:     %i\n", m_key_state.key17);
-                printf( "key18:     %i\n", m_key_state.key18);
-
-                printf( "key21:     %i\n", m_key_state.key21);
-                printf( "key22:     %i\n", m_key_state.key22);
-                printf( "key23:     %i\n", m_key_state.key23);
-                printf( "key24:     %i\n", m_key_state.key24);
-
-                printf( "key25:     %i\n", m_key_state.key25);
-                printf( "key26:     %i\n", m_key_state.key26);
+                printf( "bit1 1-6:  %i %i %i %i %i %i\n", m_key_state.bit11, m_key_state.bit12, m_key_state.bit13, m_key_state.bit14, m_key_state.bit15, m_key_state.bit16);
                 printf( "page:      %i\n", m_key_state.page);
-                printf( "key28:     %i\n", m_key_state.key28);
-
-                printf( "step:      %i \n", m_key_state.step) ;
-            
+                printf( "step:      %i\n", m_key_state.step);
                 printf( "shift:     %i\n", m_key_state.shift);
                 printf( "tempo:     %i\n", m_key_state.tempo);
-                printf( "key38:     %i\n", m_key_state.key38);
-
-                printf( "key41:     %i\n", m_key_state.key41);
-                printf( "key42:     %i\n", m_key_state.key42);
-                printf( "key43:     %i\n", m_key_state.key43);
-                printf( "key44:     %i\n", m_key_state.key44);
-
-                printf( "key45:     %i\n", m_key_state.key45);
+                printf( "mixer:     %i\n", m_key_state.mixer);
+                printf( "bit3 1-5:  %i %i %i %i %i\n", m_key_state.bit31, m_key_state.bit32, m_key_state.bit33, m_key_state.bit34, m_key_state.bit35);
                 printf( "screen:    %i\n", m_key_state.screen);
                 printf( "stop:      %i\n", m_key_state.stop);
-                printf( "key48:     %i\n", m_key_state.key48);
-
+                printf( "record:    %i\n", m_key_state.record);
                 printf( "track:     %i\n", m_key_state.track);
                 printf( "project:   %i\n", m_key_state.project);
-                printf( "key53:     %i\n", m_key_state.key53);
-                printf( "key54:     %i\n", m_key_state.key54);
-
-                printf( "key55:     %i\n", m_key_state.key55);
-                printf( "key56:     %i\n", m_key_state.key56);
-                printf( "key57:     %i\n", m_key_state.key57);
-                printf( "key58:     %i\n", m_key_state.key58);
-            }      
-
-            m_active_page = (page_id)( (int)(m_key_state.page2x) * 2 + (int)(m_key_state.page) );
+                printf( "bit4 3-8:  %i %i %i %i %i %i\n", m_key_state.bit43, m_key_state.bit44, m_key_state.bit45, m_key_state.bit46, m_key_state.bit47, m_key_state.bit48);
+            }
 
             if (m_key_enable) {
 
@@ -299,59 +295,54 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
         case 0x07: {
             // Sequencer Settings ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#07-sequencer-settings )
             if (verbose)
-                printf("Msg %02X (Sequencer Settings)\n", seh.parm_id);
+                printf("Msg %02X (Sequencer Settings)\n", header.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << hex_msg(buffer, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "  " << hex(data, length) << "(" << length << " bytes)" << std::endl;
             
         } break;
 
         case 0x09: {
             // Pattern ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#09-pattern )
             if (verbose)
-                printf("Msg %02X (Pattern)\n", seh.parm_id);
+                printf("Msg %02X (Pattern)\n", header.parm_id);
             
             if (verbose > 1)
-                std::cout << "  " << hex_msg(buffer, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "  " << hex(data, length) << "(" << length << " bytes)" << std::endl;
             
         } break;
 
         case 0x0c: {
             // Global Data ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#0c-global-data )
             if (verbose)
-                printf("Msg %02X (Global Data)\n", seh.parm_id);
+                printf("Msg %02X (Global Data)\n", header.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << hex_msg(buffer, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "  " << hex(data, length) << "(" << length << " bytes)" << std::endl;
             
         } break;
 
         case 0x0e: {
             // Sound preset ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#0e-sound-preset )
             if (verbose)
-                printf("Msg %02X (Sound preset)\n", seh.parm_id);
+                printf("Msg %02X (Sound preset)\n", header.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << hex_msg(buffer, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "  " << hex(data, length) << "    (" << length << " bytes)" << std::endl;
 
-            m_active_track = (track_id)buffer[7];
+            m_active_track = (track_id)data[0];
 
-            CAST_MESSAGE(track_page_parameter, si);
-            memcpy(&(m_track_page_parameter[m_active_track]), &si, sizeof(track_page_parameter));
+            CAST_MESSAGE(track_parameter, si);
+            memcpy(&(m_track_parameter[m_active_track]), &si, sizeof(track_parameter));
 
             if (verbose > 2) {
-                std::cout << "  Active track: " << track_name[m_active_track] << " page:  " << page_name[m_active_page] << std::endl;
-
-                printf( "   byte1X:     %i %i %i %i  %i %i %i %i\n", si.byte11, si.param1_hf, si.param2_hf, si.attack_hf, si.decay_hf, si.sustain_hf, si.release_hf, si.byte18);
+                std::cout << "  " << toString(m_active_track) << " track on page " << toString(m_active_page) << std::endl;
                 printf( "   param1:     %i\n", si.param1);
                 printf( "   param2:     %i\n", si.param2);
-
                 printf( "   attack:     %i\n", si.attack);
                 printf( "   decay:      %i\n", si.decay);
                 printf( "   sustain:    %i\n", si.sustain);
                 printf( "   release:    %i\n", si.release);
-
-                printf( "   byte2X:     %i %i %i %i  %i %i %i %i\n", si.fx1_hf, si.fx2_hf, si.filter_hf, si.resonance_hf, si.pan_hf, si.level_hf, si.portamento_hf, si.byte28);
                 printf( "   fx1:        %i\n", si.fx1);
                 printf( "   fx2:        %i\n", si.fx2);
                 printf( "   filter:     %i\n", si.filter);
@@ -359,8 +350,6 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf( "   pan:        %i\n", si.pan);
                 printf( "   level:      %i\n", si.level);
                 printf( "   portamendo: %i\n", si.portamento);
-
-                printf( "   byte3X:     %i %i %i %i  %i %i %i %i\n", si.lfo_depth_hf, si.lfo_speed_hf, si.lfo_value_hf, si.lfo_shape_hf, si.note_style_hf, si.byte36, si.byte37, si.byte38);
                 printf( "   lfo_depth:  %i\n", si.lfo_depth);
                 printf( "   lfo_speed:  %i\n", si.lfo_speed);
                 printf( "   lfo_value:  %i\n", si.lfo_value);
@@ -373,27 +362,27 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
         case 0x10: {
             // Compressed MIDI Config ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#10-zlib-compressed-midi-config )
             if (verbose)
-                printf("Msg %02X (Compressed MIDI Config)\n", seh.parm_id);
+                printf("Msg %02X (Compressed MIDI Config)\n", header.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << hex_msg(buffer, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "  " << hex(data, length) << "(" << length << " bytes)" << std::endl;
         } break;
 
         case 0x12: {
             // Sound State ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#12-sound-state )
             if (verbose)
-                printf("Msg %02X (Sound State)\n", seh.parm_id);
+                printf("Msg %02X (Sound State)\n", header.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << hex_msg(buffer, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "  " << hex(data, length) << "(" << length << " bytes)" << std::endl;
         } break;
 
         default: {
             if (verbose)
-                printf("Msg %02X (unknown)\n", seh.parm_id);
+                printf("Msg %02X (unknown)\n", header.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << hex_msg(buffer, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "  " << hex(data, length) << "(" << length << " bytes)" << std::endl;
         }
     }
 
@@ -499,50 +488,50 @@ void OPZ::process_event(std::vector<unsigned char>* _message) {
     // std::cout << std::endl;
 }
 
-float OPZ::getTrackPageParameter(track_id _track, track_page_parameter_id _prop) {
+float OPZ::getTrackPageParameter(track_id _track, track_parameter_id _prop) {
     if (_prop == SOUND_PARAM1)
-        return (m_track_page_parameter[m_active_track].param1 + m_track_page_parameter[m_active_track].param1_hf * 128) / 255.0f;
+        return m_track_parameter[m_active_track].param1 / 255.0f;
     else if (_prop == SOUND_PARAM2)
-        return (m_track_page_parameter[m_active_track].param2 + m_track_page_parameter[m_active_track].param2_hf * 128) / 255.0f;
+        return m_track_parameter[m_active_track].param2 / 255.0f;
     else if (_prop == SOUND_FILTER)
-        return (m_track_page_parameter[m_active_track].filter + m_track_page_parameter[m_active_track].filter_hf * 128) / 255.0f; 
+        return m_track_parameter[m_active_track].filter / 255.0f; 
     else if (_prop == SOUND_RESONANCE)
-        return (m_track_page_parameter[m_active_track].resonance + m_track_page_parameter[m_active_track].resonance_hf * 128) / 255.0f;
+        return m_track_parameter[m_active_track].resonance / 255.0f;
 
     // TODO
     //      - I got the names wrong
     else if (_prop == ENVELOPE_ATTACK) // S
-        return (m_track_page_parameter[m_active_track].attack + m_track_page_parameter[m_active_track].attack_hf * 128) / 255.0f;
+        return m_track_parameter[m_active_track].attack / 255.0f;
     else if (_prop == ENVELOPE_DECAY) // A
-        return (m_track_page_parameter[m_active_track].decay + m_track_page_parameter[m_active_track].decay_hf * 128) / 255.0f;
+        return m_track_parameter[m_active_track].decay  / 255.0f;
     else if (_prop == ENVELOPE_SUSTAIN) // H
-        return (m_track_page_parameter[m_active_track].sustain + m_track_page_parameter[m_active_track].sustain_hf * 128) / 255.0f; 
+        return m_track_parameter[m_active_track].sustain / 255.0f; 
     else if (_prop == ENVELOPE_RELEASE) // D
-        return (m_track_page_parameter[m_active_track].release + m_track_page_parameter[m_active_track].release_hf * 128) / 255.0f; 
+        return m_track_parameter[m_active_track].release / 255.0f; 
 
     else if (_prop == LFO_DEPTH)
-        return (m_track_page_parameter[m_active_track].lfo_depth + m_track_page_parameter[m_active_track].lfo_depth_hf * 128) / 255.0f;
+        return m_track_parameter[m_active_track].lfo_depth / 255.0f;
     else if (_prop == LFO_SPEED) // RATE
-        return (m_track_page_parameter[m_active_track].lfo_speed + m_track_page_parameter[m_active_track].lfo_speed_hf * 128) / 255.0f;
+        return m_track_parameter[m_active_track].lfo_speed / 255.0f;
     else if (_prop == LFO_VALUE) // DEST
-        return (m_track_page_parameter[m_active_track].lfo_value + m_track_page_parameter[m_active_track].lfo_value_hf * 128) / 255.0f; 
+        return m_track_parameter[m_active_track].lfo_value / 255.0f; 
     else if (_prop == LFO_SHAPE)
-        return (m_track_page_parameter[m_active_track].lfo_shape + m_track_page_parameter[m_active_track].lfo_shape_hf * 128) / 255.0f;
+        return m_track_parameter[m_active_track].lfo_shape / 255.0f;
 
     else if (_prop == SOUND_FX1)
-        return (m_track_page_parameter[m_active_track].fx1 + m_track_page_parameter[m_active_track].fx1_hf * 128) / 255.0f;
+        return m_track_parameter[m_active_track].fx1 / 255.0f;
     else if (_prop == SOUND_FX2)
-        return (m_track_page_parameter[m_active_track].fx2 + m_track_page_parameter[m_active_track].fx2_hf * 128) / 128.0f - 1.0f;
+        return (m_track_parameter[m_active_track].fx2 / 255.0f) * 2.0 - 1.0f;
     else if (_prop == SOUND_PAN)
-        return (m_track_page_parameter[m_active_track].pan + m_track_page_parameter[m_active_track].pan_hf * 128) / 255.0f; 
+        return m_track_parameter[m_active_track].pan / 255.0f; 
     else if (_prop == SOUND_LEVEL)
-        return (m_track_page_parameter[m_active_track].level + m_track_page_parameter[m_active_track].level_hf * 128) / 255.0f;
+        return m_track_parameter[m_active_track].level / 255.0f;
 
     else if (_prop = NOTE_STYLE)
-        return (m_track_page_parameter[m_active_track].note_style + m_track_page_parameter[m_active_track].portamento_hf * 128) / 255.0f;
+        return m_track_parameter[m_active_track].note_style / 255.0f;
 
     else if (_prop == PORTAMENTO)
-        return (m_track_page_parameter[m_active_track].portamento + m_track_page_parameter[m_active_track].portamento_hf * 128) / 255.0f;
+        return m_track_parameter[m_active_track].portamento / 255.0f;
 
     return 0.0f;
 }
