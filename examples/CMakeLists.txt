@@ -1,6 +1,4 @@
-add_executable (opz_dump 
-    main.cpp
-)
+add_executable (opz_dump opz_dump.cpp)
 
 set_target_properties(opz_dump PROPERTIES
     CXX_STANDARD 11
@@ -12,5 +10,5 @@ target_include_directories(opz_dump PRIVATE
     "${PROJECT_SOURCE_DIR}/src"
 )
 
-target_link_libraries (opz_dump PRIVATE opz)
+target_link_libraries(opz_dump PRIVATE libopz)
 

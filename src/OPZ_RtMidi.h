@@ -1,7 +1,7 @@
 #pragma once
 
-#include "OPZ.h"
 #include "rtmidi/RtMidi.h"
+#include "OPZ.h"
 
 namespace T3 {
 

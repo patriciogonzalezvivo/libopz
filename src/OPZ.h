@@ -118,8 +118,7 @@ typedef struct {
 } key_state, *p_key_state;
 
 typedef struct {
-    uint8_t value_p1;
-    uint8_t value_p2;
+    int8_t octave;
     uint8_t track;
 } track_keyboard, *p_track_keyboard;
 
@@ -163,6 +162,15 @@ typedef struct {
     uint8_t unknown2[4];
     uint8_t value;
 } track_change, *p_track_change;
+
+typedef struct {
+    uint8_t pattern;
+    uint8_t unknown1[15];
+    uint8_t unknown2;
+    uint8_t offset; // project + pattern
+    uint8_t unknown3;
+    uint8_t project;
+} sequence_offset, *p_sequence_offset;
 
 // https://github.com/lrk/z-po-project/wiki/Project-file-format#note-chunk
 typedef struct {
@@ -237,8 +245,9 @@ public:
     static const std::vector<unsigned char>* getInitMsg();
     static const std::vector<unsigned char>* getHeartBeat();
 
-    track_id           getActiveTrack() const { return m_active_track; }
-    page_id            getActivePage() const { return m_active_page; }
+    track_id        getActiveTrack() const { return m_active_track; }
+    int             getActiveOctave() const { return m_track_keyboard[m_active_track].octave; }
+    page_id         getActivePage() const { return m_active_page; }
 
     float           getVolume() const { return m_volume; }
     float           getTrackPageParameter(track_id _track, track_parameter_id _prop);
@@ -250,7 +259,7 @@ protected:
     void            process_event(std::vector<unsigned char>* _message);
 
     track_keyboard  m_track_keyboard[16];
-    track_parameter  m_track_parameter[16];
+    track_parameter m_track_parameter[16];
     float           m_note_lenght[16];
     float           m_quantize[16];
 
@@ -261,6 +270,9 @@ protected:
 
     track_id        m_active_track;
     page_id         m_active_page;
+
+    uint8_t         m_active_project;
+    uint8_t         m_active_pattern;
 
     unsigned char   m_microphone_mode;
     bool            m_play;

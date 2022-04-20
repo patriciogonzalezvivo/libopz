@@ -11,6 +11,16 @@ namespace T3 {
 // TOOLS
 #define BIT(x,b) ((x & (1<<b)))
 #define CAST_MESSAGE(TYP, NAM) const TYP & NAM = (const TYP &)data[0]
+#define BYTE_TO_BINARY_PATTERN "%c%c%c%c%c%c%c%c"
+#define BYTE_TO_BINARY(byte)  \
+  (byte & 0x80 ? '1' : '0'), \
+  (byte & 0x40 ? '1' : '0'), \
+  (byte & 0x20 ? '1' : '0'), \
+  (byte & 0x10 ? '1' : '0'), \
+  (byte & 0x08 ? '1' : '0'), \
+  (byte & 0x04 ? '1' : '0'), \
+  (byte & 0x02 ? '1' : '0'), \
+  (byte & 0x01 ? '1' : '0')
 
 // https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol
 std::vector<unsigned char> initial_message = {
@@ -187,7 +197,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
             //     printf("Msg %02X (Universal response)\n", header.parm_id);
 
             // if (verbose > 1)
-            //     std::cout << "  " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
+            //     std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
         } break;
 
         case 0x02: {
@@ -196,7 +206,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("Msg %02X (Track Setting)\n", header.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
 
             CAST_MESSAGE(track_change, ti);
 
@@ -213,7 +223,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("Msg %02X (Keyboard Setting)\n", header.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
 
             CAST_MESSAGE(track_keyboard, ki);
             m_active_track = (track_id)ki.track;
@@ -221,8 +231,9 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
             memcpy(&(m_track_keyboard[m_active_track]), &ki, sizeof(track_keyboard));
             
             if (verbose > 2) {
-                std::cout << "  Update track " << toString(m_active_track);
-                printf(", data %02X %02X\n", m_track_keyboard[m_active_track].value_p1, m_track_keyboard[m_active_track].value_p2);
+                std::cout << "  active track:   " << toString(m_active_track) << std::endl;
+                // printf(      "  active octave:  %02X\n", ki.octave);
+                printf(      "  active octave:  %i\n", ki.octave);
             }
             
         } break;
@@ -232,7 +243,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("Msg %02X (IN/OUT?)\n", header.parm_id);
 
             if (verbose > 1) {
-                std::cout << "  " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
             }
 
             m_volume = data[1]/255.0;
@@ -255,33 +266,32 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("Msg %02X (Button States)\n", header.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
 
             CAST_MESSAGE(key_state, ki);
             memcpy(&(m_key_prev_state), &m_key_state, sizeof(m_key_state));
             memcpy(&(m_key_state), &ki, sizeof(m_key_state));
             m_active_page = (page_id)m_key_state.page;
 
-            if (verbose > 2) {
-                std::cout << "  track: " << toString(m_active_track) << std::endl;
-                std::cout << "  page:  " << toString(m_active_page) << std::endl;
-
-                printf( "bit1 1-6:  %i %i %i %i %i %i\n", m_key_state.bit11, m_key_state.bit12, m_key_state.bit13, m_key_state.bit14, m_key_state.bit15, m_key_state.bit16);
-                printf( "page:      %i\n", m_key_state.page);
-                printf( "step:      %i\n", m_key_state.step);
-                printf( "shift:     %i\n", m_key_state.shift);
-                printf( "tempo:     %i\n", m_key_state.tempo);
-                printf( "mixer:     %i\n", m_key_state.mixer);
-                printf( "bit3 1-5:  %i %i %i %i %i\n", m_key_state.bit31, m_key_state.bit32, m_key_state.bit33, m_key_state.bit34, m_key_state.bit35);
-                printf( "screen:    %i\n", m_key_state.screen);
-                printf( "stop:      %i\n", m_key_state.stop);
-                printf( "record:    %i\n", m_key_state.record);
-                printf( "track:     %i\n", m_key_state.track);
-                printf( "project:   %i\n", m_key_state.project);
-                printf( "bit4 3-8:  %i %i %i %i %i %i\n", m_key_state.bit43, m_key_state.bit44, m_key_state.bit45, m_key_state.bit46, m_key_state.bit47, m_key_state.bit48);
-            }
-
             if (m_key_enable) {
+                if (verbose > 2) {
+                    std::cout << "  track: " << toString(m_active_track) << std::endl;
+                    std::cout << "  page:  " << toString(m_active_page) << std::endl;
+
+                    printf( "bit1 1-6:  %i %i %i %i %i %i\n", m_key_state.bit11, m_key_state.bit12, m_key_state.bit13, m_key_state.bit14, m_key_state.bit15, m_key_state.bit16);
+                    printf( "page:      %i\n", m_key_state.page);
+                    printf( "step:      %i\n", m_key_state.step);
+                    printf( "shift:     %i\n", m_key_state.shift);
+                    printf( "tempo:     %i\n", m_key_state.tempo);
+                    printf( "mixer:     %i\n", m_key_state.mixer);
+                    printf( "bit3 1-5:  %i %i %i %i %i\n", m_key_state.bit31, m_key_state.bit32, m_key_state.bit33, m_key_state.bit34, m_key_state.bit35);
+                    printf( "screen:    %i\n", m_key_state.screen);
+                    printf( "stop:      %i\n", m_key_state.stop);
+                    printf( "record:    %i\n", m_key_state.record);
+                    printf( "track:     %i\n", m_key_state.track);
+                    printf( "project:   %i\n", m_key_state.project);
+                    printf( "bit4 3-8:  %i %i %i %i %i %i\n", m_key_state.bit43, m_key_state.bit44, m_key_state.bit45, m_key_state.bit46, m_key_state.bit47, m_key_state.bit48);
+                }
 
                 if (m_key_state.project) m_key( KEY_PROJECT, 1);
                 if (m_key_prev_state.project && !m_key_state.project ) m_key( KEY_PROJECT, 0);
@@ -323,8 +333,35 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("Msg %02X (Sequencer Settings)\n", header.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
-            
+                std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
+
+            CAST_MESSAGE(sequence_offset, si);
+            m_active_project = si.project;
+            m_active_pattern = si.pattern;
+
+            if (verbose > 2) {
+                printf("    pattern:    %i\n", si.pattern + 1);
+                printf("    unknown10:  %c%c%c%c%c%c%c%c\n", BYTE_TO_BINARY(si.unknown1[0]));
+                printf("    unknown11:  %c%c%c%c%c%c%c%c\n", BYTE_TO_BINARY(si.unknown1[1]));
+                printf("    unknown12:  %c%c%c%c%c%c%c%c\n", BYTE_TO_BINARY(si.unknown1[2]));
+                printf("    unknown13:  %c%c%c%c%c%c%c%c\n", BYTE_TO_BINARY(si.unknown1[3]));
+                printf("    unknown14:  %c%c%c%c%c%c%c%c\n", BYTE_TO_BINARY(si.unknown1[4]));
+                printf("    unknown15:  %c%c%c%c%c%c%c%c\n", BYTE_TO_BINARY(si.unknown1[5]));
+                printf("    unknown16:  %c%c%c%c%c%c%c%c\n", BYTE_TO_BINARY(si.unknown1[6]));
+                printf("    unknown17:  %c%c%c%c%c%c%c%c\n", BYTE_TO_BINARY(si.unknown1[7]));
+                printf("    unknown18:  %c%c%c%c%c%c%c%c\n", BYTE_TO_BINARY(si.unknown1[8]));
+                printf("    unknown19:  %c%c%c%c%c%c%c%c\n", BYTE_TO_BINARY(si.unknown1[9]));
+                printf("    unknown1A:  %c%c%c%c%c%c%c%c\n", BYTE_TO_BINARY(si.unknown1[10]));
+                printf("    unknown1B:  %c%c%c%c%c%c%c%c\n", BYTE_TO_BINARY(si.unknown1[11]));
+                printf("    unknown1C:  %c%c%c%c%c%c%c%c\n", BYTE_TO_BINARY(si.unknown1[12]));
+                printf("    unknown1D:  %c%c%c%c%c%c%c%c\n", BYTE_TO_BINARY(si.unknown1[13]));
+                printf("    unknown1E:  %c%c%c%c%c%c%c%c\n", BYTE_TO_BINARY(si.unknown1[14]));
+                printf("    unknown2:   %c%c%c%c%c%c%c%c\n", BYTE_TO_BINARY(si.unknown2));
+                printf("    offset:     %02X\n", si.offset);
+                printf("    unknown3:   %c%c%c%c%c%c%c%c\n", BYTE_TO_BINARY(si.unknown3));
+                printf("    project:    %i\n", si.project + 1);
+            }
+
         } break;
 
         case 0x09: {
@@ -333,7 +370,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("Msg %02X (Pattern)\n", header.parm_id);
             
             if (verbose > 1)
-                std::cout << "  " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
             
         } break;
 
@@ -343,7 +380,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("Msg %02X (Global Data)\n", header.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
             
         } break;
 
@@ -353,7 +390,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("Msg %02X (Sound preset)\n", header.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << printHex(data, length) << "    (" << length << " bytes)" << std::endl;
+                std::cout << "       " << printHex(data, length) << "    (" << length << " bytes)" << std::endl;
 
             m_active_track = (track_id)data[0];
 
@@ -361,12 +398,12 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
             memcpy(&(m_track_parameter[m_active_track]), &si, sizeof(track_parameter));
 
             if (verbose > 2) {
-                std::cout << "  " << toString(m_active_track) << " track on page " << toString(m_active_page) << std::endl;
+                std::cout << "     " << toString(m_active_track) << std::endl;
                 printf( "   param1:     %i\n", si.param1);
                 printf( "   param2:     %i\n", si.param2);
                 printf( "   attack:     %i\n", si.attack);
                 printf( "   decay:      %i\n", si.decay);
-                printf( "   sustain:    %i\n", si.sustain);
+                printf( "   ustain:     %i\n", si.sustain);
                 printf( "   release:    %i\n", si.release);
                 printf( "   fx1:        %i\n", si.fx1);
                 printf( "   fx2:        %i\n", si.fx2);
@@ -389,7 +426,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("Msg %02X (Compressed MIDI Config)\n", header.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
         } break;
 
         case 0x12: {
@@ -398,7 +435,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("Msg %02X (Sound State)\n", header.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
         } break;
 
         default: {
@@ -406,7 +443,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("Msg %02X (unknown)\n", header.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
         }
     }
 

@@ -116,6 +116,4 @@ void OPZ_RtMidi::disconnect() {
     }
 }
 
-
-
 }
