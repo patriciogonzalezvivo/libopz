@@ -388,7 +388,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
         case 0x0e: {
             // Sound preset ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#0e-sound-preset )
             if (verbose)
-                printf("Msg %02X (Sound preset)\n", header.parm_id);
+                printf("Msg %02X (Track Parameter)\n", header.parm_id);
 
             if (verbose > 1)
                 std::cout << "       " << printHex(data, length) << "    (" << length << " bytes)" << std::endl;

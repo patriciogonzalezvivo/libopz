@@ -1,5 +1,16 @@
 # Trying ReverseEngieneerting the OP-Z
 
+This is on very early stages. Any help will be appreciated.
+
+```
+mkdir build
+cd build
+cmake ..
+make
+examples/./opz_dump
+```
+
+Have been tested with on a S/N VHJ firmware version 1.2.39
 
 ## Acknowledgment
 
