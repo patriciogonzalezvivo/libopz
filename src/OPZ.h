@@ -164,13 +164,13 @@ typedef struct {
 } track_change, *p_track_change;
 
 typedef struct {
-    uint8_t pattern;
+    uint8_t sequence;
     uint8_t unknown1[15];
     uint8_t unknown2;
-    uint8_t offset; // project + pattern
+    uint8_t pattern; // id: project + sequence
     uint8_t unknown3;
     uint8_t project;
-} sequence_offset, *p_sequence_offset;
+} sequence_change, *p_sequence_change;
 
 // https://github.com/lrk/z-po-project/wiki/Project-file-format#note-chunk
 typedef struct {
@@ -272,7 +272,9 @@ protected:
     page_id         m_active_page;
 
     uint8_t         m_active_project;
+    uint8_t         m_active_sequence;
     uint8_t         m_active_pattern;
+
 
     unsigned char   m_microphone_mode;
     bool            m_play;

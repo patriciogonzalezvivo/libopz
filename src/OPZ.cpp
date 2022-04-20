@@ -11,7 +11,7 @@ namespace T3 {
 // TOOLS
 #define BIT(x,b) ((x & (1<<b)))
 #define CAST_MESSAGE(TYP, NAM) const TYP & NAM = (const TYP &)data[0]
-#define BYTE_TO_BINARY_PATTERN "%c%c%c%c%c%c%c%c"
+#define BYTE_TO_BINARY_PATTERN "%c %c %c %c  %c %c %c %c"
 #define BYTE_TO_BINARY(byte)  \
   (byte & 0x80 ? '1' : '0'), \
   (byte & 0x40 ? '1' : '0'), \
@@ -167,12 +167,12 @@ void OPZ::process_message(double _deltatime, std::vector<unsigned char>* _messag
 
 void OPZ::process_sysex(std::vector<unsigned char>* _message){
 
-    // if (verbose > 1) {
-        // std::cout << printHex(&_message->at(0), _message->size()) << "(" << _message->size() << " bytes)" << std::endl;
+    // if (verbose > 1)
+    //     std::cout << printHex(&_message->at(0), _message->size()) << "(" << _message->size() << " bytes)" << std::endl;
 
     const sysex_header &header = (const sysex_header&)_message->at(0);
     if (memcmp(OPZ_VENDOR_ID, header.vendor_id, sizeof(OPZ_VENDOR_ID)) != 0){
-        printf("Vendor ID %02X:%02X:%02X is not the expected ID %02X:%02X:%02X\n", header.vendor_id[0],header.vendor_id[1],header.vendor_id[2],OPZ_VENDOR_ID[0],OPZ_VENDOR_ID[1],OPZ_VENDOR_ID[2]);
+        printf("Vendor ID %02X:%02X:%02X is not the expected ID %02X:%02X:%02X\n", header.vendor_id[0],header.vendor_id[1],header.vendor_id[2], OPZ_VENDOR_ID[0],OPZ_VENDOR_ID[1],OPZ_VENDOR_ID[2]);
         return;
     }
 
@@ -335,30 +335,31 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
             if (verbose > 1)
                 std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
 
-            CAST_MESSAGE(sequence_offset, si);
+            CAST_MESSAGE(sequence_change, si);
             m_active_project = si.project;
+            m_active_sequence = si.sequence; // project + pattern
             m_active_pattern = si.pattern;
 
             if (verbose > 2) {
-                printf("    pattern:    %i\n", si.pattern + 1);
-                printf("    unknown10:  %c%c%c%c%c%c%c%c\n", BYTE_TO_BINARY(si.unknown1[0]));
-                printf("    unknown11:  %c%c%c%c%c%c%c%c\n", BYTE_TO_BINARY(si.unknown1[1]));
-                printf("    unknown12:  %c%c%c%c%c%c%c%c\n", BYTE_TO_BINARY(si.unknown1[2]));
-                printf("    unknown13:  %c%c%c%c%c%c%c%c\n", BYTE_TO_BINARY(si.unknown1[3]));
-                printf("    unknown14:  %c%c%c%c%c%c%c%c\n", BYTE_TO_BINARY(si.unknown1[4]));
-                printf("    unknown15:  %c%c%c%c%c%c%c%c\n", BYTE_TO_BINARY(si.unknown1[5]));
-                printf("    unknown16:  %c%c%c%c%c%c%c%c\n", BYTE_TO_BINARY(si.unknown1[6]));
-                printf("    unknown17:  %c%c%c%c%c%c%c%c\n", BYTE_TO_BINARY(si.unknown1[7]));
-                printf("    unknown18:  %c%c%c%c%c%c%c%c\n", BYTE_TO_BINARY(si.unknown1[8]));
-                printf("    unknown19:  %c%c%c%c%c%c%c%c\n", BYTE_TO_BINARY(si.unknown1[9]));
-                printf("    unknown1A:  %c%c%c%c%c%c%c%c\n", BYTE_TO_BINARY(si.unknown1[10]));
-                printf("    unknown1B:  %c%c%c%c%c%c%c%c\n", BYTE_TO_BINARY(si.unknown1[11]));
-                printf("    unknown1C:  %c%c%c%c%c%c%c%c\n", BYTE_TO_BINARY(si.unknown1[12]));
-                printf("    unknown1D:  %c%c%c%c%c%c%c%c\n", BYTE_TO_BINARY(si.unknown1[13]));
-                printf("    unknown1E:  %c%c%c%c%c%c%c%c\n", BYTE_TO_BINARY(si.unknown1[14]));
-                printf("    unknown2:   %c%c%c%c%c%c%c%c\n", BYTE_TO_BINARY(si.unknown2));
-                printf("    offset:     %02X\n", si.offset);
-                printf("    unknown3:   %c%c%c%c%c%c%c%c\n", BYTE_TO_BINARY(si.unknown3));
+                printf("    sequence:   %i\n", si.pattern + 1);
+                printf("    unknown10:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[0]));
+                printf("    unknown11:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[1]));
+                printf("    unknown12:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[2]));
+                printf("    unknown13:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[3]));
+                printf("    unknown14:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[4]));
+                printf("    unknown15:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[5]));
+                printf("    unknown16:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[6]));
+                printf("    unknown17:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[7]));
+                printf("    unknown18:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[8]));
+                printf("    unknown19:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[9]));
+                printf("    unknown1A:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[10]));
+                printf("    unknown1B:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[11]));
+                printf("    unknown1C:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[12]));
+                printf("    unknown1D:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[13]));
+                printf("    unknown1E:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[14]));
+                printf("    unknown2:   %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown2));
+                printf("    pattern:    %02X\n", si.pattern);
+                printf("    unknown3:   %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown3));
                 printf("    project:    %i\n", si.project + 1);
             }
 
