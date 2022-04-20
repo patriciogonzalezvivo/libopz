@@ -21,10 +21,10 @@ int main(int argc, char** argv) {
     // opz.verbose = 2; // hex values
     opz.verbose = 3; // interpreted message
 
-    // // Listen to key events (no cc, neighter notes)
-    // opz.setKeyCallback( [](T3::key_id _id, int _value) {
-    //     std::cout << T3::OPZ::toString(_id) << " " << _value << std::endl;
-    // } );
+    // Listen to key events (no cc, neighter notes)
+    opz.setKeyCallback( [](T3::key_id _id, int _value) {
+        std::cout << T3::OPZ::toString(_id) << " " << _value << std::endl;
+    } );
 
     while (true)
         opz.keepawake();

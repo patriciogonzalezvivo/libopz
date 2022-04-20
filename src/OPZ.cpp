@@ -68,7 +68,8 @@ std::string track_parameter_name[] = {
     "NOTE_LENGHT",      "NOTE_STYLE",       "QUANTIZE",         "PORTAMENTO"
 };
 
-char *hex(unsigned char *cp, size_t n) {
+// print array of unsigend chars as HEX pairs
+char *printHex(unsigned char *cp, size_t n) {
     char *s = (char*)malloc(3*n + 1);
 
     if (s == NULL)
@@ -81,7 +82,31 @@ char *hex(unsigned char *cp, size_t n) {
     return s;
 }
 
-// 
+// encode raw 8bit to 7bits  
+size_t encodeSysEx(const unsigned char* inData, unsigned char* outSysEx, unsigned inLength, bool inFlipHeaderBits) {
+    size_t outLength    = 0;     // Num bytes in output array.
+    unsigned char count = 0;     // Num 7bytes in a block.
+    outSysEx[0]         = 0;
+
+    for (unsigned i = 0; i < inLength; ++i) {
+        const unsigned char data = inData[i];
+        const unsigned char msb  = data >> 7;
+        const unsigned char body = data & 0x7f;
+
+        outSysEx[0] |= (msb << (inFlipHeaderBits ? count : (6 - count)));
+        outSysEx[1 + count] = body;
+
+        if (count++ == 6) {
+            outSysEx   += 8;
+            outLength  += 8;
+            outSysEx[0] = 0;
+            count       = 0;
+        }
+    }
+    return outLength + count + (count != 0 ? 1 : 0);
+}
+
+// decode 7bit to raw 8bits
 size_t decodeSysEx(const unsigned char* inData, unsigned char* outData, size_t inLength, bool inFlipHeaderBits) {
     size_t count  = 0;
     unsigned char msbStorage = 0;
@@ -103,7 +128,7 @@ size_t decodeSysEx(const unsigned char* inData, unsigned char* outData, size_t i
     return count;
 }
 
-OPZ::OPZ() :
+OPZ::OPZ():
 verbose(0),
 m_volume(0.0f), 
 m_active_track(KICK), 
@@ -133,7 +158,7 @@ void OPZ::process_message(double _deltatime, std::vector<unsigned char>* _messag
 void OPZ::process_sysex(std::vector<unsigned char>* _message){
 
     // if (verbose > 1) {
-        // std::cout << hex(&_message->at(0), _message->size()) << "(" << _message->size() << " bytes)" << std::endl;
+        // std::cout << printHex(&_message->at(0), _message->size()) << "(" << _message->size() << " bytes)" << std::endl;
 
     const sysex_header &header = (const sysex_header&)_message->at(0);
     if (memcmp(OPZ_VENDOR_ID, header.vendor_id, sizeof(OPZ_VENDOR_ID)) != 0){
@@ -148,9 +173,12 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
 
     // TODO: check that first bit of data is 'F000207601'
 
+    // substract the header and end of SYSEX message
+    size_t data_length = _message->size()-sizeof(sysex_header)-1;
+    unsigned char *data = new unsigned char[data_length];
+
     // decode 7bit into raw 8bit
-    unsigned char *data = new unsigned char[_message->size()-7];
-    size_t length = decodeSysEx(&_message->at(6), data, _message->size() - 7, true);
+    size_t length = decodeSysEx(&_message->at(sizeof(sysex_header)), data, data_length, true);
     
     switch (header.parm_id) {
         case 0x01: {
@@ -159,20 +187,18 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
             //     printf("Msg %02X (Universal response)\n", header.parm_id);
 
             // if (verbose > 1)
-            //     std::cout << "  " << hex(data, length) << "(" << length << " bytes)" << std::endl;
+            //     std::cout << "  " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
         } break;
 
         case 0x02: {
             // Track Setting ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#02-track-settings )
-
             if (verbose)
                 printf("Msg %02X (Track Setting)\n", header.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << hex(data, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "  " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
 
-            CAST_MESSAGE(track_chunk, ti);
-            // memcpy(&(m_track_chunk[m_active_track]), &ti, sizeof(track_chunk));
+            CAST_MESSAGE(track_change, ti);
 
             if (verbose > 2) {
                 std::cout << "   value type: " << toString((pattern_parameter_id)ti.value_type) << std::endl;
@@ -187,9 +213,8 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("Msg %02X (Keyboard Setting)\n", header.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << hex(data, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "  " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
 
-            // const track_keyboard &ti = (const track_keyboard &)data[sizeof(sysex_header)-1];
             CAST_MESSAGE(track_keyboard, ki);
             m_active_track = (track_id)ki.track;
 
@@ -207,7 +232,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("Msg %02X (IN/OUT?)\n", header.parm_id);
 
             if (verbose > 1) {
-                std::cout << "  " << hex(data, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "  " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
             }
 
             m_volume = data[1]/255.0;
@@ -230,7 +255,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("Msg %02X (Button States)\n", header.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << hex(data, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "  " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
 
             CAST_MESSAGE(key_state, ki);
             memcpy(&(m_key_prev_state), &m_key_state, sizeof(m_key_state));
@@ -298,7 +323,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("Msg %02X (Sequencer Settings)\n", header.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << hex(data, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "  " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
             
         } break;
 
@@ -308,7 +333,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("Msg %02X (Pattern)\n", header.parm_id);
             
             if (verbose > 1)
-                std::cout << "  " << hex(data, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "  " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
             
         } break;
 
@@ -318,7 +343,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("Msg %02X (Global Data)\n", header.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << hex(data, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "  " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
             
         } break;
 
@@ -328,11 +353,11 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("Msg %02X (Sound preset)\n", header.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << hex(data, length) << "    (" << length << " bytes)" << std::endl;
+                std::cout << "  " << printHex(data, length) << "    (" << length << " bytes)" << std::endl;
 
             m_active_track = (track_id)data[0];
 
-            CAST_MESSAGE(track_parameter, si);
+            const track_parameter & si = (const track_parameter &)data[1];
             memcpy(&(m_track_parameter[m_active_track]), &si, sizeof(track_parameter));
 
             if (verbose > 2) {
@@ -354,8 +379,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf( "   lfo_speed:  %i\n", si.lfo_speed);
                 printf( "   lfo_value:  %i\n", si.lfo_value);
                 printf( "   lfo_shape:  %i\n", si.lfo_shape);
-
-                printf( "   note_style:  %i\n", si.note_style);
+                printf( "   note_style: %i\n", si.note_style);
             }
         } break;
 
@@ -365,7 +389,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("Msg %02X (Compressed MIDI Config)\n", header.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << hex(data, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "  " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
         } break;
 
         case 0x12: {
@@ -374,7 +398,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("Msg %02X (Sound State)\n", header.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << hex(data, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "  " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
         } break;
 
         default: {
@@ -382,7 +406,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("Msg %02X (unknown)\n", header.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << hex(data, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "  " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
         }
     }
 

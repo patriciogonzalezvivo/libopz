@@ -84,13 +84,46 @@ typedef struct {
 } sysex_header, *p_sysex_header;
 
 typedef struct {
+    uint8_t bit11 : 1;
+    uint8_t bit12 : 1;
+    uint8_t bit13 : 1;  
+    uint8_t bit14 : 1;
+    uint8_t bit15 : 1;
+    uint8_t bit16 : 1;
+    uint8_t page : 2;
+
+    uint8_t step : 5;
+    uint8_t shift : 1;
+    uint8_t tempo : 1;
+    uint8_t mixer : 1;
+
+    uint8_t bit31 : 1;
+    uint8_t bit32 : 1;
+    uint8_t bit33 : 1;  
+    uint8_t bit34 : 1;
+    uint8_t bit35 : 1;
+    uint8_t screen : 1;
+    uint8_t stop : 1;
+    uint8_t record : 1;
+
+    uint8_t track : 1;
+    uint8_t project : 1;
+    uint8_t bit43 : 1;  
+    uint8_t bit44 : 1;
+    uint8_t bit45 : 1;
+    uint8_t bit46 : 1;
+    uint8_t bit47 : 1;
+    uint8_t bit48 : 1;
+    
+} key_state, *p_key_state;
+
+typedef struct {
     uint8_t value_p1;
     uint8_t value_p2;
     uint8_t track;
 } track_keyboard, *p_track_keyboard;
 
 typedef struct {
-    uint8_t track;
     uint8_t param1;
     uint8_t param2;
     uint8_t attack;
@@ -109,49 +142,72 @@ typedef struct {
     uint8_t lfo_value;
     uint8_t lfo_shape;
     uint8_t note_style;
-} track_parameter,        *p_track_parameter;     
+} track_parameter, *p_track_parameter;     
+
+typedef struct {
+    uint32_t plug;
+    uint8_t step_count;
+    uint8_t unknown1;
+    uint8_t step_length;
+    uint8_t quantize;
+    uint8_t note_style;
+    uint8_t note_length;
+    uint8_t unused[2];
+} track_chunck, *p_track_chunck;
 
 typedef struct {
     uint8_t unknown1[2];
     uint8_t value_type;
     uint8_t unknown2[4];
     uint8_t value;
-} track_chunk, *p_track_chunk;
+} track_change, *p_track_change;
 
 typedef struct {
-    uint8_t bit11 : 1;
-    uint8_t bit12 : 1;
-    uint8_t bit13 : 1;  
-    uint8_t bit14 : 1;
-    uint8_t bit15 : 1;
-    uint8_t bit16 : 1;
-    uint8_t page : 2;
-// 
-    uint8_t step : 5;
+    int32_t duration[4];
+    uint8_t note;
+    uint8_t velocity;
+    int8_t  micro_adjustment;
+    uint8_t age;
+} note_chunck, *p_note_chunck;
 
-    uint8_t shift : 1;
-    uint8_t tempo : 1;
-    uint8_t mixer : 1;
-    // 
-    uint8_t bit31 : 1;
-    uint8_t bit32 : 1;
-    uint8_t bit33 : 1;  
-    uint8_t bit34 : 1;
-    uint8_t bit35 : 1;
-    uint8_t screen : 1;
-    uint8_t stop : 1;
-    uint8_t record : 1;
-    //
-    uint8_t track : 1;
-    uint8_t project : 1;
-    uint8_t bit43 : 1;  
-    uint8_t bit44 : 1;
-    uint8_t bit45 : 1;
-    uint8_t bit46 : 1;
-    uint8_t bit47 : 1;
-    uint8_t bit48 : 1;
-    
-} key_state, *p_key_state;
+typedef struct {
+    uint16_t    components_bitmask;             // Bit mask on 2 bytes to show which step component are enabled. See below for bitmask values
+    uint8_t     components_parameters[16];      // Array of selected parameter value for each step components
+    uint8_t     components_locked_values[18];   // Array of current lock value for each tracks parameters
+    uint8_t     parameter_mask[18];             // Array of actually enabled parameter lock
+} step_chunck, *p_step_chunck;
+
+typedef struct {
+    track_chunck    tracks[16];
+    note_chunck     notes[880];
+    step_chunck     steps[256];
+    track_parameter parameters[16];
+    uint8_t         mytes[40];      // mute config, tracks are mapped with bitmask
+    uint16_t        send_tape;      // Send mapping for Tape track using bitmask
+    uint16_t        send_master;    // SendMaster  Send mapping for Master track using bitmask
+    uint8_t         active_mute_group;   // Active mute group
+    uint8_t         unused[3];
+} pattern_chunck, *p_pattern_chunck;
+
+typedef struct {
+    uint8_t         patterns[16];   // Array of 32 bytes for the patterns id (from 0 to 15).
+} pattern_chain_chunk, *p_pattern_chain_chunk;
+
+typedef struct {
+    uint32_t            file_id;            // seem to be always the same number: 0x00000049
+    pattern_chain_chunk pattern_chain[16];  // Array of saved pattern chains
+    uint8_t             drum_level;
+    uint8_t             synth_level;
+    uint8_t             punch_level;
+    uint8_t             master_level;
+    uint8_t             project_tempo;      // Project tempo from 40 to 200
+    uint8_t             unknown1[44];       // unknown, values are often 0x00
+    uint8_t             swing;              // Swing level from 0 to 255
+    uint8_t             metronome_level;    // Metronome sound level
+    uint8_t             metronome_sound;    // Metronome sound selection from 0x00 to 0xFF. Values might be mapped with some linear interpolated indexes 
+    uint8_t             unknown2[4];        // unknown, mostly 0x000000FF
+    pattern_chunck      patterns[16];
+} project, *p_project;
 
 class OPZ {
 public:
