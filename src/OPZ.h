@@ -31,15 +31,22 @@ const uint8_t SYSTEM_RESET        = 0xFF;
 const uint8_t OPZ_VENDOR_ID[3] = {0x00, 0x20, 0x76};
 const uint8_t OPZ_MAX_PROTOCOL_VERSION = 0x01;
 
-enum page {
-    PAGE_ONE = 0, PAGE_TWO, PAGE_TREE, PAGE_FOUR
-};
 
-enum track {
+enum track_id {
     KICK = 0, SNARE, PERC, SAMPLE, BASS, LEAD, ARP, CHORD, FX1, FX2, TAPE, MASTER, PERFORM, MODULE, LIGHT, MOTION  
 };
 
-enum property {
+enum page_id {
+    PAGE_ONE = 0, PAGE_TWO, PAGE_TREE, PAGE_FOUR
+};
+
+enum track_parameter_id {
+    TRACK_PLUG = 0,     TRACK_PLUG1,        TRACK_PLUG2,    TRACK_PLUG3,
+    TRACK_STEP_COUNT,   TRACK_UNKNOWN,      STEP_LENGTH,    TRACK_QUANTIZE,
+    TRACK_NOTE_STYLE,   TRACK_NOTE_LENGTH,  TRACK_UNUSED1,  TRACK_UNUSED2
+};
+
+enum track_page_parameter_id {
     SOUND_PARAM1 = 0,   SOUND_PARAM2,   SOUND_FILTER,       SOUND_RESONANCE, 
     ENVELOPE_ATTACK,    ENVELOPE_DECAY, ENVELOPE_SUSTAIN,   ENVELOPE_RELEASE,
     SOUND_FX1,          SOUND_FX2,      SOUND_PAN,          SOUND_LEVEL,
@@ -68,70 +75,74 @@ typedef struct {
     uint8_t value_p1;
     uint8_t value_p2;
     uint8_t track;
-} keyboard_state, *p_keyboard_state;
+} track_keyboard, *p_track_keyboard;
+
+typedef struct {
+    uint8_t parm_id;        // 5 byte  
+
+                            // 6 byte
+    uint8_t byte11 : 1;         //  - ??
+    uint8_t param1_hf : 1;      //  - param1 half flag
+    uint8_t param2_hf : 1;      //  - param2 half flag
+    uint8_t attack_hf : 1;      //  - attack half flag
+    uint8_t decay_hf : 1;       //  - decay half flag
+    uint8_t sustain_hf : 1;     //  - sustain half flag
+    uint8_t release_hf : 1;     //  - release half flag
+    uint8_t byte18 : 1;         //  - ??
+
+    uint8_t track;          // 7 byte
+    uint8_t param1;         // 8 byte
+    uint8_t param2;         // 9 byte
+    uint8_t attack;         // 10 byte
+    uint8_t decay;          // 11 byte
+    uint8_t sustain;        // 12 byte
+    uint8_t release;        // 13 byte
+
+                            // 16 byte
+    uint8_t fx1_hf : 1;         //  -fx1 half flag
+    uint8_t fx2_hf : 1;         // - fx2 half flag
+    uint8_t filter_hf : 1;      // - filter half flag
+    uint8_t resonance_hf : 1;   // - resonance half flag
+    uint8_t pan_hf : 1;         // - pan half flag
+    uint8_t level_hf : 1;       // - level half flag
+    uint8_t portamento_hf : 1;  // - portamento half flag
+    uint8_t byte28 : 1;
+
+    uint8_t fx1;            // 14 byte
+    uint8_t fx2;            // 15 byte
+    uint8_t filter;         // 17 byte
+    uint8_t resonance;      // 18 byte
+    uint8_t pan;            // 19 byte
+    uint8_t level;          // 20 byte
+    uint8_t portamento;     // 21 byte
+                            // 22 byte
+    uint8_t lfo_depth_hf : 1;   // - LFO depth half flag   
+    uint8_t lfo_speed_hf : 1;   // - LFO speed half flag
+    uint8_t lfo_value_hf : 1;   // - LFO value half flag
+    uint8_t lfo_shape_hf : 1;   // - LFO shape half flag
+    uint8_t note_style_hf : 1;  // - note style half flag
+    uint8_t byte36 : 1;         // - ??
+    uint8_t byte37 : 1;         // - ??
+    uint8_t byte38 : 1;         // - ??
+
+    uint8_t lfo_depth;      // 23 byte
+    uint8_t lfo_speed;      // 24 byte
+    uint8_t lfo_value;      // 25 byte
+    uint8_t lfo_shape;      // 26 byte
+    uint8_t note_style;     // 27 byte
+
+} track_page_parameter,        *p_track_page_parameter;     
 
 typedef struct {
     uint8_t parm_id;
-} encoder_state, *p_encoder_state;
 
-typedef struct {
-    uint8_t parm_id;    // 5 bit  
-                        // 6 bit
-    uint8_t byte11 : 1;
-    uint8_t param1_hf : 1;    // param1 half flag
-    uint8_t param2_hf : 1;    // param2 half flag
-    uint8_t attack_hf : 1;    // attack half flag
+    uint8_t unknown1[3];
+    uint8_t value_type;
+    uint8_t unknown2[4];
+    uint8_t value_hf;
+    uint8_t value;
 
-    uint8_t decay_hf : 1;     // decay half flag
-    uint8_t sustain_hf : 1;   // sustain half flag
-    uint8_t release_hf : 1;   // release half flag
-    uint8_t byte18 : 1;
-
-    uint8_t track;      // 7 bit
-    uint8_t param1;     // 8 bit
-    uint8_t param2;     // 9 bit
-    uint8_t attack;     // 10 bit
-    uint8_t decay;      // 11 bit
-    uint8_t sustain;    // 12 bit
-    uint8_t release;    // 13 bit
-                        // 16 bit
-    uint8_t fx1_hf : 1;     // fx1 half flag
-    uint8_t fx2_hf : 1;     // fx2 half flag
-    uint8_t filter_hf : 1;  // filter half flag
-    uint8_t resonance_hf : 1; // resonance half flag
-
-    uint8_t pan_hf : 1;     // pan half flag
-    uint8_t level_hf : 1;   // level half flag
-    uint8_t portamento_hf : 1;  // portamento half flag
-    uint8_t byte28 : 1;
-
-    uint8_t fx1;        // 14 bit
-    uint8_t fx2;        // 15 bit
-
-    uint8_t filter;     // 17 bit
-    uint8_t resonance;  // 18 bit
-    uint8_t pan;        // 19 bit
-    uint8_t level;      // 20 bit
-    uint8_t portamento; // 21 bit
-                        // 22 bit
-    uint8_t lfo_depth_hf : 1;   // LFO depth half flag   
-    uint8_t lfo_speed_hf : 1;   // LFO speed half flag
-    uint8_t lfo_value_hf : 1;   // LFO value half flag
-    uint8_t lfo_shape_hf : 1;   // LFO shape half flag
-
-    uint8_t note_style_hf : 1;
-    uint8_t byte36 : 1;
-    uint8_t byte37 : 1;
-    uint8_t byte38 : 1;
-
-    uint8_t lfo_depth;  // 23
-    uint8_t lfo_speed;  // 24
-    uint8_t lfo_value;  // 25
-    uint8_t lfo_shape;  // 26
-
-    uint8_t note_style; // 27
-
-} property_state,        *p_property_state;     
+} track_chunk, *p_track_chunk;
 
 typedef struct {
     uint8_t parm_id;
@@ -184,90 +195,6 @@ typedef struct {
     
 } key_state, *p_key_state;
 
-typedef struct {
-    uint8_t parm_id;
-
-    uint8_t byte1;
-    // uint8_t bit11 : 1;
-    // uint8_t bit12 : 1;
-    // uint8_t bit13 : 1;
-    // uint8_t bit14 : 1;
-    // uint8_t bit15 : 1;
-    // uint8_t bit16 : 1;
-    // uint8_t bit17 : 1;
-    // uint8_t bit18 : 1;
-
-    uint8_t byte2;
-    // uint8_t bit21 : 1;
-    // uint8_t bit22 : 1;
-    // uint8_t bit23 : 1;
-    // uint8_t bit24 : 1;
-    // uint8_t bit25 : 1;
-    // uint8_t bit26 : 1;
-    // uint8_t bit27 : 1;
-    // uint8_t bit28 : 1;
-
-
-    uint8_t byte3;
-    // uint8_t bit31 : 1;
-    // uint8_t bit32 : 1;
-    // uint8_t bit33 : 1;
-    // uint8_t bit34 : 1;
-    // uint8_t bit35 : 1;
-    // uint8_t bit36 : 1;
-    // uint8_t bit37 : 1;
-    // uint8_t bit38 : 1;
-
-    uint8_t value_id;
-
-
-    uint8_t byte5;
-    // uint8_t bit51 : 1;
-    // uint8_t bit52 : 1;
-    // uint8_t bit53 : 1;
-    // uint8_t bit54 : 1;
-    // uint8_t bit55 : 1;
-    // uint8_t bit56 : 1;
-    // uint8_t bit57 : 1;
-    // uint8_t bit58 : 1;
-
-    uint8_t byte6;
-    // uint8_t bit61 : 1;
-    // uint8_t bit62 : 1;
-    // uint8_t bit63 : 1;
-    // uint8_t bit64 : 1;
-    // uint8_t bit65 : 1;
-    // uint8_t bit66 : 1;
-    // uint8_t bit67 : 1;
-    // uint8_t bit68 : 1;
-
-
-    uint8_t byte7;
-    // uint8_t bit71 : 1;
-    // uint8_t bit72 : 1;
-    // uint8_t bit73 : 1;
-    // uint8_t bit74 : 1;
-    // uint8_t bit75 : 1;
-    // uint8_t bit76 : 1;
-    // uint8_t bit77 : 1;
-    // uint8_t bit78 : 1;
-
-
-    uint8_t byte8;
-    // uint8_t bit81 : 1;
-    // uint8_t bit82 : 1;
-    // uint8_t bit83 : 1;
-    // uint8_t bit84 : 1;
-    // uint8_t bit85 : 1;
-    // uint8_t bit86 : 1;
-    // uint8_t bit87 : 1;
-    // uint8_t bit88 : 1;
-
-    uint8_t value_hf;
-    uint8_t value;
-
-} track_state, *p_track_state;
-
 class OPZ {
 public:
     OPZ();
@@ -277,9 +204,10 @@ public:
 
     static void     process_message(double _deltatime, std::vector<unsigned char>* _message, void* _userData);
     static std::string& toString( key_id _id );
-    static std::string& toString( track  _id );
-    static std::string& toString( page   _id );
-    static std::string& toString( property _id);
+    static std::string& toString( page_id   _id );
+    static std::string& toString( track_id  _id );
+    static std::string& toString( track_parameter_id _id );
+    static std::string& toString( track_page_parameter_id _id);
 
     void            update();
 
@@ -288,11 +216,11 @@ public:
     static const std::vector<unsigned char>* getInitMsg();
     static const std::vector<unsigned char>* getHeartBeat();
 
-    track           getSelectedTrack() const { return m_track; }
-    page            getSelectedPage() const { return m_page; }
+    track_id           getActiveTrack() const { return m_active_track; }
+    page_id            getActivePage() const { return m_active_page; }
 
     float           getVolume() const { return m_volume; }
-    float           getSoundProperty(track _track, property _prop);
+    float           getTrackPageParameter(track_id _track, track_page_parameter_id _prop);
 
     size_t          verbose;
 
@@ -300,9 +228,8 @@ protected:
     void            process_sysex(std::vector<unsigned char>* _message);
     void            process_event(std::vector<unsigned char>* _message);
 
-    keyboard_state  m_keyboard_state[16];
-    property_state  m_property_state[16];
-    track_state     m_track_state[16];
+    track_keyboard  m_track_keyboard[16];
+    track_page_parameter  m_track_page_parameter[16];
     float           m_note_lenght[16];
     float           m_quantize[16];
 
@@ -311,8 +238,8 @@ protected:
 
     float           m_volume;
 
-    track           m_track;
-    page            m_page;
+    track_id        m_active_track;
+    page_id         m_active_page;
 
     unsigned char   m_microphone_mode;
     bool            m_play;

@@ -67,28 +67,36 @@ std::string track_name[] = {
     "KICK", "SNARE", "PERC", "SAMPLE", "BASS", "LEAD", "ARP", "CHORD", "FX1", "FX2", "TAPE", "MASTER", "PERFORM", "MODULE", "LIGHT", "MOTION", "UNKNOWN" 
 };
 
-std::string property_name[] = { 
-    "SOUND_PARAM1",     "SOUND_PARAM2",   "SOUND_FILTER",       "SOUND_RESONANCE", 
-    "ENVELOPE_ATTACK",  "ENVELOPE_DECAY", "ENVELOPE_SUSTAIN",   "ENVELOPE_RELEASE",
-    "SOUND_FX1",        "SOUND_FX2",      "SOUND_PAN",          "SOUND_LEVEL",
-    "LFO_DEPTH",        "LFO_SPEED",      "LFO_VALUE",          "LFO_SHAPE",
-    "NOTE_LENGHT",      "QUANTIZE",       "PORTAMENTO"
+std::string track_parameter_name[] = { 
+    "TRACK_PLUG",       "TRACK_PLUG1",        "TRACK_PLUG2",        "TRACK_PLUG3",
+    "TRACK_STEP_COUNT", "TRACK_UNKNOWN",      "TRACK_STEP_LENGTH",  "TRACK_QUANTIZE",
+    "TRACK_NOTE_STYLE", "TRACK_NOTE_LENGTH",  "TRACK_UNUSED1",      "TRACK_UNUSED2"
 };
+
+std::string track_page_parameter_name[] = { 
+    "SOUND_PARAM1",     "SOUND_PARAM2",     "SOUND_FILTER",     "SOUND_RESONANCE", 
+    "ENVELOPE_ATTACK",  "ENVELOPE_DECAY",   "ENVELOPE_SUSTAIN", "ENVELOPE_RELEASE",
+    "SOUND_FX1",        "SOUND_FX2",        "SOUND_PAN",        "SOUND_LEVEL",
+    "LFO_DEPTH",        "LFO_SPEED",        "LFO_VALUE",        "LFO_SHAPE",
+    "NOTE_LENGHT",      "NOTE_STYLE",       "QUANTIZE",         "PORTAMENTO"
+};
+
 
 OPZ::OPZ() :
 verbose(0),
 m_volume(0.0f), 
-m_track(KICK), 
-m_page(PAGE_ONE), 
+m_active_track(KICK), 
+m_active_page(PAGE_ONE), 
 m_microphone_mode(0),
 m_play(false),
 m_key_enable(false) {
 }
 
 std::string& OPZ::toString( key_id _id ) { return key_name[_id]; }
-std::string& OPZ::toString( track  _id ) { return track_name[_id]; }
-std::string& OPZ::toString( page   _id ) { return page_name[_id]; }
-std::string& OPZ::toString( property _id ) { return property_name[_id]; } 
+std::string& OPZ::toString( page_id  _id ) { return page_name[_id]; }
+std::string& OPZ::toString( track_id _id ) { return track_name[_id]; }
+std::string& OPZ::toString( track_parameter_id _id ) { return track_parameter_name[_id]; } 
+std::string& OPZ::toString( track_page_parameter_id _id ) { return track_page_parameter_name[_id]; } 
 const std::vector<unsigned char>* OPZ::getInitMsg() { return &initial_message; }
 const std::vector<unsigned char>* OPZ::getHeartBeat() { return &master_heartbeat; }
 
@@ -124,7 +132,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
             //     printf("Msg %02X (Universal response)\n", seh.parm_id);
 
             // if (verbose > 1)
-            //     std::cout << "  " << hex_msg(buffer, length) << std::endl;
+            //     std::cout << "  " << hex_msg(buffer, length) << "(" << length << " bytes)" << std::endl;
         } break;
 
         case 0x02: {
@@ -134,33 +142,15 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("Msg %02X (Track Setting)\n", seh.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << hex_msg(buffer, length) << std::endl;
+                std::cout << "  " << hex_msg(buffer, length) << "(" << length << " bytes)" << std::endl;
 
-            CAST_MESSAGE(track_state, ti);
-            memcpy(&(m_track_state[m_track]), &ti, sizeof(track_state));
+            CAST_MESSAGE(track_chunk, ti);
+            // memcpy(&(m_track_chunk[m_active_track]), &ti, sizeof(track_chunk));
 
             if (verbose > 2) {
-                printf( "   byte1:      %02X\n", ti.byte1);
-                // printf( "   byte1X:     %i %i %i %i  %i %i %i %i\n", ti.bit18, ti.bit17, ti.bit16, ti.bit15, ti.bit14, ti.bit13, ti.bit12, ti.bit11);
-                printf( "   byte2:      %02X\n", ti.byte2);
-                // printf( "   byte2X:     %i %i %i %i  %i %i %i %i\n", ti.bit28, ti.bit27, ti.bit26, ti.bit25, ti.bit24, ti.bit23, ti.bit22, ti.bit21);
-                printf( "   byte3:      %02X\n", ti.byte3);
-                // printf( "   byte3X:     %i %i %i %i  %i %i %i %i\n", ti.bit38, ti.bit37, ti.bit36, ti.bit35, ti.bit34, ti.bit33, ti.bit32, ti.bit31);
-
-                printf( "   value_id:   %02X\n", ti.value_id);
-
-                printf( "   byte5:      %02X\n", ti.byte5);
-                // printf( "   byte5X:     %i %i %i %i  %i %i %i %i\n", ti.bit58, ti.bit57, ti.bit56, ti.bit55, ti.bit54, ti.bit53, ti.bit52, ti.bit51);
-                printf( "   byte6:      %02X\n", ti.byte6);
-                // printf( "   byte6X:     %i %i %i %i  %i %i %i %i\n", ti.bit68, ti.bit67, ti.bit66, ti.bit65, ti.bit64, ti.bit63, ti.bit62, ti.bit61);
-                printf( "   byte7:      %02X\n", ti.byte7);
-                // printf( "   byte7X:     %i %i %i %i  %i %i %i %i\n", ti.bit78, ti.bit77, ti.bit76, ti.bit75, ti.bit74, ti.bit73, ti.bit72, ti.bit71);
-                printf( "   byte8:      %02X\n", ti.byte8);
-                // printf( "   byte8X:     %i %i %i %i  %i %i %i %i\n", ti.bit88, ti.bit87, ti.bit86, ti.bit85, ti.bit84, ti.bit83, ti.bit82, ti.bit81);
-
-                printf( "   value: %f\n", (ti.value + ti.value_hf * 128) / 255.0f );
+                std::cout << "   value type: " << toString((track_parameter_id)ti.value_type) << std::endl;
+                std::cout << "   value:      " << ((ti.value + ti.value_hf * 128) / 255.0f) << std::endl;
             }
-
 
         } break;
 
@@ -170,17 +160,17 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("Msg %02X (Keyboard Setting)\n", seh.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << hex_msg(buffer, length) << std::endl;
+                std::cout << "  " << hex_msg(buffer, length) << "(" << length << " bytes)" << std::endl;
 
-            // const keyboard_state &ti = (const keyboard_state &)buffer[sizeof(sysex_header)-1];
-            CAST_MESSAGE(keyboard_state, ki);
-            m_track = (track)ki.track;
+            // const track_keyboard &ti = (const track_keyboard &)buffer[sizeof(sysex_header)-1];
+            CAST_MESSAGE(track_keyboard, ki);
+            m_active_track = (track_id)ki.track;
 
-            memcpy(&(m_keyboard_state[m_track]), &ki, sizeof(keyboard_state));
+            memcpy(&(m_track_keyboard[m_active_track]), &ki, sizeof(track_keyboard));
             
             if (verbose > 2) {
-                std::cout << "  Update track " << toString(m_track);
-                printf(", data %02X %02X\n", m_keyboard_state[m_track].value_p1, m_keyboard_state[m_track].value_p2);
+                std::cout << "  Update track " << toString(m_active_track);
+                printf(", data %02X %02X\n", m_track_keyboard[m_active_track].value_p1, m_track_keyboard[m_active_track].value_p2);
             }
             
         } break;
@@ -190,7 +180,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("Msg %02X (IN/OUT?)\n", seh.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << hex_msg(buffer, length) << std::endl;
+                std::cout << "  " << hex_msg(buffer, length) << "(" << length << " bytes)" << std::endl;
 
             m_volume = ( ((int)buffer[6] == 0)? (int)buffer[8] : 128 + (int)buffer[8] )/255.0;
             m_microphone_mode = buffer[10];
@@ -211,15 +201,15 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("Msg %02X (Button States)\n", seh.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << hex_msg(buffer, length) << std::endl;
+                std::cout << "  " << hex_msg(buffer, length) << "(" << length << " bytes)" << std::endl;
 
             CAST_MESSAGE(key_state, ki);
             memcpy(&(m_key_prev_state), &m_key_state, sizeof(m_key_state));
             memcpy(&(m_key_state), &ki, sizeof(m_key_state));
 
             if (verbose > 2) {
-                std::cout << "  track: " << toString(m_track) << std::endl;
-                std::cout << "  page:  " << toString(m_page) << std::endl;
+                std::cout << "  track: " << toString(m_active_track) << std::endl;
+                std::cout << "  page:  " << toString(m_active_page) << std::endl;
 
                 printf( "page2x:    %i\n", m_key_state.page2x);
                 printf( "mixer:     %i\n", m_key_state.mixer);
@@ -268,7 +258,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf( "key58:     %i\n", m_key_state.key58);
             }      
 
-            m_page = (page)( (int)(m_key_state.page2x) * 2 + (int)(m_key_state.page) );
+            m_active_page = (page_id)( (int)(m_key_state.page2x) * 2 + (int)(m_key_state.page) );
 
             if (m_key_enable) {
 
@@ -312,7 +302,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("Msg %02X (Sequencer Settings)\n", seh.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << hex_msg(buffer, length) << std::endl;
+                std::cout << "  " << hex_msg(buffer, length) << "(" << length << " bytes)" << std::endl;
             
         } break;
 
@@ -322,7 +312,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("Msg %02X (Pattern)\n", seh.parm_id);
             
             if (verbose > 1)
-                std::cout << "  " << hex_msg(buffer, length) << std::endl;
+                std::cout << "  " << hex_msg(buffer, length) << "(" << length << " bytes)" << std::endl;
             
         } break;
 
@@ -332,7 +322,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("Msg %02X (Global Data)\n", seh.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << hex_msg(buffer, length) << std::endl;
+                std::cout << "  " << hex_msg(buffer, length) << "(" << length << " bytes)" << std::endl;
             
         } break;
 
@@ -342,15 +332,15 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("Msg %02X (Sound preset)\n", seh.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << hex_msg(buffer, length) << std::endl;
+                std::cout << "  " << hex_msg(buffer, length) << "(" << length << " bytes)" << std::endl;
 
-            m_track = (track)buffer[7];
+            m_active_track = (track_id)buffer[7];
 
-            CAST_MESSAGE(property_state, si);
-            memcpy(&(m_property_state[m_track]), &si, sizeof(property_state));
+            CAST_MESSAGE(track_page_parameter, si);
+            memcpy(&(m_track_page_parameter[m_active_track]), &si, sizeof(track_page_parameter));
 
             if (verbose > 2) {
-                std::cout << "  Active track: " << track_name[m_track] << " page:  " << page_name[m_page] << std::endl;
+                std::cout << "  Active track: " << track_name[m_active_track] << " page:  " << page_name[m_active_page] << std::endl;
 
                 printf( "   byte1X:     %i %i %i %i  %i %i %i %i\n", si.byte11, si.param1_hf, si.param2_hf, si.attack_hf, si.decay_hf, si.sustain_hf, si.release_hf, si.byte18);
                 printf( "   param1:     %i\n", si.param1);
@@ -386,7 +376,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("Msg %02X (Compressed MIDI Config)\n", seh.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << hex_msg(buffer, length) << std::endl;
+                std::cout << "  " << hex_msg(buffer, length) << "(" << length << " bytes)" << std::endl;
         } break;
 
         case 0x12: {
@@ -395,7 +385,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("Msg %02X (Sound State)\n", seh.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << hex_msg(buffer, length) << std::endl;
+                std::cout << "  " << hex_msg(buffer, length) << "(" << length << " bytes)" << std::endl;
         } break;
 
         default: {
@@ -403,7 +393,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("Msg %02X (unknown)\n", seh.parm_id);
 
             if (verbose > 1)
-                std::cout << "  " << hex_msg(buffer, length) << std::endl;
+                std::cout << "  " << hex_msg(buffer, length) << "(" << length << " bytes)" << std::endl;
         }
     }
 
@@ -509,50 +499,50 @@ void OPZ::process_event(std::vector<unsigned char>* _message) {
     // std::cout << std::endl;
 }
 
-float OPZ::getSoundProperty(track _track, property _prop) {
+float OPZ::getTrackPageParameter(track_id _track, track_page_parameter_id _prop) {
     if (_prop == SOUND_PARAM1)
-        return (m_property_state[m_track].param1 + m_property_state[m_track].param1_hf * 128) / 255.0f;
+        return (m_track_page_parameter[m_active_track].param1 + m_track_page_parameter[m_active_track].param1_hf * 128) / 255.0f;
     else if (_prop == SOUND_PARAM2)
-        return (m_property_state[m_track].param2 + m_property_state[m_track].param2_hf * 128) / 255.0f;
+        return (m_track_page_parameter[m_active_track].param2 + m_track_page_parameter[m_active_track].param2_hf * 128) / 255.0f;
     else if (_prop == SOUND_FILTER)
-        return (m_property_state[m_track].filter + m_property_state[m_track].filter_hf * 128) / 255.0f; 
+        return (m_track_page_parameter[m_active_track].filter + m_track_page_parameter[m_active_track].filter_hf * 128) / 255.0f; 
     else if (_prop == SOUND_RESONANCE)
-        return (m_property_state[m_track].resonance + m_property_state[m_track].resonance_hf * 128) / 255.0f;
+        return (m_track_page_parameter[m_active_track].resonance + m_track_page_parameter[m_active_track].resonance_hf * 128) / 255.0f;
 
     // TODO
     //      - I got the names wrong
     else if (_prop == ENVELOPE_ATTACK) // S
-        return (m_property_state[m_track].attack + m_property_state[m_track].attack_hf * 128) / 255.0f;
+        return (m_track_page_parameter[m_active_track].attack + m_track_page_parameter[m_active_track].attack_hf * 128) / 255.0f;
     else if (_prop == ENVELOPE_DECAY) // A
-        return (m_property_state[m_track].decay + m_property_state[m_track].decay_hf * 128) / 255.0f;
+        return (m_track_page_parameter[m_active_track].decay + m_track_page_parameter[m_active_track].decay_hf * 128) / 255.0f;
     else if (_prop == ENVELOPE_SUSTAIN) // H
-        return (m_property_state[m_track].sustain + m_property_state[m_track].sustain_hf * 128) / 255.0f; 
+        return (m_track_page_parameter[m_active_track].sustain + m_track_page_parameter[m_active_track].sustain_hf * 128) / 255.0f; 
     else if (_prop == ENVELOPE_RELEASE) // D
-        return (m_property_state[m_track].release + m_property_state[m_track].release_hf * 128) / 255.0f; 
+        return (m_track_page_parameter[m_active_track].release + m_track_page_parameter[m_active_track].release_hf * 128) / 255.0f; 
 
     else if (_prop == LFO_DEPTH)
-        return (m_property_state[m_track].lfo_depth + m_property_state[m_track].lfo_depth_hf * 128) / 255.0f;
+        return (m_track_page_parameter[m_active_track].lfo_depth + m_track_page_parameter[m_active_track].lfo_depth_hf * 128) / 255.0f;
     else if (_prop == LFO_SPEED) // RATE
-        return (m_property_state[m_track].lfo_speed + m_property_state[m_track].lfo_speed_hf * 128) / 255.0f;
+        return (m_track_page_parameter[m_active_track].lfo_speed + m_track_page_parameter[m_active_track].lfo_speed_hf * 128) / 255.0f;
     else if (_prop == LFO_VALUE) // DEST
-        return (m_property_state[m_track].lfo_value + m_property_state[m_track].lfo_value_hf * 128) / 255.0f; 
+        return (m_track_page_parameter[m_active_track].lfo_value + m_track_page_parameter[m_active_track].lfo_value_hf * 128) / 255.0f; 
     else if (_prop == LFO_SHAPE)
-        return (m_property_state[m_track].lfo_shape + m_property_state[m_track].lfo_shape_hf * 128) / 255.0f;
+        return (m_track_page_parameter[m_active_track].lfo_shape + m_track_page_parameter[m_active_track].lfo_shape_hf * 128) / 255.0f;
 
     else if (_prop == SOUND_FX1)
-        return (m_property_state[m_track].fx1 + m_property_state[m_track].fx1_hf * 128) / 255.0f;
+        return (m_track_page_parameter[m_active_track].fx1 + m_track_page_parameter[m_active_track].fx1_hf * 128) / 255.0f;
     else if (_prop == SOUND_FX2)
-        return (m_property_state[m_track].fx2 + m_property_state[m_track].fx2_hf * 128) / 128.0f - 1.0f;
+        return (m_track_page_parameter[m_active_track].fx2 + m_track_page_parameter[m_active_track].fx2_hf * 128) / 128.0f - 1.0f;
     else if (_prop == SOUND_PAN)
-        return (m_property_state[m_track].pan + m_property_state[m_track].pan_hf * 128) / 255.0f; 
+        return (m_track_page_parameter[m_active_track].pan + m_track_page_parameter[m_active_track].pan_hf * 128) / 255.0f; 
     else if (_prop == SOUND_LEVEL)
-        return (m_property_state[m_track].level + m_property_state[m_track].level_hf * 128) / 255.0f;
+        return (m_track_page_parameter[m_active_track].level + m_track_page_parameter[m_active_track].level_hf * 128) / 255.0f;
 
     else if (_prop = NOTE_STYLE)
-        return (m_property_state[m_track].note_style + m_property_state[m_track].portamento_hf * 128) / 255.0f;
+        return (m_track_page_parameter[m_active_track].note_style + m_track_page_parameter[m_active_track].portamento_hf * 128) / 255.0f;
 
     else if (_prop == PORTAMENTO)
-        return (m_property_state[m_track].portamento + m_property_state[m_track].portamento_hf * 128) / 255.0f;
+        return (m_track_page_parameter[m_active_track].portamento + m_track_page_parameter[m_active_track].portamento_hf * 128) / 255.0f;
 
     return 0.0f;
 }
