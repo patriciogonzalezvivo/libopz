@@ -123,6 +123,7 @@ typedef struct {
     uint8_t track;
 } track_keyboard, *p_track_keyboard;
 
+// https://github.com/lrk/z-po-project/wiki/Project-file-format#track-parameters
 typedef struct {
     uint8_t param1;
     uint8_t param2;
@@ -144,6 +145,7 @@ typedef struct {
     uint8_t note_style;
 } track_parameter, *p_track_parameter;     
 
+// https://github.com/lrk/z-po-project/wiki/Project-file-format#track-chunk
 typedef struct {
     uint32_t plug;
     uint8_t step_count;
@@ -162,6 +164,7 @@ typedef struct {
     uint8_t value;
 } track_change, *p_track_change;
 
+// https://github.com/lrk/z-po-project/wiki/Project-file-format#note-chunk
 typedef struct {
     int32_t duration[4];
     uint8_t note;
@@ -170,6 +173,7 @@ typedef struct {
     uint8_t age;
 } note_chunck, *p_note_chunck;
 
+// https://github.com/lrk/z-po-project/wiki/Project-file-format#step-chunk
 typedef struct {
     uint16_t    components_bitmask;             // Bit mask on 2 bytes to show which step component are enabled. See below for bitmask values
     uint8_t     components_parameters[16];      // Array of selected parameter value for each step components
@@ -177,6 +181,7 @@ typedef struct {
     uint8_t     parameter_mask[18];             // Array of actually enabled parameter lock
 } step_chunck, *p_step_chunck;
 
+// https://github.com/lrk/z-po-project/wiki/Project-file-format#pattern-chunk
 typedef struct {
     track_chunck    tracks[16];
     note_chunck     notes[880];
@@ -189,10 +194,12 @@ typedef struct {
     uint8_t         unused[3];
 } pattern_chunck, *p_pattern_chunck;
 
+// https://github.com/lrk/z-po-project/wiki/Project-file-format#pattern-chain-chunk
 typedef struct {
     uint8_t         patterns[16];   // Array of 32 bytes for the patterns id (from 0 to 15).
 } pattern_chain_chunk, *p_pattern_chain_chunk;
 
+// https://github.com/lrk/z-po-project/wiki/Project-file-format#project-file-format
 typedef struct {
     uint32_t            file_id;            // seem to be always the same number: 0x00000049
     pattern_chain_chunk pattern_chain[16];  // Array of saved pattern chains
