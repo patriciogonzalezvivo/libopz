@@ -204,12 +204,12 @@ typedef struct {
 
 // https://github.com/lrk/z-po-project/wiki/Project-file-format#pattern-chain-chunk
 typedef struct {
-    uint8_t         patterns[16];   // Array of 32 bytes for the patterns id (from 0 to 15).
+    uint8_t         patterns[32];   // Array of 32 bytes for the patterns id (from 0 to 15).
 } pattern_chain_chunk, *p_pattern_chain_chunk;
 
 // https://github.com/lrk/z-po-project/wiki/Project-file-format#project-file-format
 typedef struct {
-    uint32_t            file_id;            // seem to be always the same number: 0x00000049
+    // uint32_t            file_id;            // seem to be always the same number: 0x00000049
     pattern_chain_chunk pattern_chain[16];  // Array of saved pattern chains
     uint8_t             drum_level;
     uint8_t             synth_level;
@@ -221,7 +221,7 @@ typedef struct {
     uint8_t             metronome_level;    // Metronome sound level
     uint8_t             metronome_sound;    // Metronome sound selection from 0x00 to 0xFF. Values might be mapped with some linear interpolated indexes 
     uint8_t             unknown2[4];        // unknown, mostly 0x000000FF
-    pattern_chunck      patterns[16];
+    // pattern_chunck      patterns[16];
 } project, *p_project;
 
 class OPZ {
@@ -258,10 +258,11 @@ protected:
     void            process_sysex(std::vector<unsigned char>* _message);
     void            process_event(std::vector<unsigned char>* _message);
 
-    track_keyboard  m_track_keyboard[16];
-    track_parameter m_track_parameter[16];
-    float           m_note_lenght[16];
-    float           m_quantize[16];
+    project   m_project;
+    track_keyboard      m_track_keyboard[16];
+    track_parameter     m_track_parameter[16];
+    float               m_note_lenght[16];
+    float               m_quantize[16];
 
     key_state       m_key_state;
     key_state       m_key_prev_state;

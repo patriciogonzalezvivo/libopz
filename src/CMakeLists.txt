@@ -16,6 +16,9 @@ target_include_directories(libopz PRIVATE
     "${PROJECT_SOURCE_DIR}/deps"
 )
 
+find_package(ZLIB)
+
 target_link_libraries(libopz PRIVATE
     rtmidi
+    ZLIB::ZLIB
 )

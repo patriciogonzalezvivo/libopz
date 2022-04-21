@@ -4,6 +4,8 @@
 #include <iostream>
 #include <vector>
 
+#include <zlib.h>
+
 #include "OPZ.h"
 
 namespace T3 {
@@ -93,7 +95,7 @@ char *printHex(unsigned char *cp, size_t n) {
 }
 
 // encode raw 8bit to 7bits  
-size_t encodeSysEx(const unsigned char* inData, unsigned char* outSysEx, unsigned inLength, bool inFlipHeaderBits) {
+size_t encodeSysEx(const unsigned char* inData, unsigned inLength, unsigned char* outSysEx, bool inFlipHeaderBits = true) {
     size_t outLength    = 0;     // Num bytes in output array.
     unsigned char count = 0;     // Num 7bytes in a block.
     outSysEx[0]         = 0;
@@ -117,7 +119,7 @@ size_t encodeSysEx(const unsigned char* inData, unsigned char* outSysEx, unsigne
 }
 
 // decode 7bit to raw 8bits
-size_t decodeSysEx(const unsigned char* inData, unsigned char* outData, size_t inLength, bool inFlipHeaderBits) {
+size_t decodeSysEx(const unsigned char* inData, size_t inLength, unsigned char* outData, bool inFlipHeaderBits = true) {
     size_t count  = 0;
     unsigned char msbStorage = 0;
     unsigned char byteIndex  = 0;
@@ -137,6 +139,41 @@ size_t decodeSysEx(const unsigned char* inData, unsigned char* outData, size_t i
     }
     return count;
 }
+
+const unsigned CHUNK_SIZE = 4096;
+std::vector<unsigned char> decompress(const unsigned char* inData, size_t inLength) {
+    std::vector<unsigned char> output;
+
+    z_stream stream;
+    stream.zalloc = 0;
+    stream.zfree = 0;
+    stream.opaque = 0;
+
+    stream.avail_in = inLength - 1;
+    stream.next_in = const_cast<Byte *>(&inData[0]);
+    
+    int res = inflateInit(&stream);
+    if (res != Z_OK)
+        return output;
+
+    unsigned char ChunkOut[CHUNK_SIZE];
+    do {
+        stream.avail_out = sizeof(ChunkOut);
+        stream.next_out = ChunkOut;
+        res = inflate(&stream, Z_FINISH);
+        unsigned compressed = sizeof(ChunkOut) - stream.avail_out;
+        unsigned oldsize = output.size();
+        output.resize(oldsize + compressed);
+        memcpy(&output[oldsize], ChunkOut, compressed);
+    }
+    while (stream.avail_out == 0);
+
+    inflateEnd(&stream);
+
+    return output;
+}
+
+
 
 OPZ::OPZ():
 verbose(0),
@@ -188,7 +225,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
     unsigned char *data = new unsigned char[data_length];
 
     // decode 7bit into raw 8bit
-    size_t length = decodeSysEx(&_message->at(sizeof(sysex_header)), data, data_length, true);
+    size_t length = decodeSysEx(&_message->at(sizeof(sysex_header)), data_length, data);
     
     switch (header.parm_id) {
         case 0x01: {
@@ -341,26 +378,26 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
             m_active_pattern = si.pattern;
 
             if (verbose > 2) {
-                printf("    sequence:   %i\n", si.pattern + 1);
-                printf("    unknown10:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[0]));
-                printf("    unknown11:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[1]));
-                printf("    unknown12:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[2]));
-                printf("    unknown13:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[3]));
-                printf("    unknown14:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[4]));
-                printf("    unknown15:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[5]));
-                printf("    unknown16:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[6]));
-                printf("    unknown17:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[7]));
-                printf("    unknown18:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[8]));
-                printf("    unknown19:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[9]));
-                printf("    unknown1A:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[10]));
-                printf("    unknown1B:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[11]));
-                printf("    unknown1C:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[12]));
-                printf("    unknown1D:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[13]));
-                printf("    unknown1E:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[14]));
-                printf("    unknown2:   %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown2));
-                printf("    pattern:    %02X\n", si.pattern);
-                printf("    unknown3:   %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown3));
-                printf("    project:    %i\n", si.project + 1);
+                printf("    sequence:   %02X (sequence %i)\n", si.sequence, si.sequence + 1);
+                // printf("    unknown10:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[0]));
+                // printf("    unknown11:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[1]));
+                // printf("    unknown12:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[2]));
+                // printf("    unknown13:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[3]));
+                // printf("    unknown14:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[4]));
+                // printf("    unknown15:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[5]));
+                // printf("    unknown16:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[6]));
+                // printf("    unknown17:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[7]));
+                // printf("    unknown18:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[8]));
+                // printf("    unknown19:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[9]));
+                // printf("    unknown1A:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[10]));
+                // printf("    unknown1B:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[11]));
+                // printf("    unknown1C:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[12]));
+                // printf("    unknown1D:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[13]));
+                // printf("    unknown1E:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[14]));
+                // printf("    unknown2:   %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown2));
+                printf("    pattern:    %02X (offset %i bytes)\n", si.pattern, si.pattern);
+                // printf("    unknown3:   %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown3));
+                printf("    project:    %02X (project %i)\n", si.project, si.project + 1);
             }
 
         } break;
@@ -371,8 +408,26 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("Msg %02X (Pattern)\n", header.parm_id);
             
             if (verbose > 1)
-                std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "   RAW " << printHex(data, 6) << "(" << 6 << " bytes)" << std::endl;
+
+            printf("    project:        %02X\n", data[0]);
+
+            std::vector<unsigned char> decompressed = decompress(&data[6], length-6);
+            std::cout << "   ENC " << printHex(&decompressed[0], decompressed.size()) << "(" << decompressed.size() << " bytes)" << std::endl;
+
             
+            const pattern_chunck & pi = (const pattern_chunck &)decompressed[0];
+
+            for (size_t i = 0; i < 7; i++) {
+                printf(" pattern: %i", i);
+                printf("   step_count:  %02X (%i)\n", pi.tracks[i].step_count, pi.tracks[i].step_count);
+                printf("   step_length: %02X (%i)\n", pi.tracks[i].step_length, pi.tracks[i].step_length);
+                printf("   quantize:    %02X (%i)\n", pi.tracks[i].quantize, pi.tracks[i].quantize);
+                printf("   note_style:  %02X (%i)\n", pi.tracks[i].note_style, pi.tracks[i].note_style);
+                printf("   note_length: %02X (%i)\n", pi.tracks[i].note_length, pi.tracks[i].note_length);
+            }
+
+
         } break;
 
         case 0x0c: {
@@ -380,8 +435,26 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
             if (verbose)
                 printf("Msg %02X (Global Data)\n", header.parm_id);
 
+            // Global data is compressed using zlib
+            std::vector<unsigned char> decompressed = decompress(data, length);
+
             if (verbose > 1)
-                std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "       " << printHex(&decompressed[0], decompressed.size()) << "(" << decompressed.size() << " bytes)" << std::endl;
+            
+            const project & pi = (const project &)decompressed[0];
+            memcpy(&m_project, &pi, sizeof(pi));
+
+            if (verbose > 2) {
+                printf("    drum level:     %i\n", pi.drum_level);
+                printf("    synth level:    %i\n", pi.synth_level);
+                printf("    pinch level:    %i\n", pi.punch_level);
+                printf("    master level:   %i\n", pi.master_level);
+                printf("    project tempo:  %i\n", pi.project_tempo);
+                printf("    swing:          %i\n", pi.swing);
+                printf("    metronome_level:%i\n", pi.metronome_level);
+                printf("    metronome_sound:%i\n", pi.metronome_sound);
+            }
+
             
         } break;
 
@@ -443,8 +516,13 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
             if (verbose)
                 printf("Msg %02X (unknown)\n", header.parm_id);
 
-            if (verbose > 1)
-                std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
+
+            size_t offset = 1;
+            std::vector<unsigned char> decompressed = decompress(&data[offset], length-offset);
+            if (verbose > 1) {
+                std::cout << "   RAW " << printHex(data, 1) << "(" << length << " bytes)" << std::endl;
+                std::cout << "   ENC " << printHex(&decompressed[0], decompressed.size()) << "(" << decompressed.size() << " bytes)" << std::endl;
+            }
         }
     }
 
