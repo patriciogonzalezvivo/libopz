@@ -31,13 +31,11 @@ const uint8_t SYSTEM_RESET        = 0xFF;
 const uint8_t OPZ_VENDOR_ID[3] = {0x00, 0x20, 0x76};
 const uint8_t OPZ_MAX_PROTOCOL_VERSION = 0x01;
 
-
-enum track_id {
-    KICK = 0, SNARE, PERC, SAMPLE, BASS, LEAD, ARP, CHORD, FX1, FX2, TAPE, MASTER, PERFORM, MODULE, LIGHT, MOTION  
-};
-
-enum page_id {
-    PAGE_ONE = 0, PAGE_TWO, PAGE_TREE, PAGE_FOUR
+enum project_parameter_id {
+    DRUM_LEVEL = 0, SYNTH_LEVEL,    PUNCH_LEVEL,    MASTER_LEVEL,   PROJECT_TEMPO,
+    SWING, // 44 unknown  
+    METRONOME_LEVEL,    METRONOME_SOUND
+    // 4 unknown
 };
 
 enum pattern_parameter_id {
@@ -59,21 +57,32 @@ enum pattern_parameter_id {
     MOTION_PLUG,    MOTION_PLUG1,   MOTION_PLUG2,   MOTION_PLUG3,   MOTION_STEP_COUNT,  MOTION_UNKNOWN, MOTION_STEP_LENGTH, MOTION_QUANTIZE,MOTION_NOTE_STYLE,  MOTION_NOTE_LENGTH, MOTION_BYTE1,   MOTION_BYTE2
 };
 
+enum track_id {
+    KICK = 0, SNARE, PERC, SAMPLE, BASS, LEAD, ARP, CHORD, FX1, FX2, TAPE, MASTER, PERFORM, MODULE, LIGHT, MOTION  
+};
+
 enum track_parameter_id {
     SOUND_PARAM1 = 0,   SOUND_PARAM2,   SOUND_FILTER,       SOUND_RESONANCE, 
     ENVELOPE_ATTACK,    ENVELOPE_DECAY, ENVELOPE_SUSTAIN,   ENVELOPE_RELEASE,
     SOUND_FX1,          SOUND_FX2,      SOUND_PAN,          SOUND_LEVEL,
     LFO_DEPTH,          LFO_SPEED,      LFO_VALUE,          LFO_SHAPE,
-    NOTE_LENGHT,        NOTE_STYLE,     QUANTIZE,           PORTAMENTO
+    NOTE_LENGTH,        NOTE_STYLE,     QUANTIZE,           PORTAMENTO,
+    STEP_COUNT,         STEP_LENGTH
+};
+
+enum page_id {
+    PAGE_ONE = 0, PAGE_TWO, PAGE_TREE, PAGE_FOUR
 };
 
 // All but the musical keyboard
-enum key_id {
-    KEY_POWER = 0,
+enum event_id {
+    VOLUME_CHANGE = 0,
     KEY_PROJECT, KEY_MIXER, KEY_TEMPO, KEY_SCREEN,
     KEY_TRACK, KEY_KICK, KEY_SNARE, KEY_PERC, KEY_SAMPLE, KEY_BASS, KEY_LEAD, KEY_ARP, KEY_CHORD, KEY_FX1, KEY_FX2, KEY_TAPE, KEY_MASTER, KEY_PERFORM, KEY_MODULE, KEY_LIGHT, KEY_MOTION,
     KEY_RECORD, KEY_PLAY, KEY_STOP,
-    KEY_MINUS, KEY_PLUS, KEY_SHIFT
+    OCTAVE_CHANGE, KEY_SHIFT,
+    PROJECT_CHANGE, PATTERN_CHANGE, TRACK_CHANGE, PAGE_CHANGE,
+    MICROPHONE_MODE_CHANGE,
 };
 
 typedef struct {
@@ -164,10 +173,10 @@ typedef struct {
 } track_change, *p_track_change;
 
 typedef struct {
-    uint8_t sequence;
+    uint8_t pattern;
     uint8_t unknown1[15];
     uint8_t unknown2;
-    uint8_t pattern; // id: project + sequence
+    uint8_t address; // id: project + pattern
     uint8_t unknown3;
     uint8_t project;
 } sequence_change, *p_sequence_change;
@@ -195,10 +204,10 @@ typedef struct {
     note_chunck     notes[880];
     step_chunck     steps[256];
     track_parameter parameters[16];
-    uint8_t         mytes[40];      // mute config, tracks are mapped with bitmask
-    uint16_t        send_tape;      // Send mapping for Tape track using bitmask
-    uint16_t        send_master;    // SendMaster  Send mapping for Master track using bitmask
-    uint8_t         active_mute_group;   // Active mute group
+    uint8_t         mutes[40];          // mute config, tracks are mapped with bitmask
+    uint16_t        send_tape;          // Send mapping for Tape track using bitmask
+    uint16_t        send_master;        // SendMaster  Send mapping for Master track using bitmask
+    uint8_t         active_mute_group;  // Active mute group
     uint8_t         unused[3];
 } pattern_chunck, *p_pattern_chunck;
 
@@ -232,7 +241,7 @@ public:
     void            disconnect();
 
     static void     process_message(double _deltatime, std::vector<unsigned char>* _message, void* _userData);
-    static std::string& toString( key_id _id );
+    static std::string& toString( event_id _id );
     static std::string& toString( page_id   _id );
     static std::string& toString( track_id  _id );
     static std::string& toString( pattern_parameter_id _id );
@@ -240,17 +249,22 @@ public:
 
     void            update();
 
-    void            setKeyCallback(std::function<void(key_id, int)> _callback) { m_key = _callback; m_key_enable = true; }
+    void            setEventCallback(std::function<void(event_id, int)> _callback) { m_event = _callback; m_event_enable = true; }
 
     static const std::vector<unsigned char>* getInitMsg();
     static const std::vector<unsigned char>* getHeartBeat();
 
+    float           getVolume() const { return m_volume; }
+    float           getTrackParameter(track_id _track, track_parameter_id _prop) const;
+
+    u_int8_t        getActiveProject() const { return m_active_project; }
+    u_int8_t        getActivePattern() const { return m_active_pattern; }
     track_id        getActiveTrack() const { return m_active_track; }
+
+    track_parameter getActiveTrackParameters() const { return m_track_parameter[m_active_track]; }
+    float           getActiveTrackParameter(track_parameter_id _prop) const { return getTrackParameter(m_active_track, _prop); }
     int             getActiveOctave() const { return m_track_keyboard[m_active_track].octave; }
     page_id         getActivePage() const { return m_active_page; }
-
-    float           getVolume() const { return m_volume; }
-    float           getTrackPageParameter(track_id _track, track_parameter_id _prop);
 
     size_t          verbose;
 
@@ -258,30 +272,27 @@ protected:
     void            process_sysex(std::vector<unsigned char>* _message);
     void            process_event(std::vector<unsigned char>* _message);
 
-    project   m_project;
-    track_keyboard      m_track_keyboard[16];
+    project             m_project;
+    track_chunck        m_tracks[16];
     track_parameter     m_track_parameter[16];
-    float               m_note_lenght[16];
-    float               m_quantize[16];
+    track_keyboard      m_track_keyboard[16];
+
+    uint8_t             m_active_address;
+    uint8_t             m_active_project;
+    uint8_t             m_active_pattern;
+    track_id            m_active_track;
+    page_id             m_active_page;
 
     key_state       m_key_state;
     key_state       m_key_prev_state;
 
     float           m_volume;
 
-    track_id        m_active_track;
-    page_id         m_active_page;
-
-    uint8_t         m_active_project;
-    uint8_t         m_active_sequence;
-    uint8_t         m_active_pattern;
-
-
     unsigned char   m_microphone_mode;
     bool            m_play;
 
-    std::function<void(key_id, int)> m_key;
-    bool            m_key_enable;
+    std::function<void(event_id, int)> m_event;
+    bool            m_event_enable;
 };
 
 }

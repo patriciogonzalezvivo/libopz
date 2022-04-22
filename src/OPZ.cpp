@@ -35,12 +35,14 @@ std::vector<unsigned char> master_heartbeat = {
     SYSEX_HEAD, OPZ_VENDOR_ID[0], OPZ_VENDOR_ID[1], OPZ_VENDOR_ID[2], OPZ_MAX_PROTOCOL_VERSION, 0x00, 0x01, 0x4E, 0x2E, 0x06, SYSEX_END // version 1.2.5
 }; 
 
-std::string key_name[] = {
-    "KEY_POWER",
+std::string event_name[] = {
+    "VOLUME_CHANGE",
     "KEY_PROJECT", "KEY_MIXER", "KEY_TEMPO", "KEY_SCREEN",
     "KEY_TRACK", "KEY_KICK", "KEY_SNARE", "KEY_PERC", "KEY_SAMPLE", "KEY_BASS", "KEY_LEAD", "KEY_ARP", "KEY_CHORD", "KEY_FX1", "KEY_FX2", "KEY_TAPE", "KEY_MASTER", "KEY_PERFORM", "KEY_MODULE", "KEY_LIGHT", "KEY_MOTION",
-    "KEY_RECORD", "KEY_PLAY", "KEY_STOP",
-    "KEY_MINUS", "KEY_PLUS", "KEY_SHIFT"
+    "KEY_RECORD", "KEY_PLAY", "KEY_STOP", 
+    "OCTAVE_CHANGE", "KEY_SHIFT",
+    "PROJECT_CHANGE", "PATTERN_CHANGE", "TRACK_CHANGE", "PAGE_CHANGE",
+    "MICROPHONE_MODE_CHANGE"
 };
 
 // https://teenage.engineering/guides/op-z/parameter-pages
@@ -54,22 +56,22 @@ std::string track_name[] = {
 };
 
 std::string pattern_parameter_name[] = { 
-    "KICK_PLUG",    "KICK_PLUG1",   "KICK_PLUG2",   "KICK_PLUG3",   "KICK_STEP_COUNT",  "KICK_UNKNOWN", "KICK_STEP_LENGTH", "KICK_QUANTIZE",    "KICK_NOTE_STYLE",  "KICK_NOTE_LENGTH", "KICK_BYTE1",   "KICK_BYTE2",
-    "SNARE_PLUG",   "SNARE_PLUG1",  "SNARE_PLUG2",  "SNARE_PLUG3",  "SNARE_STEP_COUNT", "SNARE_UNKNOWN","SNARE_STEP_LENGTH","SNARE_QUANTIZE",   "SNARE_NOTE_STYLE", "SNARE_NOTE_LENGTH","SNARE_BYTE1", "SNARE_BYTE2",
-    "PERC_PLUG",    "PERC_PLUG1",   "PERC_PLUG2",   "PERC_PLUG3",   "PERC_STEP_COUNT",  "PERC_UNKNOWN", "PERC_STEP_LENGTH", "PERC_QUANTIZE",    "PERC_NOTE_STYLE",  "PERC_NOTE_LENGTH","PERC_BYTE1",    "PERC_BYTE2",
-    "SAMPLE_PLUG",  "SAMPLE_PLUG1", "SAMPLE_PLUG2", "SAMPLE_PLUG3", "SAMPLE_STEP_COUNT",  "SAMPLE_UNKNOWN", "SAMPLE_STEP_LENGTH", "SAMPLE_QUANTIZE", "SAMPLE_NOTE_STYLE", "SAMPLE_NOTE_LENGTH", "SAMPLE_BYTE1",   "SAMPLE_BYTE2",
-    "BASS_PLUG",    "BASS_PLUG1",   "BASS_PLUG2",   "BASS_PLUG3",   "BASS_STEP_COUNT",    "BASS_UNKNOWN",   "BASS_STEP_LENGTH",   "BASS_QUANTIZE",  "BASS_NOTE_STYLE",    "BASS_NOTE_LENGTH",   "BASS_BYTE1",     "BASS_BYTE2",
-    "LEAD_PLUG",    "LEAD_PLUG1",   "LEAD_PLUG2",   "LEAD_PLUG3", "LEAD_STEP_COUNT",    "LEAD_UNKNOWN",   "LEAD_STEP_LENGTH",   "LEAD_QUANTIZE",  "LEAD_NOTE_STYLE",    "LEAD_NOTE_LENGTH",   "LEAD_BYTE1",     "LEAD_BYTE2",
-    "ARC_PLUG",     "ARC_PLUG1",    "ARC_PLUG2",    "ARC_PLUG3",      "ARC_STEP_COUNT",     "ARC_UNKNOWN",    "ARC_STEP_LENGTH",    "ARC_QUANTIZE",   "ARC_NOTE_STYLE",     "ARC_NOTE_LENGTH",    "ARC_BYTE1",      "ARC_BYTE2",
-    "CHORD_PLUG",   "CHORD_PLUG1",  "CHORD_PLUG2",  "CHORD_PLUG3",    "CHORD_STEP_COUNT",   "CHORD_UNKNOWN",  "CHORD_STEP_LENGTH",  "CHORD_QUANTIZE", "CHORD_NOTE_STYLE",   "CHORD_NOTE_LENGTH",  "CHORD_BYTE1",    "CHORD_BYTE2",
-    "FX1_PLUG",     "FX1_PLUG1",    "FX1_PLUG2",    "FX1_PLUG3",      "FX1_STEP_COUNT",     "FX1_UNKNOWN",    "FX1_STEP_LENGTH",    "FX1_QUANTIZE",   "FX1_NOTE_STYLE",     "FX1_NOTE_LENGTH",    "FX1_BYTE1",      "FX1_BYTE2",
-    "FX2_PLUG",     "FX2_PLUG1",    "FX2_PLUG2",    "FX2_PLUG3",      "FX2_STEP_COUNT",     "FX2_UNKNOWN",    "FX2_STEP_LENGTH",    "FX2_QUANTIZE",   "FX2_NOTE_STYLE",     "FX2_NOTE_LENGTH",    "FX2_BYTE1",      "FX2_BYTE2",
-    "TAPE_PLUG",    "TAPE_PLUG1",   "TAPE_PLUG2",   "TAPE_PLUG3",     "TAPE_STEP_COUNT",    "TAPE_UNKNOWN",   "TAPE_STEP_LENGTH",   "TAPE_QUANTIZE",  "TAPE_NOTE_STYLE",    "TAPE_NOTE_LENGTH",   "TAPE_BYTE1",     "TAPE_BYTE2",
-    "MASTER_PLUG",  "MASTER_PLUG1", "MASTER_PLUG2", "MASTER_PLUG3",   "MASTER_STEP_COUNT",  "MASTER_UNKNOWN", "MASTER_STEP_LENGTH", "MASTER_QUANTIZE","MASTER_NOTE_STYLE",  "MASTER_NOTE_LENGTH", "MASTER_BYTE1",   "MASTER_BYTE2",
-    "PERFORM_PLUG", "PERFORM_PLUG1","PERFORM_PLUG2","PERFORM_PLUG3",  "PERFORM_STEP_COUNT", "PERFORM_UNKNOWN","PERFORM_STEP_LENGTH","PERFORM_QUANTIZE","PERFORM_NOTE_STYLE","PERFORM_NOTE_LENGTH","PERFORM_BYTE1",  "PERFORM_BYTE2",
-    "MODULE_PLUG",  "MODULE_PLUG1", "MODULE_PLUG2", "MODULE_PLUG3",   "MODULE_STEP_COUNT",  "MODULE_UNKNOWN", "MODULE_STEP_LENGTH", "MODULE_QUANTIZE","MODULE_NOTE_STYLE",  "MODULE_NOTE_LENGTH", "MODULE_BYTE1",   "MODULE_BYTE2",
-    "LIGHT_PLUG",   "LIGHT_PLUG1",  "LIGHT_PLUG2",  "LIGHT_PLUG3",    "LIGHT_STEP_COUNT",   "LIGHT_UNKNOWN",  "LIGHT_STEP_LENGTH",  "LIGHT_QUANTIZE", "LIGHT_NOTE_STYLE",   "LIGHT_NOTE_LENGTH",  "LIGHT_BYTE1",    "LIGHT_BYTE2",
-    "MOTION_PLUG",  "MOTION_PLUG1", "MOTION_PLUG2",   "MOTION_PLUG3",   "MOTION_STEP_COUNT",  "MOTION_UNKNOWN", "MOTION_STEP_LENGTH", "MOTION_QUANTIZE","MOTION_NOTE_STYLE",  "MOTION_NOTE_LENGTH", "MOTION_BYTE1",   "MOTION_BYTE2"
+    "KICK_PLUG",    "KICK_PLUG1",   "KICK_PLUG2",   "KICK_PLUG3",   "KICK_STEP_COUNT",  "KICK_UNKNOWN", "KICK_STEP_LENGTH",     "KICK_QUANTIZE",    "KICK_NOTE_STYLE",  "KICK_NOTE_LENGTH",     "KICK_BYTE1",   "KICK_BYTE2",
+    "SNARE_PLUG",   "SNARE_PLUG1",  "SNARE_PLUG2",  "SNARE_PLUG3",  "SNARE_STEP_COUNT", "SNARE_UNKNOWN","SNARE_STEP_LENGTH",    "SNARE_QUANTIZE",   "SNARE_NOTE_STYLE", "SNARE_NOTE_LENGTH",        "SNARE_BYTE1", "SNARE_BYTE2",
+    "PERC_PLUG",    "PERC_PLUG1",   "PERC_PLUG2",   "PERC_PLUG3",   "PERC_STEP_COUNT",  "PERC_UNKNOWN", "PERC_STEP_LENGTH",     "PERC_QUANTIZE",    "PERC_NOTE_STYLE",  "PERC_NOTE_LENGTH","PERC_BYTE1",    "PERC_BYTE2",
+    "SAMPLE_PLUG",  "SAMPLE_PLUG1", "SAMPLE_PLUG2", "SAMPLE_PLUG3", "SAMPLE_STEP_COUNT","SAMPLE_UNKNOWN","SAMPLE_STEP_LENGTH",  "SAMPLE_QUANTIZE", "SAMPLE_NOTE_STYLE", "SAMPLE_NOTE_LENGTH", "SAMPLE_BYTE1",   "SAMPLE_BYTE2",
+    "BASS_PLUG",    "BASS_PLUG1",   "BASS_PLUG2",   "BASS_PLUG3",   "BASS_STEP_COUNT",  "BASS_UNKNOWN", "BASS_STEP_LENGTH",     "BASS_QUANTIZE",  "BASS_NOTE_STYLE",    "BASS_NOTE_LENGTH",   "BASS_BYTE1",     "BASS_BYTE2",
+    "LEAD_PLUG",    "LEAD_PLUG1",   "LEAD_PLUG2",   "LEAD_PLUG3",   "LEAD_STEP_COUNT",  "LEAD_UNKNOWN", "LEAD_STEP_LENGTH",   "LEAD_QUANTIZE",  "LEAD_NOTE_STYLE",    "LEAD_NOTE_LENGTH",   "LEAD_BYTE1",     "LEAD_BYTE2",
+    "ARC_PLUG",     "ARC_PLUG1",    "ARC_PLUG2",    "ARC_PLUG3",    "ARC_STEP_COUNT",   "ARC_UNKNOWN",  "ARC_STEP_LENGTH",    "ARC_QUANTIZE",   "ARC_NOTE_STYLE",     "ARC_NOTE_LENGTH",    "ARC_BYTE1",      "ARC_BYTE2",
+    "CHORD_PLUG",   "CHORD_PLUG1",  "CHORD_PLUG2",  "CHORD_PLUG3",  "CHORD_STEP_COUNT", "CHORD_UNKNOWN",  "CHORD_STEP_LENGTH",  "CHORD_QUANTIZE", "CHORD_NOTE_STYLE",   "CHORD_NOTE_LENGTH",  "CHORD_BYTE1",    "CHORD_BYTE2",
+    "FX1_PLUG",     "FX1_PLUG1",    "FX1_PLUG2",    "FX1_PLUG3",    "FX1_STEP_COUNT",   "FX1_UNKNOWN",    "FX1_STEP_LENGTH",    "FX1_QUANTIZE",   "FX1_NOTE_STYLE",     "FX1_NOTE_LENGTH",    "FX1_BYTE1",      "FX1_BYTE2",
+    "FX2_PLUG",     "FX2_PLUG1",    "FX2_PLUG2",    "FX2_PLUG3",    "FX2_STEP_COUNT",   "FX2_UNKNOWN",    "FX2_STEP_LENGTH",    "FX2_QUANTIZE",   "FX2_NOTE_STYLE",     "FX2_NOTE_LENGTH",    "FX2_BYTE1",      "FX2_BYTE2",
+    "TAPE_PLUG",    "TAPE_PLUG1",   "TAPE_PLUG2",   "TAPE_PLUG3",   "TAPE_STEP_COUNT",  "TAPE_UNKNOWN",   "TAPE_STEP_LENGTH",   "TAPE_QUANTIZE",  "TAPE_NOTE_STYLE",    "TAPE_NOTE_LENGTH",   "TAPE_BYTE1",     "TAPE_BYTE2",
+    "MASTER_PLUG",  "MASTER_PLUG1", "MASTER_PLUG2", "MASTER_PLUG3", "MASTER_STEP_COUNT","MASTER_UNKNOWN", "MASTER_STEP_LENGTH", "MASTER_QUANTIZE","MASTER_NOTE_STYLE",  "MASTER_NOTE_LENGTH", "MASTER_BYTE1",   "MASTER_BYTE2",
+    "PERFORM_PLUG", "PERFORM_PLUG1","PERFORM_PLUG2","PERFORM_PLUG3","PERFORM_STEP_COUNT","PERFORM_UNKNOWN","PERFORM_STEP_LENGTH","PERFORM_QUANTIZE","PERFORM_NOTE_STYLE","PERFORM_NOTE_LENGTH","PERFORM_BYTE1",  "PERFORM_BYTE2",
+    "MODULE_PLUG",  "MODULE_PLUG1", "MODULE_PLUG2", "MODULE_PLUG3", "MODULE_STEP_COUNT","MODULE_UNKNOWN", "MODULE_STEP_LENGTH", "MODULE_QUANTIZE","MODULE_NOTE_STYLE",  "MODULE_NOTE_LENGTH", "MODULE_BYTE1",   "MODULE_BYTE2",
+    "LIGHT_PLUG",   "LIGHT_PLUG1",  "LIGHT_PLUG2",  "LIGHT_PLUG3",  "LIGHT_STEP_COUNT", "LIGHT_UNKNOWN",  "LIGHT_STEP_LENGTH",  "LIGHT_QUANTIZE", "LIGHT_NOTE_STYLE",   "LIGHT_NOTE_LENGTH",  "LIGHT_BYTE1",    "LIGHT_BYTE2",
+    "MOTION_PLUG",  "MOTION_PLUG1", "MOTION_PLUG2", "MOTION_PLUG3", "MOTION_STEP_COUNT","MOTION_UNKNOWN", "MOTION_STEP_LENGTH", "MOTION_QUANTIZE","MOTION_NOTE_STYLE",  "MOTION_NOTE_LENGTH", "MOTION_BYTE1",   "MOTION_BYTE2"
 };
 
 std::string track_parameter_name[] = { 
@@ -77,7 +79,8 @@ std::string track_parameter_name[] = {
     "ENVELOPE_ATTACK",  "ENVELOPE_DECAY",   "ENVELOPE_SUSTAIN", "ENVELOPE_RELEASE",
     "SOUND_FX1",        "SOUND_FX2",        "SOUND_PAN",        "SOUND_LEVEL",
     "LFO_DEPTH",        "LFO_SPEED",        "LFO_VALUE",        "LFO_SHAPE",
-    "NOTE_LENGHT",      "NOTE_STYLE",       "QUANTIZE",         "PORTAMENTO"
+    "NOTE_LENGTH",      "NOTE_STYLE",       "QUANTIZE",         "PORTAMENTO",
+    "STEP_COUNT",       "STEP_LENGTH"
 };
 
 // print array of unsigend chars as HEX pairs
@@ -95,7 +98,7 @@ char *printHex(unsigned char *cp, size_t n) {
 }
 
 // encode raw 8bit to 7bits  
-size_t encodeSysEx(const unsigned char* inData, unsigned inLength, unsigned char* outSysEx, bool inFlipHeaderBits = true) {
+size_t encode(const unsigned char* inData, unsigned inLength, unsigned char* outSysEx, bool inFlipHeaderBits = true) {
     size_t outLength    = 0;     // Num bytes in output array.
     unsigned char count = 0;     // Num 7bytes in a block.
     outSysEx[0]         = 0;
@@ -119,7 +122,7 @@ size_t encodeSysEx(const unsigned char* inData, unsigned inLength, unsigned char
 }
 
 // decode 7bit to raw 8bits
-size_t decodeSysEx(const unsigned char* inData, size_t inLength, unsigned char* outData, bool inFlipHeaderBits = true) {
+size_t decode(const unsigned char* inData, size_t inLength, unsigned char* outData, bool inFlipHeaderBits = true) {
     size_t count  = 0;
     unsigned char msbStorage = 0;
     unsigned char byteIndex  = 0;
@@ -141,6 +144,38 @@ size_t decodeSysEx(const unsigned char* inData, size_t inLength, unsigned char* 
 }
 
 const unsigned CHUNK_SIZE = 4096;
+std::vector<unsigned char> compress(const unsigned char* inData, size_t inLength) {
+    std::vector<unsigned char> output;
+
+	z_stream stream;
+	stream.zalloc = 0;
+	stream.zfree = 0;
+	stream.opaque = 0;
+
+	stream.avail_in = inLength - 1;
+    stream.next_in = const_cast<Byte *>(&inData[0]);
+
+    int res = deflateInit(&stream, 9);
+	if (res != Z_OK)
+		return output;
+
+    unsigned char ChunkOut[CHUNK_SIZE];
+	do
+	{
+		stream.avail_out = sizeof(ChunkOut);
+		stream.next_out = ChunkOut;
+		res = deflate(&stream, Z_FINISH);
+		unsigned compressed = sizeof(ChunkOut) - stream.avail_out;
+		unsigned oldsize = output.size();
+		output.resize(oldsize + compressed);
+		memcpy(&output[oldsize], ChunkOut, compressed);
+	}
+	while (stream.avail_out == 0);
+	deflateEnd(&stream);
+
+	return output;
+}
+
 std::vector<unsigned char> decompress(const unsigned char* inData, size_t inLength) {
     std::vector<unsigned char> output;
 
@@ -167,7 +202,6 @@ std::vector<unsigned char> decompress(const unsigned char* inData, size_t inLeng
         memcpy(&output[oldsize], ChunkOut, compressed);
     }
     while (stream.avail_out == 0);
-
     inflateEnd(&stream);
 
     return output;
@@ -182,10 +216,10 @@ m_active_track(KICK),
 m_active_page(PAGE_ONE), 
 m_microphone_mode(0),
 m_play(false),
-m_key_enable(false) {
+m_event_enable(false) {
 }
 
-std::string& OPZ::toString( key_id _id ) { return key_name[_id]; }
+std::string& OPZ::toString( event_id _id ) { return event_name[_id]; }
 std::string& OPZ::toString( page_id  _id ) { return page_name[_id]; }
 std::string& OPZ::toString( track_id _id ) { return track_name[_id]; }
 std::string& OPZ::toString( track_parameter_id _id ) { return track_parameter_name[_id]; } 
@@ -209,12 +243,12 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
 
     const sysex_header &header = (const sysex_header&)_message->at(0);
     if (memcmp(OPZ_VENDOR_ID, header.vendor_id, sizeof(OPZ_VENDOR_ID)) != 0){
-        printf("Vendor ID %02X:%02X:%02X is not the expected ID %02X:%02X:%02X\n", header.vendor_id[0],header.vendor_id[1],header.vendor_id[2], OPZ_VENDOR_ID[0],OPZ_VENDOR_ID[1],OPZ_VENDOR_ID[2]);
+        // printf("Vendor ID %02X:%02X:%02X is not the expected ID %02X:%02X:%02X\n", header.vendor_id[0],header.vendor_id[1],header.vendor_id[2], OPZ_VENDOR_ID[0],OPZ_VENDOR_ID[1],OPZ_VENDOR_ID[2]);
         return;
     }
 
     if ((header.protocol_version == 0) || (header.protocol_version > OPZ_MAX_PROTOCOL_VERSION)){
-        printf("Unexpected protocol version %02X, was expecting > 0 and <= %02X\n", header.protocol_version, OPZ_MAX_PROTOCOL_VERSION);
+        // printf("Unexpected protocol version %02X, was expecting > 0 and <= %02X\n", header.protocol_version, OPZ_MAX_PROTOCOL_VERSION);
         return;
     }
 
@@ -225,7 +259,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
     unsigned char *data = new unsigned char[data_length];
 
     // decode 7bit into raw 8bit
-    size_t length = decodeSysEx(&_message->at(sizeof(sysex_header)), data_length, data);
+    size_t length = decode(&_message->at(sizeof(sysex_header)), data_length, data);
     
     switch (header.parm_id) {
         case 0x01: {
@@ -263,38 +297,53 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
 
             CAST_MESSAGE(track_keyboard, ki);
-            m_active_track = (track_id)ki.track;
+
+            if (m_active_track != (track_id)ki.track) {
+                m_active_track = (track_id)ki.track;
+                if (m_event_enable)
+                    m_event(TRACK_CHANGE, (int)m_active_track);
+            }
 
             memcpy(&(m_track_keyboard[m_active_track]), &ki, sizeof(track_keyboard));
             
             if (verbose > 2) {
-                std::cout << "  active track:   " << toString(m_active_track) << std::endl;
-                // printf(      "  active octave:  %02X\n", ki.octave);
+                printf(      "  active track:   %s\n", toString(m_active_track).c_str() );
                 printf(      "  active octave:  %i\n", ki.octave);
             }
             
+            if (m_event_enable)
+                m_event(OCTAVE_CHANGE, ki.octave);
+
         } break;
 
         case 0x04: {
             if (verbose)
                 printf("Msg %02X (IN/OUT?)\n", header.parm_id);
 
-            if (verbose > 1) {
+            if (verbose > 1)
                 std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
-            }
 
-            m_volume = data[1]/255.0;
-            m_microphone_mode = data[3];
-
+            float volume = data[1]/255.0;
             if (verbose > 2) {
                 printf(" ????????   %02x\n", data[0] );
-                printf(" Volumen    %f\n",  m_volume);
+                printf(" Volumen    %f\n",  volume);
                 printf(" ????????   %02x\n", data[2] );
-                printf(" Microphone %02x\n", m_microphone_mode);
+                printf(" Microphone %02x\n", data[3] );
             }
 
-            if (m_key_enable)
-                m_key(KEY_POWER, m_volume * 100);
+            if (m_volume != volume) {
+                m_volume = volume;
+                if (m_event_enable)
+                    m_event(VOLUME_CHANGE, m_volume * 100);
+            }
+
+            if (m_microphone_mode != data[3]) {
+                m_microphone_mode = data[3];
+                if (m_event_enable)
+                    m_event(MICROPHONE_MODE_CHANGE, m_microphone_mode);
+            }
+
+
         } break;
 
         case 0x06: {
@@ -308,58 +357,60 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
             CAST_MESSAGE(key_state, ki);
             memcpy(&(m_key_prev_state), &m_key_state, sizeof(m_key_state));
             memcpy(&(m_key_state), &ki, sizeof(m_key_state));
-            m_active_page = (page_id)m_key_state.page;
 
-            if (m_key_enable) {
-                if (verbose > 2) {
-                    std::cout << "  track: " << toString(m_active_track) << std::endl;
-                    std::cout << "  page:  " << toString(m_active_page) << std::endl;
+            if (m_active_page != (page_id)m_key_state.page) {
+                m_active_page = (page_id)m_key_state.page;
+                if (m_event_enable)
+                    m_event(PAGE_CHANGE, (int)m_active_page);
+            }
 
-                    printf( "bit1 1-6:  %i %i %i %i %i %i\n", m_key_state.bit11, m_key_state.bit12, m_key_state.bit13, m_key_state.bit14, m_key_state.bit15, m_key_state.bit16);
-                    printf( "page:      %i\n", m_key_state.page);
-                    printf( "step:      %i\n", m_key_state.step);
-                    printf( "shift:     %i\n", m_key_state.shift);
-                    printf( "tempo:     %i\n", m_key_state.tempo);
-                    printf( "mixer:     %i\n", m_key_state.mixer);
-                    printf( "bit3 1-5:  %i %i %i %i %i\n", m_key_state.bit31, m_key_state.bit32, m_key_state.bit33, m_key_state.bit34, m_key_state.bit35);
-                    printf( "screen:    %i\n", m_key_state.screen);
-                    printf( "stop:      %i\n", m_key_state.stop);
-                    printf( "record:    %i\n", m_key_state.record);
-                    printf( "track:     %i\n", m_key_state.track);
-                    printf( "project:   %i\n", m_key_state.project);
-                    printf( "bit4 3-8:  %i %i %i %i %i %i\n", m_key_state.bit43, m_key_state.bit44, m_key_state.bit45, m_key_state.bit46, m_key_state.bit47, m_key_state.bit48);
-                }
+            if (verbose > 2) {
+                printf( "   bit1 1-6:  %i %i %i %i %i %i\n", m_key_state.bit11, m_key_state.bit12, m_key_state.bit13, m_key_state.bit14, m_key_state.bit15, m_key_state.bit16);
+                printf( "   page:      %i\n", m_key_state.page);
+                printf( "   step:      %i\n", m_key_state.step);
+                printf( "   shift:     %i\n", m_key_state.shift);
+                printf( "   tempo:     %i\n", m_key_state.tempo);
+                printf( "   mixer:     %i\n", m_key_state.mixer);
+                printf( "   bit3 1-5:  %i %i %i %i %i\n", m_key_state.bit31, m_key_state.bit32, m_key_state.bit33, m_key_state.bit34, m_key_state.bit35);
+                printf( "   screen:    %i\n", m_key_state.screen);
+                printf( "   stop:      %i\n", m_key_state.stop);
+                printf( "   record:    %i\n", m_key_state.record);
+                printf( "   track:     %i\n", m_key_state.track);
+                printf( "   project:   %i\n", m_key_state.project);
+                printf( "   bit4 3-8:  %i %i %i %i %i %i\n", m_key_state.bit43, m_key_state.bit44, m_key_state.bit45, m_key_state.bit46, m_key_state.bit47, m_key_state.bit48);
+            }
 
-                if (m_key_state.project) m_key( KEY_PROJECT, 1);
-                if (m_key_prev_state.project && !m_key_state.project ) m_key( KEY_PROJECT, 0);
+            if (m_event_enable) {
+                if (m_key_state.project) m_event( KEY_PROJECT, 1);
+                if (m_key_prev_state.project && !m_key_state.project ) m_event( KEY_PROJECT, 0);
                 
-                if (m_key_state.mixer) m_key( KEY_MIXER, 1);
-                if (m_key_prev_state.mixer && !m_key_state.mixer) m_key( KEY_MIXER, 0);
+                if (m_key_state.mixer) m_event( KEY_MIXER, 1);
+                if (m_key_prev_state.mixer && !m_key_state.mixer) m_event( KEY_MIXER, 0);
 
-                if (m_key_state.tempo) m_key( KEY_TEMPO, 1);
-                if (m_key_prev_state.tempo && !m_key_state.tempo) m_key( KEY_TEMPO, 0);
+                if (m_key_state.tempo) m_event( KEY_TEMPO, 1);
+                if (m_key_prev_state.tempo && !m_key_state.tempo) m_event( KEY_TEMPO, 0);
                 
-                if (m_key_state.screen) m_key( KEY_SCREEN, 1);
-                if (m_key_prev_state.screen && !m_key_state.screen) m_key( KEY_SCREEN, 0);
+                if (m_key_state.screen) m_event( KEY_SCREEN, 1);
+                if (m_key_prev_state.screen && !m_key_state.screen) m_event( KEY_SCREEN, 0);
 
-                if (m_key_state.track) m_key( KEY_TRACK, 1);
-                if (m_key_prev_state.track && !m_key_state.track) m_key( KEY_TRACK, 0);
+                if (m_key_state.track) m_event( KEY_TRACK, 1);
+                if (m_key_prev_state.track && !m_key_state.track) m_event( KEY_TRACK, 0);
 
-                if (m_key_state.step < 16) m_key( key_id( 6+(int)m_key_state.step ), 1);
-                if (m_key_prev_state.step < 16 && m_key_state.step >= 16) m_key( key_id( 6+(int)m_key_prev_state.step ), 0);
+                if (m_key_state.step < 16) m_event( event_id( 6+(int)m_key_state.step ), 1);
+                if (m_key_prev_state.step < 16 && m_key_state.step >= 16) m_event( event_id( 6+(int)m_key_prev_state.step ), 0);
 
-                if (m_key_state.record) m_key( KEY_RECORD, 1);
-                if (m_key_prev_state.record && !m_key_state.record) m_key( KEY_RECORD, 0);
+                if (m_key_state.record) m_event( KEY_RECORD, 1);
+                if (m_key_prev_state.record && !m_key_state.record) m_event( KEY_RECORD, 0);
 
                 // TODO: KEY_PLAY
 
-                if (m_key_state.stop) m_key( KEY_STOP, 1);
-                if (m_key_prev_state.stop && !m_key_state.stop) m_key( KEY_STOP, 0);
+                if (m_key_state.stop) m_event( KEY_STOP, 1);
+                if (m_key_prev_state.stop && !m_key_state.stop) m_event( KEY_STOP, 0);
 
-                // TODO: KEY_MINUX / KEY_PLUS
+                // NOTE: MINUX / PLUS -> OCTAVE_CHANGE
 
-                if (m_key_state.shift) m_key( KEY_SHIFT, 1);
-                if (m_key_prev_state.shift && !m_key_state.shift) m_key( KEY_SHIFT, 0);
+                if (m_key_state.shift) m_event( KEY_SHIFT, 1);
+                if (m_key_prev_state.shift && !m_key_state.shift) m_event( KEY_SHIFT, 0);
             }
 
         } break;
@@ -373,30 +424,41 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
 
             CAST_MESSAGE(sequence_change, si);
-            m_active_project = si.project;
-            m_active_sequence = si.sequence; // project + pattern
-            m_active_pattern = si.pattern;
+
+            if (m_active_project != si.project) {
+                m_active_project = si.project;
+                if (m_event_enable)
+                    m_event(PROJECT_CHANGE, (int)m_active_project);
+            }
+
+            if (m_active_pattern) {
+                m_active_pattern = si.pattern;
+                if (m_event_enable)
+                    m_event(PATTERN_CHANGE, (int)m_active_pattern); 
+            }
+
+            m_active_address = si.address;  // project + pattern
 
             if (verbose > 2) {
-                printf("    sequence:   %02X (sequence %i)\n", si.sequence, si.sequence + 1);
-                // printf("    unknown10:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[0]));
-                // printf("    unknown11:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[1]));
-                // printf("    unknown12:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[2]));
-                // printf("    unknown13:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[3]));
-                // printf("    unknown14:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[4]));
-                // printf("    unknown15:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[5]));
-                // printf("    unknown16:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[6]));
-                // printf("    unknown17:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[7]));
-                // printf("    unknown18:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[8]));
-                // printf("    unknown19:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[9]));
-                // printf("    unknown1A:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[10]));
-                // printf("    unknown1B:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[11]));
-                // printf("    unknown1C:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[12]));
-                // printf("    unknown1D:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[13]));
-                // printf("    unknown1E:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[14]));
-                // printf("    unknown2:   %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown2));
-                printf("    pattern:    %02X (offset %i bytes)\n", si.pattern, si.pattern);
-                // printf("    unknown3:   %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown3));
+                printf("    pattern:    %02X (pattern %i)\n", si.pattern, si.pattern + 1);
+                printf("    unknown10:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[0]));
+                printf("    unknown11:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[1]));
+                printf("    unknown12:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[2]));
+                printf("    unknown13:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[3]));
+                printf("    unknown14:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[4]));
+                printf("    unknown15:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[5]));
+                printf("    unknown16:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[6]));
+                printf("    unknown17:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[7]));
+                printf("    unknown18:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[8]));
+                printf("    unknown19:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[9]));
+                printf("    unknown1A:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[10]));
+                printf("    unknown1B:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[11]));
+                printf("    unknown1C:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[12]));
+                printf("    unknown1D:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[13]));
+                printf("    unknown1E:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[14]));
+                printf("    unknown2:   %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown2));
+                printf("    address:    %02X (offset %i bytes)\n", si.address, si.address);
+                printf("    unknown3:   %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown3));
                 printf("    project:    %02X (project %i)\n", si.project, si.project + 1);
             }
 
@@ -407,26 +469,27 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
             if (verbose)
                 printf("Msg %02X (Pattern)\n", header.parm_id);
             
-            if (verbose > 1)
-                std::cout << "   RAW " << printHex(data, 6) << "(" << 6 << " bytes)" << std::endl;
-
-            printf("    project:        %02X\n", data[0]);
-
             std::vector<unsigned char> decompressed = decompress(&data[6], length-6);
-            std::cout << "   ENC " << printHex(&decompressed[0], decompressed.size()) << "(" << decompressed.size() << " bytes)" << std::endl;
 
-            
-            const pattern_chunck & pi = (const pattern_chunck &)decompressed[0];
-
-            for (size_t i = 0; i < 7; i++) {
-                printf(" pattern: %i", i);
-                printf("   step_count:  %02X (%i)\n", pi.tracks[i].step_count, pi.tracks[i].step_count);
-                printf("   step_length: %02X (%i)\n", pi.tracks[i].step_length, pi.tracks[i].step_length);
-                printf("   quantize:    %02X (%i)\n", pi.tracks[i].quantize, pi.tracks[i].quantize);
-                printf("   note_style:  %02X (%i)\n", pi.tracks[i].note_style, pi.tracks[i].note_style);
-                printf("   note_length: %02X (%i)\n", pi.tracks[i].note_length, pi.tracks[i].note_length);
+            if (verbose > 1) {
+                std::cout << "   RAW " << printHex(data, 6) << "(" << 6 << " bytes)" << std::endl;
+                std::cout << "   ENC " << printHex(&decompressed[0], decompressed.size()) << "(" << decompressed.size() << " bytes)" << std::endl;
             }
 
+            const pattern_chunck & pi = (const pattern_chunck &)decompressed[0];
+            memcpy(&m_tracks[0], &pi.tracks[0], sizeof(u_int8_t) * decompressed.size());
+
+            if (verbose > 2) {
+                printf("   project:      0x%02X\n", data[0]);
+                for (size_t i = 0; i < 7; i++) {
+                    printf("   %s\n", toString((track_id)i).c_str() );
+                    printf("   step_count:  %i\n", m_tracks[i].step_count);
+                    printf("   step_length: %i\n", m_tracks[i].step_length);
+                    printf("   quantize:    %i\n", m_tracks[i].quantize);
+                    printf("   note_style:  %02X (%i)\n", m_tracks[i].note_style, m_tracks[i].note_style);
+                    printf("   note_length: %02X (%i)\n", m_tracks[i].note_length, m_tracks[i].note_length);
+                }
+            }
 
         } break;
 
@@ -442,7 +505,8 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 std::cout << "       " << printHex(&decompressed[0], decompressed.size()) << "(" << decompressed.size() << " bytes)" << std::endl;
             
             const project & pi = (const project &)decompressed[0];
-            memcpy(&m_project, &pi, sizeof(pi));
+
+            memcpy(&m_project, &pi, sizeof(uint8_t) * decompressed.size());// sizeof(pi));
 
             if (verbose > 2) {
                 printf("    drum level:     %i\n", pi.drum_level);
@@ -455,7 +519,6 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("    metronome_sound:%i\n", pi.metronome_sound);
             }
 
-            
         } break;
 
         case 0x0e: {
@@ -466,7 +529,11 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
             if (verbose > 1)
                 std::cout << "       " << printHex(data, length) << "    (" << length << " bytes)" << std::endl;
 
-            m_active_track = (track_id)data[0];
+            if (m_active_track != (track_id)data[0]) {
+                m_active_track = (track_id)data[0];
+                if (m_event_enable)
+                    m_event(TRACK_CHANGE, (int)m_active_track);
+            }
 
             const track_parameter & si = (const track_parameter &)data[1];
             memcpy(&(m_track_parameter[m_active_track]), &si, sizeof(track_parameter));
@@ -512,10 +579,21 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
         } break;
 
+        case 0x16: {
+            if (verbose)
+                printf("Msg %02X (Sample Data?)\n", header.parm_id);
+
+            size_t offset = 1;
+            std::vector<unsigned char> decompressed = decompress(&data[offset], length-offset);
+            if (verbose > 1) {
+                std::cout << "   RAW " << printHex(data, 1) << "(" << length << " bytes)" << std::endl;
+                std::cout << "   ENC " << printHex(&decompressed[0], decompressed.size()) << "(" << decompressed.size() << " bytes)" << std::endl;
+            }
+        }break;
+
         default: {
             if (verbose)
                 printf("Msg %02X (unknown)\n", header.parm_id);
-
 
             size_t offset = 1;
             std::vector<unsigned char> decompressed = decompress(&data[offset], length-offset);
@@ -628,50 +706,62 @@ void OPZ::process_event(std::vector<unsigned char>* _message) {
     // std::cout << std::endl;
 }
 
-float OPZ::getTrackPageParameter(track_id _track, track_parameter_id _prop) {
+float OPZ::getTrackParameter(track_id _track, track_parameter_id _prop) const {
     if (_prop == SOUND_PARAM1)
-        return m_track_parameter[m_active_track].param1 / 255.0f;
+        return m_track_parameter[_track].param1 / 255.0f;
     else if (_prop == SOUND_PARAM2)
-        return m_track_parameter[m_active_track].param2 / 255.0f;
+        return m_track_parameter[_track].param2 / 255.0f;
     else if (_prop == SOUND_FILTER)
-        return m_track_parameter[m_active_track].filter / 255.0f; 
+        return m_track_parameter[_track].filter / 255.0f; 
     else if (_prop == SOUND_RESONANCE)
-        return m_track_parameter[m_active_track].resonance / 255.0f;
+        return m_track_parameter[_track].resonance / 255.0f;
 
     // TODO
     //      - I got the names wrong
     else if (_prop == ENVELOPE_ATTACK) // S
-        return m_track_parameter[m_active_track].attack / 255.0f;
+        return m_track_parameter[_track].attack / 255.0f;
     else if (_prop == ENVELOPE_DECAY) // A
-        return m_track_parameter[m_active_track].decay  / 255.0f;
+        return m_track_parameter[_track].decay  / 255.0f;
     else if (_prop == ENVELOPE_SUSTAIN) // H
-        return m_track_parameter[m_active_track].sustain / 255.0f; 
+        return m_track_parameter[_track].sustain / 255.0f; 
     else if (_prop == ENVELOPE_RELEASE) // D
-        return m_track_parameter[m_active_track].release / 255.0f; 
+        return m_track_parameter[_track].release / 255.0f; 
 
     else if (_prop == LFO_DEPTH)
-        return m_track_parameter[m_active_track].lfo_depth / 255.0f;
+        return m_track_parameter[_track].lfo_depth / 255.0f;
     else if (_prop == LFO_SPEED) // RATE
-        return m_track_parameter[m_active_track].lfo_speed / 255.0f;
+        return m_track_parameter[_track].lfo_speed / 255.0f;
     else if (_prop == LFO_VALUE) // DEST
-        return m_track_parameter[m_active_track].lfo_value / 255.0f; 
+        return m_track_parameter[_track].lfo_value / 255.0f; 
     else if (_prop == LFO_SHAPE)
-        return m_track_parameter[m_active_track].lfo_shape / 255.0f;
+        return m_track_parameter[_track].lfo_shape / 255.0f;
 
     else if (_prop == SOUND_FX1)
-        return m_track_parameter[m_active_track].fx1 / 255.0f;
+        return m_track_parameter[_track].fx1 / 255.0f;
     else if (_prop == SOUND_FX2)
-        return (m_track_parameter[m_active_track].fx2 / 255.0f) * 2.0 - 1.0f;
+        return (m_track_parameter[_track].fx2 / 255.0f) * 2.0 - 1.0f;
     else if (_prop == SOUND_PAN)
-        return m_track_parameter[m_active_track].pan / 255.0f; 
+        return m_track_parameter[_track].pan / 255.0f; 
     else if (_prop == SOUND_LEVEL)
-        return m_track_parameter[m_active_track].level / 255.0f;
+        return m_track_parameter[_track].level / 255.0f;
 
-    else if (_prop = NOTE_STYLE)
-        return m_track_parameter[m_active_track].note_style / 255.0f;
+    else if (_prop == NOTE_LENGTH)
+        return (float)m_tracks[_track].note_length;
+
+    else if (_prop == NOTE_STYLE)
+        return m_track_parameter[_track].note_style / 255.0f;
+
+    else if (_prop == QUANTIZE)
+        return (float)m_tracks[_track].quantize;
 
     else if (_prop == PORTAMENTO)
-        return m_track_parameter[m_active_track].portamento / 255.0f;
+        return m_track_parameter[_track].portamento / 255.0f;
+
+    else if (_prop == STEP_COUNT)
+        return (float)m_tracks[_track].step_count;
+
+    else if (_prop == STEP_LENGTH)
+        return (float)m_tracks[_track].step_length;
 
     return 0.0f;
 }
