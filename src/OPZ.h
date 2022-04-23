@@ -8,28 +8,28 @@
 
 namespace T3 {
 
-// MIDI Standar
-const uint8_t CONTROLLER_CHANGE   = 0xB0;
-const uint8_t NOTE_ON             = 0x90;
-const uint8_t NOTE_OFF            = 0x80;
-const uint8_t KEY_PRESSURE        = 0xA0;
-const uint8_t PROGRAM_CHANGE      = 0xC0;
-const uint8_t CHANNEL_PRESSURE    = 0xD0;
-const uint8_t PITCH_BEND          = 0xE0;
-const uint8_t SYSEX_HEAD          = 0xF0;
-const uint8_t SONG_POSITION       = 0xF2;
-const uint8_t SONG_SELECT         = 0xF3;
-const uint8_t TUNE_REQUEST        = 0xF6;
-const uint8_t SYSEX_END           = 0xF7;
-const uint8_t TIMING_TICK         = 0xF8;
-const uint8_t START_SONG          = 0xFA;
-const uint8_t CONTINUE_SONG       = 0xFB;
-const uint8_t STOP_SONG           = 0xFC;
-const uint8_t ACTIVE_SENSING      = 0xFE;
-const uint8_t SYSTEM_RESET        = 0xFF;
-
 const uint8_t OPZ_VENDOR_ID[3] = {0x00, 0x20, 0x76};
 const uint8_t OPZ_MAX_PROTOCOL_VERSION = 0x01;
+
+// Standard MIDI events
+enum midi_id {
+    NOTE_OFF            = 0x80, NOTE_ON             = 0x90, KEY_PRESSURE        = 0xA0, 
+    CONTROLLER_CHANGE   = 0xB0, PROGRAM_CHANGE      = 0xC0, CHANNEL_PRESSURE    = 0xD0, PITCH_BEND          = 0xE0,
+    SYSEX_HEAD          = 0xF0, SONG_POSITION       = 0xF2, SONG_SELECT         = 0xF3, TUNE_REQUEST        = 0xF6, SYSEX_END           = 0xF7, 
+    TIMING_TICK         = 0xF8, START_SONG          = 0xFA, CONTINUE_SONG       = 0xFB, STOP_SONG           = 0xFC, ACTIVE_SENSING      = 0xFE, SYSTEM_RESET        = 0xFF
+};
+
+// Non-musical keyboard events
+enum event_id {
+    VOLUME_CHANGE = 0,
+    KEY_PROJECT, KEY_MIXER, KEY_TEMPO, KEY_SCREEN,
+    KEY_TRACK, KEY_KICK, KEY_SNARE, KEY_PERC, KEY_SAMPLE, KEY_BASS, KEY_LEAD, KEY_ARP, KEY_CHORD, KEY_FX1, KEY_FX2, KEY_TAPE, KEY_MASTER, KEY_PERFORM, KEY_MODULE, KEY_LIGHT, KEY_MOTION,
+    KEY_RECORD, PLAY_CHANGE, KEY_STOP,
+    OCTAVE_CHANGE, KEY_SHIFT,
+    PROJECT_CHANGE, PATTERN_CHANGE, TRACK_CHANGE, PAGE_CHANGE, 
+    MICROPHONE_MODE_CHANGE,
+};
+
 
 enum project_parameter_id {
     DRUM_LEVEL = 0, SYNTH_LEVEL,    PUNCH_LEVEL,    MASTER_LEVEL,   PROJECT_TEMPO,
@@ -74,17 +74,6 @@ enum page_id {
     PAGE_ONE = 0, PAGE_TWO, PAGE_TREE, PAGE_FOUR
 };
 
-// All but the musical keyboard
-enum event_id {
-    VOLUME_CHANGE = 0,
-    KEY_PROJECT, KEY_MIXER, KEY_TEMPO, KEY_SCREEN,
-    KEY_TRACK, KEY_KICK, KEY_SNARE, KEY_PERC, KEY_SAMPLE, KEY_BASS, KEY_LEAD, KEY_ARP, KEY_CHORD, KEY_FX1, KEY_FX2, KEY_TAPE, KEY_MASTER, KEY_PERFORM, KEY_MODULE, KEY_LIGHT, KEY_MOTION,
-    KEY_RECORD, KEY_PLAY, KEY_STOP,
-    OCTAVE_CHANGE, KEY_SHIFT,
-    PROJECT_CHANGE, PATTERN_CHANGE, TRACK_CHANGE, PAGE_CHANGE,
-    MICROPHONE_MODE_CHANGE,
-};
-
 typedef struct {
     uint8_t sysex_id;
     uint8_t vendor_id[3];
@@ -125,11 +114,6 @@ typedef struct {
     uint8_t bit48 : 1;
     
 } key_state, *p_key_state;
-
-typedef struct {
-    int8_t octave;
-    uint8_t track;
-} track_keyboard, *p_track_keyboard;
 
 // https://github.com/lrk/z-po-project/wiki/Project-file-format#track-parameters
 typedef struct {
@@ -200,11 +184,11 @@ typedef struct {
 
 // https://github.com/lrk/z-po-project/wiki/Project-file-format#pattern-chunk
 typedef struct {
-    track_chunck    tracks[16];
-    note_chunck     notes[880];
-    step_chunck     steps[256];
-    track_parameter parameters[16];
-    uint8_t         mutes[40];          // mute config, tracks are mapped with bitmask
+    track_chunck    track[16];
+    note_chunck     note[880];
+    step_chunck     step[256];
+    track_parameter parameter[16];
+    uint8_t         mute[40];          // mute config, tracks are mapped with bitmask
     uint16_t        send_tape;          // Send mapping for Tape track using bitmask
     uint16_t        send_master;        // SendMaster  Send mapping for Master track using bitmask
     uint8_t         active_mute_group;  // Active mute group
@@ -213,7 +197,7 @@ typedef struct {
 
 // https://github.com/lrk/z-po-project/wiki/Project-file-format#pattern-chain-chunk
 typedef struct {
-    uint8_t         patterns[32];   // Array of 32 bytes for the patterns id (from 0 to 15).
+    uint8_t         pattern[32];   // Array of 32 bytes for the patterns id (from 0 to 15).
 } pattern_chain_chunk, *p_pattern_chain_chunk;
 
 // https://github.com/lrk/z-po-project/wiki/Project-file-format#project-file-format
@@ -230,69 +214,77 @@ typedef struct {
     uint8_t             metronome_level;    // Metronome sound level
     uint8_t             metronome_sound;    // Metronome sound selection from 0x00 to 0xFF. Values might be mapped with some linear interpolated indexes 
     uint8_t             unknown2[4];        // unknown, mostly 0x000000FF
-    // pattern_chunck      patterns[16];
+    pattern_chunck      pattern[16];
 } project, *p_project;
 
 class OPZ {
 public:
     OPZ();
 
-    bool            connect();
-    void            disconnect();
-
-    static void     process_message(double _deltatime, std::vector<unsigned char>* _message, void* _userData);
+    static std::string toString( midi_id _id );
     static std::string& toString( event_id _id );
     static std::string& toString( page_id   _id );
     static std::string& toString( track_id  _id );
     static std::string& toString( pattern_parameter_id _id );
     static std::string& toString( track_parameter_id _id);
 
-    void            update();
-
-    void            setEventCallback(std::function<void(event_id, int)> _callback) { m_event = _callback; m_event_enable = true; }
-
     static const std::vector<unsigned char>* getInitMsg();
     static const std::vector<unsigned char>* getHeartBeat();
+    static void     process_message(double _deltatime, std::vector<unsigned char>* _message, void* _userData);
+
+    void            setEventCallback(std::function<void(event_id, int)> _callback) { m_event = _callback; m_event_enable = true; }
+    void            setMidiCallback(std::function<void(midi_id, size_t, size_t, size_t)> _callback) { m_midi = _callback; m_midi_enable = true; }
 
     float           getVolume() const { return m_volume; }
-    float           getTrackParameter(track_id _track, track_parameter_id _prop) const;
+    float           getTrackParameter(uint8_t patterm, track_id _track, track_parameter_id _prop) const;
+    const track_parameter& getTrackParameters(track_id _track) const { return m_project.pattern[m_active_pattern].parameter[_track]; };
+    const project&  getProject() const { return m_project; }
 
     u_int8_t        getActiveProject() const { return m_active_project; }
     u_int8_t        getActivePattern() const { return m_active_pattern; }
     track_id        getActiveTrack() const { return m_active_track; }
 
-    track_parameter getActiveTrackParameters() const { return m_track_parameter[m_active_track]; }
-    float           getActiveTrackParameter(track_parameter_id _prop) const { return getTrackParameter(m_active_track, _prop); }
-    int             getActiveOctave() const { return m_track_keyboard[m_active_track].octave; }
+    const track_parameter& getActiveTrackParameters() const { return m_project.pattern[m_active_pattern].parameter[m_active_track]; };
+    float           getActiveTrackParameter(track_parameter_id _prop) const { return getTrackParameter(m_active_pattern, m_active_track, _prop); }
+    int             getActiveOctave() const { return m_octave[m_active_track]; }
     page_id         getActivePage() const { return m_active_page; }
+    bool            playing() const { return m_play; }
 
-    size_t          verbose;
+    size_t          verbose;    // 0 off
+                                // 1 event description
+                                // 2 event HEX messages
+                                // 3 interpreted data 
 
 protected:
     void            process_sysex(std::vector<unsigned char>* _message);
     void            process_event(std::vector<unsigned char>* _message);
 
+    // Project Data
     project             m_project;
-    track_chunck        m_tracks[16];
-    track_parameter     m_track_parameter[16];
-    track_keyboard      m_track_keyboard[16];
+    int8_t              m_octave[16];
 
+    // Active states
     uint8_t             m_active_address;
     uint8_t             m_active_project;
     uint8_t             m_active_pattern;
     track_id            m_active_track;
     page_id             m_active_page;
 
-    key_state       m_key_state;
-    key_state       m_key_prev_state;
+    // Non-musical key states 
+    key_state           m_key_state;
+    key_state           m_key_prev_state;
 
-    float           m_volume;
+    // non-project or pattern related states 
+    float               m_volume;
+    unsigned char       m_microphone_mode;
+    bool                m_play;
 
-    unsigned char   m_microphone_mode;
-    bool            m_play;
-
+    // CALLBACKS
     std::function<void(event_id, int)> m_event;
-    bool            m_event_enable;
+    bool                m_event_enable;
+
+    std::function<void(midi_id, size_t, size_t, size_t)> m_midi;
+    bool                m_midi_enable;
 };
 
 }

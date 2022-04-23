@@ -39,7 +39,7 @@ std::string event_name[] = {
     "VOLUME_CHANGE",
     "KEY_PROJECT", "KEY_MIXER", "KEY_TEMPO", "KEY_SCREEN",
     "KEY_TRACK", "KEY_KICK", "KEY_SNARE", "KEY_PERC", "KEY_SAMPLE", "KEY_BASS", "KEY_LEAD", "KEY_ARP", "KEY_CHORD", "KEY_FX1", "KEY_FX2", "KEY_TAPE", "KEY_MASTER", "KEY_PERFORM", "KEY_MODULE", "KEY_LIGHT", "KEY_MOTION",
-    "KEY_RECORD", "KEY_PLAY", "KEY_STOP", 
+    "KEY_RECORD", "PLAY_CHANGE", "KEY_STOP", 
     "OCTAVE_CHANGE", "KEY_SHIFT",
     "PROJECT_CHANGE", "PATTERN_CHANGE", "TRACK_CHANGE", "PAGE_CHANGE",
     "MICROPHONE_MODE_CHANGE"
@@ -212,20 +212,46 @@ std::vector<unsigned char> decompress(const unsigned char* inData, size_t inLeng
 OPZ::OPZ():
 verbose(0),
 m_volume(0.0f), 
+m_active_address(0),
+m_active_project(0),
+m_active_pattern(0),
 m_active_track(KICK), 
 m_active_page(PAGE_ONE), 
 m_microphone_mode(0),
 m_play(false),
-m_event_enable(false) {
+m_event_enable(false),
+m_midi_enable(false) {
 }
 
-std::string& OPZ::toString( event_id _id ) { return event_name[_id]; }
-std::string& OPZ::toString( page_id  _id ) { return page_name[_id]; }
-std::string& OPZ::toString( track_id _id ) { return track_name[_id]; }
-std::string& OPZ::toString( track_parameter_id _id ) { return track_parameter_name[_id]; } 
-std::string& OPZ::toString( pattern_parameter_id _id ) { return pattern_parameter_name[_id]; } 
 const std::vector<unsigned char>* OPZ::getInitMsg() { return &initial_message; }
 const std::vector<unsigned char>* OPZ::getHeartBeat() { return &master_heartbeat; }
+
+std::string& OPZ::toString( pattern_parameter_id _id ) { return pattern_parameter_name[_id]; } 
+std::string& OPZ::toString( track_parameter_id _id ) { return track_parameter_name[_id]; }
+std::string& OPZ::toString( track_id _id ) { return track_name[_id]; }
+std::string& OPZ::toString( page_id  _id ) { return page_name[_id]; }
+std::string& OPZ::toString( event_id _id ) { return event_name[_id]; }
+std::string OPZ::toString( midi_id _id ) { 
+    if (_id == CONTROLLER_CHANGE) return "CONTROLLER_CHANGE";
+    else if (_id == NOTE_ON) return "NOTE_ON";
+    else if (_id == NOTE_OFF) return "NOTE_OFF";
+    else if (_id == KEY_PRESSURE) return "KEY_PRESSURE";
+    else if (_id == PROGRAM_CHANGE) return "PROGRAM_CHANGE";
+    else if (_id == CHANNEL_PRESSURE) return "CHANNEL_PRESSURE";
+    else if (_id == PITCH_BEND) return "PITCH_BEND";
+    else if (_id == SYSEX_HEAD) return "SYSEX_HEAD";
+    else if (_id == SONG_POSITION) return "SONG_POSITION";
+    else if (_id == SONG_SELECT) return "SONG_SELECT";
+    else if (_id == TUNE_REQUEST) return "TUNE_REQUEST";
+    else if (_id == SYSEX_END) return "SYSEX_END";
+    else if (_id == TIMING_TICK) return "TIMING_TICK";
+    else if (_id == START_SONG) return "START_SONG";
+    else if (_id == CONTINUE_SONG) return "CONTINUE_SONG";
+    else if (_id == STOP_SONG) return "STOP_SONG";
+    else if (_id == ACTIVE_SENSING) return "ACTIVE_SENSING";
+    else if (_id == SYSTEM_RESET) return "SYSTEM_RESET";
+    return "UNKNOWN";
+}
 
 void OPZ::process_message(double _deltatime, std::vector<unsigned char>* _message, void* _userData) {
     OPZ *device = static_cast<OPZ*>(_userData);
@@ -280,6 +306,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
 
             CAST_MESSAGE(track_change, ti);
+            // TODO
 
             if (verbose > 2) {
                 std::cout << "   value type: " << toString((pattern_parameter_id)ti.value_type) << std::endl;
@@ -295,25 +322,30 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
 
             if (verbose > 1)
                 std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
+ 
+            if (data[1] > 15) {
+                if (!m_play && m_event_enable) 
+                    m_event(PLAY_CHANGE, 1);
+                m_play = true;
+                data[1] -= 16;
+            }
+            else {
+                if (m_play && m_event_enable)
+                    m_event(PLAY_CHANGE, 0);
+                m_play = false;
+            }
 
-            CAST_MESSAGE(track_keyboard, ki);
-
-            if (m_active_track != (track_id)ki.track) {
-                m_active_track = (track_id)ki.track;
+            track_id t =  (track_id)data[1];
+            if (m_active_track != t)
                 if (m_event_enable)
                     m_event(TRACK_CHANGE, (int)m_active_track);
-            }
 
-            memcpy(&(m_track_keyboard[m_active_track]), &ki, sizeof(track_keyboard));
-            
-            if (verbose > 2) {
-                printf(      "  active track:   %s\n", toString(m_active_track).c_str() );
-                printf(      "  active octave:  %i\n", ki.octave);
-            }
-            
+            m_active_track = t;
+
+            m_octave[m_active_track] = (int8_t)data[0];
             if (m_event_enable)
-                m_event(OCTAVE_CHANGE, ki.octave);
-
+                m_event(OCTAVE_CHANGE, m_octave[m_active_track]);
+            
         } break;
 
         case 0x04: {
@@ -358,29 +390,29 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
             memcpy(&(m_key_prev_state), &m_key_state, sizeof(m_key_state));
             memcpy(&(m_key_state), &ki, sizeof(m_key_state));
 
-            if (m_active_page != (page_id)m_key_state.page) {
-                m_active_page = (page_id)m_key_state.page;
+            if (m_active_page != (page_id)m_key_state.page)
                 if (m_event_enable)
                     m_event(PAGE_CHANGE, (int)m_active_page);
-            }
-
-            if (verbose > 2) {
-                printf( "   bit1 1-6:  %i %i %i %i %i %i\n", m_key_state.bit11, m_key_state.bit12, m_key_state.bit13, m_key_state.bit14, m_key_state.bit15, m_key_state.bit16);
-                printf( "   page:      %i\n", m_key_state.page);
-                printf( "   step:      %i\n", m_key_state.step);
-                printf( "   shift:     %i\n", m_key_state.shift);
-                printf( "   tempo:     %i\n", m_key_state.tempo);
-                printf( "   mixer:     %i\n", m_key_state.mixer);
-                printf( "   bit3 1-5:  %i %i %i %i %i\n", m_key_state.bit31, m_key_state.bit32, m_key_state.bit33, m_key_state.bit34, m_key_state.bit35);
-                printf( "   screen:    %i\n", m_key_state.screen);
-                printf( "   stop:      %i\n", m_key_state.stop);
-                printf( "   record:    %i\n", m_key_state.record);
-                printf( "   track:     %i\n", m_key_state.track);
-                printf( "   project:   %i\n", m_key_state.project);
-                printf( "   bit4 3-8:  %i %i %i %i %i %i\n", m_key_state.bit43, m_key_state.bit44, m_key_state.bit45, m_key_state.bit46, m_key_state.bit47, m_key_state.bit48);
-            }
+        
+            m_active_page = (page_id)m_key_state.page;
 
             if (m_event_enable) {
+                if (verbose > 2) {
+                    printf( "   bit1 1-6:  %i %i %i %i %i %i\n", m_key_state.bit11, m_key_state.bit12, m_key_state.bit13, m_key_state.bit14, m_key_state.bit15, m_key_state.bit16);
+                    printf( "   page:      %i\n", m_key_state.page);
+                    printf( "   step:      %i\n", m_key_state.step);
+                    printf( "   shift:     %i\n", m_key_state.shift);
+                    printf( "   tempo:     %i\n", m_key_state.tempo);
+                    printf( "   mixer:     %i\n", m_key_state.mixer);
+                    printf( "   bit3 1-5:  %i %i %i %i %i\n", m_key_state.bit31, m_key_state.bit32, m_key_state.bit33, m_key_state.bit34, m_key_state.bit35);
+                    printf( "   screen:    %i\n", m_key_state.screen);
+                    printf( "   stop:      %i\n", m_key_state.stop);
+                    printf( "   record:    %i\n", m_key_state.record);
+                    printf( "   track:     %i\n", m_key_state.track);
+                    printf( "   project:   %i\n", m_key_state.project);
+                    printf( "   bit4 3-8:  %i %i %i %i %i %i\n", m_key_state.bit43, m_key_state.bit44, m_key_state.bit45, m_key_state.bit46, m_key_state.bit47, m_key_state.bit48);
+                }
+
                 if (m_key_state.project) m_event( KEY_PROJECT, 1);
                 if (m_key_prev_state.project && !m_key_state.project ) m_event( KEY_PROJECT, 0);
                 
@@ -425,18 +457,17 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
 
             CAST_MESSAGE(sequence_change, si);
 
-            if (m_active_project != si.project) {
-                m_active_project = si.project;
+            if (m_active_project != si.project)
                 if (m_event_enable)
                     m_event(PROJECT_CHANGE, (int)m_active_project);
-            }
+            
 
-            if (m_active_pattern) {
-                m_active_pattern = si.pattern;
+            if (m_active_pattern)
                 if (m_event_enable)
                     m_event(PATTERN_CHANGE, (int)m_active_pattern); 
-            }
-
+            
+            m_active_project = si.project;
+            m_active_pattern = si.pattern;
             m_active_address = si.address;  // project + pattern
 
             if (verbose > 2) {
@@ -476,18 +507,25 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 std::cout << "   ENC " << printHex(&decompressed[0], decompressed.size()) << "(" << decompressed.size() << " bytes)" << std::endl;
             }
 
+            // m_active_project = data[0];
+
             const pattern_chunck & pi = (const pattern_chunck &)decompressed[0];
-            memcpy(&m_tracks[0], &pi.tracks[0], sizeof(u_int8_t) * decompressed.size());
+            memcpy(&m_project.pattern[m_active_pattern].track[0], &pi.track[0], sizeof(u_int8_t) * decompressed.size());
 
             if (verbose > 2) {
                 printf("   project:      0x%02X\n", data[0]);
+                printf("   ???????:      0x%02X\n", data[1]);
+                printf("   ???????:      0x%02X\n", data[2]);
+                printf("   ???????:      0x%02X\n", data[3]);
+                printf("   ???????:      0x%02X\n", data[4]);
                 for (size_t i = 0; i < 7; i++) {
-                    printf("   %s\n", toString((track_id)i).c_str() );
-                    printf("   step_count:  %i\n", m_tracks[i].step_count);
-                    printf("   step_length: %i\n", m_tracks[i].step_length);
-                    printf("   quantize:    %i\n", m_tracks[i].quantize);
-                    printf("   note_style:  %02X (%i)\n", m_tracks[i].note_style, m_tracks[i].note_style);
-                    printf("   note_length: %02X (%i)\n", m_tracks[i].note_length, m_tracks[i].note_length);
+                    printf("   %10s   step_count: %03i,   step_length: %03i,   quantize: %03i,  note_style:  %02X (%i),  note_length: %02X (%i)\n", 
+                    toString((track_id)i).c_str(),
+                    m_project.pattern[m_active_pattern].track[i].step_count,
+                    m_project.pattern[m_active_pattern].track[i].step_length,
+                    m_project.pattern[m_active_pattern].track[i].quantize,
+                    m_project.pattern[m_active_pattern].track[i].note_style, m_project.pattern[m_active_pattern].track[i].note_style,
+                    m_project.pattern[m_active_pattern].track[i].note_length, m_project.pattern[m_active_pattern].track[i].note_length);
                 }
             }
 
@@ -536,28 +574,29 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
             }
 
             const track_parameter & si = (const track_parameter &)data[1];
-            memcpy(&(m_track_parameter[m_active_track]), &si, sizeof(track_parameter));
-
+            // memcpy(&(m_project.pattern[m_active_pattern].parameter[m_active_track]), &si, sizeof(track_parameter));
+            memcpy(&m_project.pattern[m_active_project].parameter[m_active_track], &data[1], sizeof(track_parameter));
+            
             if (verbose > 2) {
-                std::cout << "     " << toString(m_active_track) << std::endl;
-                printf( "   param1:     %i\n", si.param1);
-                printf( "   param2:     %i\n", si.param2);
-                printf( "   attack:     %i\n", si.attack);
-                printf( "   decay:      %i\n", si.decay);
-                printf( "   ustain:     %i\n", si.sustain);
-                printf( "   release:    %i\n", si.release);
-                printf( "   fx1:        %i\n", si.fx1);
-                printf( "   fx2:        %i\n", si.fx2);
-                printf( "   filter:     %i\n", si.filter);
-                printf( "   resonance:  %i\n", si.resonance);
-                printf( "   pan:        %i\n", si.pan);
-                printf( "   level:      %i\n", si.level);
-                printf( "   portamendo: %i\n", si.portamento);
-                printf( "   lfo_depth:  %i\n", si.lfo_depth);
-                printf( "   lfo_speed:  %i\n", si.lfo_speed);
-                printf( "   lfo_value:  %i\n", si.lfo_value);
-                printf( "   lfo_shape:  %i\n", si.lfo_shape);
-                printf( "   note_style: %i\n", si.note_style);
+                std::cout << "   " << toString(m_active_track) << std::endl;
+                printf( "   param1:     %i\n", m_project.pattern[m_active_project].parameter[m_active_track].param1);
+                printf( "   param2:     %i\n", m_project.pattern[m_active_project].parameter[m_active_track].param2);
+                printf( "   attack:     %i\n", m_project.pattern[m_active_project].parameter[m_active_track].attack);
+                printf( "   decay:      %i\n", m_project.pattern[m_active_project].parameter[m_active_track].decay);
+                printf( "   ustain:     %i\n", m_project.pattern[m_active_project].parameter[m_active_track].sustain);
+                printf( "   release:    %i\n", m_project.pattern[m_active_project].parameter[m_active_track].release);
+                printf( "   fx1:        %i\n", m_project.pattern[m_active_project].parameter[m_active_track].fx1);
+                printf( "   fx2:        %i\n", m_project.pattern[m_active_project].parameter[m_active_track].fx2);
+                printf( "   filter:     %i\n", m_project.pattern[m_active_project].parameter[m_active_track].filter);
+                printf( "   resonance:  %i\n", m_project.pattern[m_active_project].parameter[m_active_track].resonance);
+                printf( "   pan:        %i\n", m_project.pattern[m_active_project].parameter[m_active_track].pan);
+                printf( "   level:      %i\n", m_project.pattern[m_active_project].parameter[m_active_track].level);
+                printf( "   portamendo: %i\n", m_project.pattern[m_active_project].parameter[m_active_track].portamento);
+                printf( "   lfo_depth:  %i\n", m_project.pattern[m_active_project].parameter[m_active_track].lfo_depth);
+                printf( "   lfo_speed:  %i\n", m_project.pattern[m_active_project].parameter[m_active_track].lfo_speed);
+                printf( "   lfo_value:  %i\n", m_project.pattern[m_active_project].parameter[m_active_track].lfo_value);
+                printf( "   lfo_shape:  %i\n", m_project.pattern[m_active_project].parameter[m_active_track].lfo_shape);
+                printf( "   note_style: %i\n", m_project.pattern[m_active_project].parameter[m_active_track].note_style);
             }
         } break;
 
@@ -598,7 +637,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
             size_t offset = 1;
             std::vector<unsigned char> decompressed = decompress(&data[offset], length-offset);
             if (verbose > 1) {
-                std::cout << "   RAW " << printHex(data, 1) << "(" << length << " bytes)" << std::endl;
+                std::cout << "   RAW " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
                 std::cout << "   ENC " << printHex(&decompressed[0], decompressed.size()) << "(" << decompressed.size() << " bytes)" << std::endl;
             }
         }
@@ -693,75 +732,71 @@ void OPZ::process_event(std::vector<unsigned char>* _message) {
     if (status == NOTE_ON && _message->at(2) == 0)
         status = NOTE_OFF;
 
-    // if (bytes >= 2) {
-    //     std::cout << ", channel: " << channel;
+    if (m_midi_enable) {
+        if (bytes >= 2)
+            m_midi((midi_id)status, (size_t)channel, (size_t)_message->at(1), (size_t)_message->at(2));
 
-    //     size_t key = _message->at(1);
-    //     size_t target_value = _message->at(2);
-
-    //     std::cout << ", key: " << _message->at(1);
-    //     std::cout << ", value: " << _message->at(2);
-    // }
-
-    // std::cout << std::endl;
+        else 
+            m_midi((midi_id)status, (size_t)channel, 0, 0);
+    }
 }
 
-float OPZ::getTrackParameter(track_id _track, track_parameter_id _prop) const {
+float OPZ::getTrackParameter(uint8_t _pattern, track_id _track, track_parameter_id _prop) const {
     if (_prop == SOUND_PARAM1)
-        return m_track_parameter[_track].param1 / 255.0f;
+        return m_project.pattern[_pattern].parameter[_track].param1 / 255.0f;
     else if (_prop == SOUND_PARAM2)
-        return m_track_parameter[_track].param2 / 255.0f;
+        return m_project.pattern[_pattern].parameter[_track].param2 / 255.0f;
     else if (_prop == SOUND_FILTER)
-        return m_track_parameter[_track].filter / 255.0f; 
+        return m_project.pattern[_pattern].parameter[_track].filter / 255.0f; 
     else if (_prop == SOUND_RESONANCE)
-        return m_track_parameter[_track].resonance / 255.0f;
+        return m_project.pattern[_pattern].parameter[_track].resonance / 255.0f;
 
     // TODO
     //      - I got the names wrong
     else if (_prop == ENVELOPE_ATTACK) // S
-        return m_track_parameter[_track].attack / 255.0f;
+        return m_project.pattern[_pattern].parameter[_track].attack / 255.0f;
     else if (_prop == ENVELOPE_DECAY) // A
-        return m_track_parameter[_track].decay  / 255.0f;
+        return m_project.pattern[_pattern].parameter[_track].decay  / 255.0f;
     else if (_prop == ENVELOPE_SUSTAIN) // H
-        return m_track_parameter[_track].sustain / 255.0f; 
+        return m_project.pattern[_pattern].parameter[_track].sustain / 255.0f; 
     else if (_prop == ENVELOPE_RELEASE) // D
-        return m_track_parameter[_track].release / 255.0f; 
+        return m_project.pattern[_pattern].parameter[_track].release / 255.0f; 
 
     else if (_prop == LFO_DEPTH)
-        return m_track_parameter[_track].lfo_depth / 255.0f;
+        return m_project.pattern[_pattern].parameter[_track].lfo_depth / 255.0f;
     else if (_prop == LFO_SPEED) // RATE
-        return m_track_parameter[_track].lfo_speed / 255.0f;
+        return m_project.pattern[_pattern].parameter[_track].lfo_speed / 255.0f;
     else if (_prop == LFO_VALUE) // DEST
-        return m_track_parameter[_track].lfo_value / 255.0f; 
+        return m_project.pattern[_pattern].parameter[_track].lfo_value / 255.0f; 
     else if (_prop == LFO_SHAPE)
-        return m_track_parameter[_track].lfo_shape / 255.0f;
+        return m_project.pattern[_pattern].parameter[_track].lfo_shape / 255.0f;
 
     else if (_prop == SOUND_FX1)
-        return m_track_parameter[_track].fx1 / 255.0f;
+        return m_project.pattern[_pattern].parameter[_track].fx1 / 255.0f;
     else if (_prop == SOUND_FX2)
-        return (m_track_parameter[_track].fx2 / 255.0f) * 2.0 - 1.0f;
+        return (m_project.pattern[_pattern].parameter[_track].fx2 / 255.0f) * 2.0 - 1.0f;
     else if (_prop == SOUND_PAN)
-        return m_track_parameter[_track].pan / 255.0f; 
+        return m_project.pattern[_pattern].parameter[_track].pan / 255.0f; 
     else if (_prop == SOUND_LEVEL)
-        return m_track_parameter[_track].level / 255.0f;
+        return m_project.pattern[_pattern].parameter[_track].level / 255.0f;
 
     else if (_prop == NOTE_LENGTH)
-        return (float)m_tracks[_track].note_length;
+        return (float)m_project.pattern[_pattern].track[_track].note_length;
 
     else if (_prop == NOTE_STYLE)
-        return m_track_parameter[_track].note_style / 255.0f;
+        return m_project.pattern[_pattern].parameter[_track].note_style / 255.0f;
 
     else if (_prop == QUANTIZE)
-        return (float)m_tracks[_track].quantize;
+        return (float)m_project.pattern[_pattern].track[_track].quantize;
 
     else if (_prop == PORTAMENTO)
-        return m_track_parameter[_track].portamento / 255.0f;
+        return m_project.pattern[_pattern].parameter[_track].portamento / 255.0f;
 
     else if (_prop == STEP_COUNT)
-        return (float)m_tracks[_track].step_count;
+        return (float)m_project.pattern[_pattern].track[_track].step_count;
 
     else if (_prop == STEP_LENGTH)
-        return (float)m_tracks[_track].step_length;
+        return (float)m_project.pattern[_pattern].track[_track].step_length;
 
     return 0.0f;
 }

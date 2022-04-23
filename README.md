@@ -1,16 +1,42 @@
-# Trying ReverseEngieneerting the OP-Z
+# LibOPZ non official OP-Z API library
 
-This is on very early stages. Any help will be appreciated.
+This is on very early stages. All tested on firmware version 1.2.39
 
 ```
 mkdir build
 cd build
 cmake ..
 make
+```
+
+Then you can run any of the example programs.
+
+
+## opz_dump
+
+Prints out everything it recives and process from the OPZ
+
+```
 examples/./opz_dump
 ```
 
-Have been tested with on a S/N VHJ firmware version 1.2.39
+## opz_memory
+
+A way of exploring OP-Z project memory
+
+```
+examples/./opz_memory
+```
+
+## opz_companion
+
+Trying to replicate the OP-Z companion app in the terminal
+
+```
+examples/./opz_companion
+```
+
+
 
 ## Acknowledgment
 
