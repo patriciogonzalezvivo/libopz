@@ -1,6 +1,6 @@
-# LibOPZ non official OP-Z API library
+# LibOPZ: The non official OP-Z API library
 
-This is on very early stages. All tested on firmware version 1.2.39
+## This project is in it's very early stages. All tested on firmware version 1.2.39
 
 ```
 mkdir build
@@ -8,19 +8,18 @@ cd build
 cmake ..
 make
 ```
+After running these commands you can run any of the example programs.
 
-Then you can run any of the example programs.
+## Programs:
+### opz_dump
 
-
-## opz_dump
-
-Prints out everything it recives and process from the OPZ
+Prints out everything it recives and process from the OP-Z
 
 ```
 examples/./opz_dump
 ```
 
-## opz_memory
+### opz_memory
 
 A way of exploring OP-Z project memory
 
@@ -28,7 +27,7 @@ A way of exploring OP-Z project memory
 examples/./opz_memory
 ```
 
-## opz_companion
+### opz_companion
 
 Trying to replicate the OP-Z companion app in the terminal
 
@@ -42,7 +41,7 @@ examples/./opz_companion
 
 This work is based on:
 
-- [z-op project](https://github.com/lrk/z-po-project)
+- [z-po project](https://github.com/lrk/z-po-project)
 - [opz docs wiki](https://github.com/hyphz/opzdoc/wiki/)
 - [opz.js](https://github.com/nbw/opz)
 - [OPZ WebApp](https://github.com/Karmagrinder/OPZ_MIDI)
