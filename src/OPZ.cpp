@@ -42,7 +42,8 @@ std::string event_name[] = {
     "KEY_RECORD", "PLAY_CHANGE", "KEY_STOP", 
     "OCTAVE_CHANGE", "KEY_SHIFT",
     "PROJECT_CHANGE", "PATTERN_CHANGE", "TRACK_CHANGE", "PAGE_CHANGE",
-    "MICROPHONE_MODE_CHANGE"
+    "MICROPHONE_MODE_CHANGE",
+    "PARAMETER_CHANGE"
 };
 
 // https://teenage.engineering/guides/op-z/parameter-pages
@@ -216,7 +217,8 @@ m_active_address(0),
 m_active_project(0),
 m_active_pattern(0),
 m_active_track(KICK), 
-m_active_page(PAGE_ONE), 
+m_active_page(PAGE_ONE),
+m_active_step(0),
 m_microphone_mode(0),
 m_play(false),
 m_event_enable(false),
@@ -269,12 +271,14 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
 
     const sysex_header &header = (const sysex_header&)_message->at(0);
     if (memcmp(OPZ_VENDOR_ID, header.vendor_id, sizeof(OPZ_VENDOR_ID)) != 0){
-        // printf("Vendor ID %02X:%02X:%02X is not the expected ID %02X:%02X:%02X\n", header.vendor_id[0],header.vendor_id[1],header.vendor_id[2], OPZ_VENDOR_ID[0],OPZ_VENDOR_ID[1],OPZ_VENDOR_ID[2]);
+        if (verbose)
+            printf("Vendor ID %02X:%02X:%02X is not the expected ID %02X:%02X:%02X\n", header.vendor_id[0],header.vendor_id[1],header.vendor_id[2], OPZ_VENDOR_ID[0],OPZ_VENDOR_ID[1],OPZ_VENDOR_ID[2]);
         return;
     }
 
     if ((header.protocol_version == 0) || (header.protocol_version > OPZ_MAX_PROTOCOL_VERSION)){
-        // printf("Unexpected protocol version %02X, was expecting > 0 and <= %02X\n", header.protocol_version, OPZ_MAX_PROTOCOL_VERSION);
+        if (verbose)
+            printf("Unexpected protocol version %02X, was expecting > 0 and <= %02X\n", header.protocol_version, OPZ_MAX_PROTOCOL_VERSION);
         return;
     }
 
@@ -378,6 +382,35 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
 
         } break;
 
+        case 0x05: {
+            // Unknown
+            if (verbose)
+                printf("Msg %02X (unknown)\n", header.parm_id);
+
+            if (verbose > 1)
+                std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
+
+            if (verbose > 2) {
+                printf("    0:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(data[0]));
+                printf("    1:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(data[1]));
+                printf("    2:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(data[2]));
+                printf("    3:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(data[3]));
+                printf("    4:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(data[4]));
+                printf("    5:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(data[5]));
+                printf("    6:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(data[6]));
+                printf("    7:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(data[7]));
+                printf("    8:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(data[8]));
+                printf("    9:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(data[9]));
+                printf("    A:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(data[10]));
+                printf("    B:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(data[11]));
+                printf("    C:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(data[12]));
+                printf("    D:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(data[13]));
+                printf("    E:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(data[14]));
+                printf("    F:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(data[15]));
+            }
+
+        } break;
+
         case 0x06: {
             // Button States ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#06-button-states )
             if (verbose)
@@ -469,6 +502,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
             m_active_project = si.project;
             m_active_pattern = si.pattern;
             m_active_address = si.address;  // project + pattern
+            m_active_step = 0;
 
             if (verbose > 2) {
                 printf("    pattern:    %02X (pattern %i)\n", si.pattern, si.pattern + 1);
@@ -551,7 +585,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("    synth level:    %i\n", pi.synth_level);
                 printf("    pinch level:    %i\n", pi.punch_level);
                 printf("    master level:   %i\n", pi.master_level);
-                printf("    project tempo:  %i\n", pi.project_tempo);
+                printf("    project tempo:  %i\n", pi.tempo);
                 printf("    swing:          %i\n", pi.swing);
                 printf("    metronome_level:%i\n", pi.metronome_level);
                 printf("    metronome_sound:%i\n", pi.metronome_sound);
@@ -574,7 +608,10 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
             }
 
             const track_parameter & si = (const track_parameter &)data[1];
-            // memcpy(&(m_project.pattern[m_active_pattern].parameter[m_active_track]), &si, sizeof(track_parameter));
+
+            if (m_event_enable)
+                m_event(PARAMETER_CHANGE, 1);
+                
             memcpy(&m_project.pattern[m_active_project].parameter[m_active_track], &data[1], sizeof(track_parameter));
             
             if (verbose > 2) {

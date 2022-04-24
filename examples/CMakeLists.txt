@@ -22,15 +22,3 @@ target_include_directories(opz_companion PRIVATE
 )
 target_link_libraries(opz_companion PRIVATE libopz ncurses)
 
-# OPZ MEMORY
-add_executable (opz_memory opz_memory.cpp)
-set_target_properties(opz_memory PROPERTIES
-    CXX_STANDARD 11
-    CXX_STANDARD_REQUIRED ON
-)
-target_include_directories(opz_memory PRIVATE
-    "${PROJECT_SOURCE_DIR}/deps"
-    "${PROJECT_SOURCE_DIR}/src"
-)
-target_link_libraries(opz_memory PRIVATE libopz ncurses)
-

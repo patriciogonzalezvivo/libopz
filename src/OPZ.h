@@ -28,6 +28,7 @@ enum event_id {
     OCTAVE_CHANGE, KEY_SHIFT,
     PROJECT_CHANGE, PATTERN_CHANGE, TRACK_CHANGE, PAGE_CHANGE, 
     MICROPHONE_MODE_CHANGE,
+    PARAMETER_CHANGE
 };
 
 
@@ -208,7 +209,7 @@ typedef struct {
     uint8_t             synth_level;
     uint8_t             punch_level;
     uint8_t             master_level;
-    uint8_t             project_tempo;      // Project tempo from 40 to 200
+    uint8_t             tempo;              // Project tempo from 40 to 200
     uint8_t             unknown1[44];       // unknown, values are often 0x00
     uint8_t             swing;              // Swing level from 0 to 255
     uint8_t             metronome_level;    // Metronome sound level
@@ -248,6 +249,8 @@ public:
     float           getActiveTrackParameter(track_parameter_id _prop) const { return getTrackParameter(m_active_pattern, m_active_track, _prop); }
     int             getActiveOctave() const { return m_octave[m_active_track]; }
     page_id         getActivePage() const { return m_active_page; }
+    uint8_t         getActiveStep() const { return m_active_step; };
+
     bool            isPlaying() const { return m_play; }
 
     size_t          verbose;    // 0 off
@@ -256,8 +259,8 @@ public:
                                 // 3 interpreted data 
 
 protected:
-    void            process_sysex(std::vector<unsigned char>* _message);
-    void            process_event(std::vector<unsigned char>* _message);
+    void                process_sysex(std::vector<unsigned char>* _message);
+    void                process_event(std::vector<unsigned char>* _message);
 
     // Project Data
     project             m_project;
@@ -269,6 +272,7 @@ protected:
     uint8_t             m_active_pattern;
     track_id            m_active_track;
     page_id             m_active_page;
+    uint8_t             m_active_step;
 
     // Non-musical key states 
     key_state           m_key_state;
