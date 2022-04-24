@@ -29,14 +29,23 @@ int main(int argc, char** argv) {
     opz.connect();
     
     initscr();
+    start_color();
+
+    init_pair(1, COLOR_WHITE, COLOR_BLACK);
+    init_pair(2, COLOR_RED, COLOR_BLACK);
+    init_pair(3, COLOR_CYAN, COLOR_BLACK);
 
     cbreak();
     keypad(stdscr, TRUE);
     noecho();
 
+    bool track_pressed = false;
+
     // Listen to key events (no cc, neighter notes)
     opz.setEventCallback( [&](T3::event_id _id, int _value) {
-        refresh();
+        // refresh();
+        if (_id == T3::KEY_TRACK)
+            track_pressed = _value;
     } );
 
     std::thread waitForKeys([&](){
@@ -52,11 +61,21 @@ int main(int argc, char** argv) {
 
     int y_beg, x_beg, y_max, x_max;
 
+    std::vector<WINDOW*> page = {
+        newwin(5, 42, 1, 0),
+        newwin(4, 42, 6, 0),
+        newwin(5, 42, 10, 0),
+        newwin(14, 25, 1, 42),
+        newwin(14, 15, 1, 67) 
+    };
+    refresh();
+
     while (keepRunnig.load()) {
         getbegyx(stdscr, y_beg, x_beg);
         getmaxyx(stdscr, y_max, x_max);
+
         opz.keepawake();
-        clear();
+        attron(COLOR_PAIR(1));
 
         uint8_t pattern = opz.getActivePattern();
         T3::track_id track = opz.getActiveTrack();
@@ -65,73 +84,86 @@ int main(int argc, char** argv) {
         T3::track_chunck tc = project.pattern[pattern].track[track];
 
         mvprintw(0, (x_max-x_beg)/2 - track_name.size()/2, "%s", track_name.c_str() );
+    
+        for (size_t i = 0; i < page.size(); i++) {
+            if (track_pressed)
+                wattron(page[4], COLOR_PAIR(2));
+            else if (i == (size_t)opz.getActivePage())
+                wattron(page[i], COLOR_PAIR(2));
+            box(page[i], 0, 0);
+            wattroff(page[i], COLOR_PAIR(2));
+        }
 
-        mvprintw(2, 0, "SOUND   P1      P2      FILTER  RESONA.");
-        mvprintw(3, 0, "        %s %s %s %s",   hBar(7, (size_t)opz.getActiveTrackParameters().param1).c_str(),
+        // PAGE 1: SOUND
+        
+        mvwprintw(page[0], 1, 1, "SOUND   P1      P2      FILTER  RESONA.");
+        mvwprintw(page[0], 2, 1, "        %s %s %s %s",   hBar(7, (size_t)opz.getActiveTrackParameters().param1).c_str(),
                                                 hBar(7, (size_t)opz.getActiveTrackParameters().param2).c_str(),
                                                 hBar(7, (size_t)opz.getActiveTrackParameters().filter).c_str(),
                                                 hBar(7, (size_t)opz.getActiveTrackParameters().resonance).c_str() );
-        mvprintw(4, 0, "        %03i     %03i     %03i     %03i", 
+        mvwprintw(page[0], 3, 1, "        %7i %7i %7i %7i", 
                                                 (int)((int)opz.getActiveTrackParameters().param1 / 2.55f), 
                                                 (int)((int)opz.getActiveTrackParameters().param2 / 2.55f), 
                                                 (int)((int)opz.getActiveTrackParameters().filter / 2.55f), 
                                                 (int)((int)opz.getActiveTrackParameters().resonance / 2.55f) );
-        mvprintw(6, 0, "ENV.    ATTACK  DECAY   SUSTAIN RELEASE");
-        mvprintw(7, 0, "        %03i     %03i     %03i     %03i",
+
+        // PAGE 2: ENVELOPE
+        mvwprintw(page[1], 1, 1, "ENV.    ATTACK  DECAY   SUSTAIN RELEASE");
+        mvwprintw(page[1], 2, 1, "        %7i %7i %7i %7i",
                                                 (int)((int)opz.getActiveTrackParameters().attack / 2.55f), 
                                                 (int)((int)opz.getActiveTrackParameters().decay / 2.55f), 
                                                 (int)((int)opz.getActiveTrackParameters().sustain / 2.55f), 
                                                 (int)((int)opz.getActiveTrackParameters().release / 2.55f) );
 
-        mvprintw(9, 0, "LFO     DEPTH   RATE    DEST    SHAPE");
-        mvprintw(10, 0, "        %s %s %s %s",  hBar(7, (size_t)opz.getActiveTrackParameters().lfo_depth).c_str(),
+        // PAGE 3: LFO
+        mvwprintw(page[2],1, 1, "LFO     DEPTH   RATE    DEST    SHAPE");
+        mvwprintw(page[2],2, 1, "        %s %s %s %s",  hBar(7, (size_t)opz.getActiveTrackParameters().lfo_depth).c_str(),
                                                 hBar(7, (size_t)opz.getActiveTrackParameters().lfo_speed).c_str(),
                                                 hBar(7, (size_t)opz.getActiveTrackParameters().lfo_value).c_str(),
                                                 hBar(7, (size_t)opz.getActiveTrackParameters().lfo_shape).c_str() );
-        mvprintw(11, 0, "        %03i     %03i     %03i     %03i", 
+        mvwprintw(page[2],3, 1, "        %7i %7i %7i %7i", 
                                                 (int)((int)opz.getActiveTrackParameters().lfo_depth / 2.55f), 
                                                 (int)((int)opz.getActiveTrackParameters().lfo_speed / 2.55f), 
                                                 (int)((int)opz.getActiveTrackParameters().lfo_value / 2.55f), 
                                                 (int)((int)opz.getActiveTrackParameters().lfo_shape / 2.55f) );
 
-        int middle = 40;
-        mvprintw(2, middle, " | FX  1       2");
-        mvprintw(3, middle, " |     %s %s", hBar(4, (size_t)opz.getActiveTrackParameters().fx1).c_str(),
-                                                hBar(4, (size_t)opz.getActiveTrackParameters().fx2).c_str());
-        mvprintw(4, middle, " |     %03i  %03i", 
+        // PAGE 4: FX / PAN & LEVEL
+        mvwprintw(page[3], 1, 1, " FX  1       2");
+        mvwprintw(page[3], 2, 1, "     %s %s", hBar(7, (size_t)opz.getActiveTrackParameters().fx1).c_str(),
+                                                hBar(7, (size_t)opz.getActiveTrackParameters().fx2).c_str());
+        mvwprintw(page[3], 3, 1, "     %7i %7i", 
                                                 (int)((int)opz.getActiveTrackParameters().fx1 / 2.55f),
                                                 (int)((int)opz.getActiveTrackParameters().fx2 / 2.55f) );
 
-        mvprintw(5, middle, " | ");
-        mvprintw(6, middle, " | PAN L       R");
-        mvprintw(7, middle, " |     ");
-        
-        for (size_t i = 0; i < 9; i++) {
+        mvwprintw(page[3], 6, 1, " PAN L             R");
+        mvwprintw(page[3], 7, 1, "     ");
+        for (size_t i = 0; i < 15; i++) {
             size_t p = opz.getActiveTrackParameters().pan;
-            p = (p/254.0)*9;
-            if (i + 2 > p  && i < p ) printw("|");
-            else printw(".");
+            p = (p/254.0)*15;
+            if (i + 2 > p  && i < p ) wprintw(page[3], "|");
+            else wprintw(page[3],".");
         }
-        mvprintw(8, middle, " | ");
-        mvprintw(9, middle, " | LEVEL");
-        mvprintw(10,middle, " |     %s", hBar(9, (size_t)opz.getActiveTrackParameters().level).c_str() );
-        mvprintw(11,middle, " |        %03i", (int)( (int)opz.getActiveTrackParameters().level / 2.55f));
+        
+        mvwprintw(page[3], 10, 2, " LEVEL");
+        mvwprintw(page[3], 11, 2, "    %s", hBar(15, (size_t)opz.getActiveTrackParameters().level).c_str() );
+        mvwprintw(page[3], 12, 2, "          %03i", (int)( (int)opz.getActiveTrackParameters().level / 2.55f));
 
-        mvprintw(2, x_max-15, " | NOTE LENGTH");
-        mvprintw(3, x_max-15, " | %03i", tc.note_length);
-        mvprintw(4, x_max-15, " | ");
-        mvprintw(5, x_max-15, " | NOTE STYLE");
-        mvprintw(6, x_max-15, " | %03i", opz.getActiveTrackParameters().note_style );
-        mvprintw(7, x_max-15, " | ");
-        mvprintw(8, x_max-15, " | QUANTIZE");
-        mvprintw(9, x_max-15, " | %03i", tc.quantize);
-        mvprintw(10,x_max-15, " | ");
-        mvprintw(11,x_max-15, " | PORTAMENTO");
-        mvprintw(12,x_max-15, " | %03i", opz.getActiveTrackParameters().portamento );
+        mvwprintw(page[4], 1,  2, "NOTE LENGTH");
+        mvwprintw(page[4], 2,  2, "%i", tc.note_length);
+        mvwprintw(page[4], 4,  2, "NOTE STYLE");
+        mvwprintw(page[4], 5,  2, "%i", opz.getActiveTrackParameters().note_style );
+        mvwprintw(page[4], 8,  2, "QUANTIZE");
+        mvwprintw(page[4], 9,  2, "%i", tc.quantize);
+        mvwprintw(page[4], 11, 2, "PORTAMENTO");
+        mvwprintw(page[4], 12, 2, "%i", opz.getActiveTrackParameters().portamento );
 
-        mvprintw(14, 0, "STEP COUNT %03i      STEP LENGHT %03i", tc.step_count, tc.step_length);
-        mvprintw(14, x_max-7, "SUM %03i", tc.step_count * tc.step_length);
+        for (size_t i = 0; i < page.size(); i++)
+            wrefresh(page[i]);
 
+        mvprintw(y_max-1, 0, "STEP COUNT %2i      STEP LENGHT %2i", tc.step_count, tc.step_length);
+        mvprintw(y_max-1, x_max-6, "SUM %2i", tc.step_count * tc.step_length);
+
+        attroff(COLOR_PAIR(1));
         refresh();
     }
     
