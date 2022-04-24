@@ -45,6 +45,7 @@ int main(int argc, char** argv) {
     bool pressing_project = false;
     bool pressing_mixer = false;
     bool pressing_tempo = false;
+    bool mic_on = false;
 
     // Listen to key events (no cc, neighter notes)
     opz.setEventCallback( [&](T3::event_id _id, int _value) {
@@ -52,6 +53,7 @@ int main(int argc, char** argv) {
         else if (_id == T3::KEY_PROJECT)    pressing_project = _value;
         else if (_id == T3::KEY_MIXER)      pressing_mixer = _value;
         else if (_id == T3::KEY_TEMPO)      pressing_tempo = _value;
+        else if (_id == T3::MICROPHONE_MODE_CHANGE) mic_on = _value != 0;
         change = true;
     } );
 
@@ -76,7 +78,8 @@ int main(int argc, char** argv) {
         newwin(14, 15, 1, 65),  //  STEP / NOTE
         newwin(18, 80, 1, 0),   //  PROJECT
         newwin(14, 80, 1, 0),   //  MIXER
-        newwin(14, 80, 1, 0)    //  TEMPO
+        newwin(14, 80, 1, 0),   //  TEMPO
+        newwin(14, 80, 1, 0)    //  MIC
     };
     refresh();
 
@@ -113,8 +116,17 @@ int main(int argc, char** argv) {
         mvprintw(y_max-2, 0, "STEP COUNT %2i      STEP LENGHT %2i                                        SUM %2i", tc.step_count, tc.step_length, tc.step_count * tc.step_length);
         mvprintw(y_max-1, (x_max-x_beg)/2 - 2, "%s %02i", ((opz.isPlaying())? "|>" : "[]") );
         refresh();
-    
-        if (pressing_project) {
+
+        if (mic_on) {
+            wclear(windows[8]);
+            box(windows[8], 0, 0);
+            mvwprintw(windows[8], 1, 2, "LEVEL               FX ");
+            mvwprintw(windows[8], 2, 2, "%03i                 %s", 
+                                                                    (int)(opz.getMicLevel() * 100), 
+                                                                    T3::OPZ::toString(opz.getMicFx()).c_str());
+            wrefresh(windows[8]);
+        }
+        else if (pressing_project) {
             box(windows[5], 0, 0);
             mvwprintw(windows[5], 0, 2, " PROJECT  %02i ", opz.getActiveProject()+1);
             mvwprintw(windows[5], 0, 20, " PATTERN  %02i ", pattern+1 );
@@ -151,7 +163,7 @@ int main(int argc, char** argv) {
         else {
             wclear(windows[5]);
 
-            for (size_t i = 0; i < windows.size(); i++) {
+            for (size_t i = 0; i < 5; i++) {
                 if (pressing_track)
                     wattron(windows[4], COLOR_PAIR(2));
                 else if (i == (size_t)opz.getActivePage())

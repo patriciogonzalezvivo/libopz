@@ -42,13 +42,17 @@ std::string event_name[] = {
     "KEY_RECORD", "PLAY_CHANGE", "KEY_STOP", 
     "OCTAVE_CHANGE", "KEY_SHIFT",
     "PROJECT_CHANGE", "PATTERN_CHANGE", "TRACK_CHANGE", "PAGE_CHANGE",
-    "MICROPHONE_MODE_CHANGE",
+    "MICROPHONE_MODE_CHANGE", "MICROPHONE_LEVEL_CHANGE", "MICROPHONE_FX_CHANGE",
     "PARAMETER_CHANGE"
 };
 
 // https://teenage.engineering/guides/op-z/parameter-pages
 std::string page_name[] = { 
     "ONE", "TWO", "THREE", "FOUR" 
+};
+
+ std::string mic_fx_name[] = {
+    "NONE", "DELAY", "REVERB", "DELAY_REVERB"
 };
 
 // https://teenage.engineering/guides/op-z/tracks
@@ -212,14 +216,14 @@ std::vector<unsigned char> decompress(const unsigned char* inData, size_t inLeng
 
 OPZ::OPZ():
 verbose(0),
-m_volume(0.0f), 
+m_level(0.0f), 
 m_active_address(0),
 m_active_project(0),
 m_active_pattern(0),
 m_active_track(KICK), 
 m_active_page(PAGE_ONE),
 m_active_step(0),
-m_microphone_mode(0),
+m_mic_mode(0),
 m_play(false),
 m_event_enable(false),
 m_midi_enable(false) {
@@ -232,6 +236,7 @@ std::string& OPZ::toString( pattern_parameter_id _id ) { return pattern_paramete
 std::string& OPZ::toString( track_parameter_id _id ) { return track_parameter_name[_id]; }
 std::string& OPZ::toString( track_id _id ) { return track_name[_id]; }
 std::string& OPZ::toString( page_id  _id ) { return page_name[_id]; }
+std::string& OPZ::toString( mic_fx_id _id ) { return mic_fx_name[_id]; }
 std::string& OPZ::toString( event_id _id ) { return event_name[_id]; }
 std::string OPZ::toString( midi_id _id ) { 
     if (_id == CONTROLLER_CHANGE) return "CONTROLLER_CHANGE";
@@ -359,24 +364,39 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
             if (verbose > 1)
                 std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
 
-            float volume = data[1]/255.0;
+            float   volume = data[1]/ 255.0f;
+            float   mic_level = (data[2]%16) / 15.0f;
+            mic_fx_id mic_fx = (mic_fx_id)(data[2]/16);
             if (verbose > 2) {
                 printf(" ????????   %02x\n", data[0] );
-                printf(" Volumen    %f\n",  volume);
-                printf(" ????????   %02x\n", data[2] );
-                printf(" Microphone %02x\n", data[3] );
+                printf(" LEVEL      %f\n",  volume);
+                printf(" Mic. LEVEL %f\n", mic_level );
+                printf(" Mic. FX    %i\n", mic_fx );
+                printf(" Mic. MODE  %02x\n", data[3] );
             }
 
-            if (m_volume != volume) {
-                m_volume = volume;
+            if (m_level != volume) {
+                m_level = volume;
                 if (m_event_enable)
-                    m_event(VOLUME_CHANGE, m_volume * 100);
+                    m_event(VOLUME_CHANGE, m_level * 100);
             }
 
-            if (m_microphone_mode != data[3]) {
-                m_microphone_mode = data[3];
+            if (m_mic_mode != data[3]) {
+                m_mic_mode = data[3];
                 if (m_event_enable)
-                    m_event(MICROPHONE_MODE_CHANGE, m_microphone_mode);
+                    m_event(MICROPHONE_MODE_CHANGE, m_mic_mode);
+            }
+
+            if (m_mic_level != mic_level) {
+                m_mic_level = mic_level;
+                if (m_event_enable)
+                    m_event(MICROPHONE_LEVEL_CHANGE, m_mic_level * 100);
+            }
+
+            if (m_mic_fx != mic_fx) {
+                m_mic_fx = mic_fx;
+                if (m_event_enable)
+                    m_event(MICROPHONE_FX_CHANGE, m_mic_fx);
             }
 
 

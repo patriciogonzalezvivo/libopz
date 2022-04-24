@@ -27,7 +27,7 @@ enum event_id {
     KEY_RECORD, PLAY_CHANGE, KEY_STOP,
     OCTAVE_CHANGE, KEY_SHIFT,
     PROJECT_CHANGE, PATTERN_CHANGE, TRACK_CHANGE, PAGE_CHANGE, 
-    MICROPHONE_MODE_CHANGE,
+    MICROPHONE_MODE_CHANGE, MICROPHONE_LEVEL_CHANGE, MICROPHONE_FX_CHANGE,
     PARAMETER_CHANGE
 };
 
@@ -73,6 +73,10 @@ enum track_parameter_id {
 
 enum page_id {
     PAGE_ONE = 0, PAGE_TWO, PAGE_TREE, PAGE_FOUR
+};
+
+enum mic_fx_id {
+    MIC_FX_NONE = 0, MIC_FX_DELAY, MIC_FX_REVERB, MIC_FX_DELAY_REVERB
 };
 
 typedef struct {
@@ -222,9 +226,10 @@ class OPZ {
 public:
     OPZ();
 
-    static std::string toString( midi_id _id );
-    static std::string& toString( event_id _id );
+    static std::string toString( midi_id    _id );
+    static std::string& toString( event_id  _id );
     static std::string& toString( page_id   _id );
+    static std::string& toString( mic_fx_id _id );
     static std::string& toString( track_id  _id );
     static std::string& toString( pattern_parameter_id _id );
     static std::string& toString( track_parameter_id _id);
@@ -236,7 +241,10 @@ public:
     void            setEventCallback(std::function<void(event_id, int)> _callback) { m_event = _callback; m_event_enable = true; }
     void            setMidiCallback(std::function<void(midi_id, size_t, size_t, size_t)> _callback) { m_midi = _callback; m_midi_enable = true; }
 
-    float           getVolume() const { return m_volume; }
+    float           getLevel() const { return m_level; }
+    float           getMicLevel() const { return m_mic_level; }
+    mic_fx_id       getMicFx() const { return m_mic_fx; }
+    uint8_t         getMicMode() const { return m_mic_mode; }
     float           getTrackParameter(uint8_t patterm, track_id _track, track_parameter_id _prop) const;
     const track_parameter& getTrackParameters(track_id _track) const { return m_project.pattern[m_active_pattern].parameter[_track]; };
     const project&  getProject() const { return m_project; }
@@ -279,8 +287,10 @@ protected:
     key_state           m_key_prev_state;
 
     // non-project or pattern related states 
-    float               m_volume;
-    unsigned char       m_microphone_mode;
+    float               m_level;
+    float               m_mic_level;
+    uint8_t             m_mic_mode;
+    mic_fx_id           m_mic_fx;
     bool                m_play;
 
     // CALLBACKS
