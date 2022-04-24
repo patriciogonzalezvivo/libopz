@@ -31,6 +31,7 @@ int main(int argc, char** argv) {
     initscr();
     start_color();
 
+    init_color(COLOR_BLACK, 0, 0, 0);
     init_pair(1, COLOR_WHITE, COLOR_BLACK);
     init_pair(2, COLOR_RED, COLOR_BLACK);
     init_pair(3, COLOR_CYAN, COLOR_BLACK);
@@ -75,7 +76,7 @@ int main(int argc, char** argv) {
         getmaxyx(stdscr, y_max, x_max);
 
         opz.keepawake();
-        attron(COLOR_PAIR(1));
+        // attron(COLOR_PAIR(1));
 
         uint8_t pattern = opz.getActivePattern();
         T3::track_id track = opz.getActiveTrack();
@@ -160,10 +161,17 @@ int main(int argc, char** argv) {
         for (size_t i = 0; i < page.size(); i++)
             wrefresh(page[i]);
 
-        mvprintw(y_max-1, 0, "STEP COUNT %2i      STEP LENGHT %2i", tc.step_count, tc.step_length);
-        mvprintw(y_max-1, x_max-6, "SUM %2i", tc.step_count * tc.step_length);
+        for (size_t i = 0; i < 16; i++) {
+            int x = i * 5 + (i / 4) * 2 - ((i > 10)? 1 : 0);
+            mvprintw(y_max-4, x, "%i", i+1);
+            mvprintw(y_max-3, x, "*");
+        }
+        mvprintw(y_max-2, 0, "STEP COUNT %2i      STEP LENGHT %2i                                           SUM %2i", 
+                                        tc.step_count, tc.step_length, tc.step_count * tc.step_length);
 
-        attroff(COLOR_PAIR(1));
+        std::string status = (opz.isPlaying())? ">" : "#";
+        mvprintw(y_max-1, (x_max-x_beg)/2 - status.size()/2, "%s", status.c_str() );
+        // attroff(COLOR_PAIR(1));
         refresh();
     }
     

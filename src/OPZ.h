@@ -248,7 +248,7 @@ public:
     float           getActiveTrackParameter(track_parameter_id _prop) const { return getTrackParameter(m_active_pattern, m_active_track, _prop); }
     int             getActiveOctave() const { return m_octave[m_active_track]; }
     page_id         getActivePage() const { return m_active_page; }
-    bool            playing() const { return m_play; }
+    bool            isPlaying() const { return m_play; }
 
     size_t          verbose;    // 0 off
                                 // 1 event description
