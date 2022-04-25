@@ -35,6 +35,10 @@ std::vector<unsigned char> master_heartbeat = {
     SYSEX_HEAD, OPZ_VENDOR_ID[0], OPZ_VENDOR_ID[1], OPZ_VENDOR_ID[2], OPZ_MAX_PROTOCOL_VERSION, 0x00, 0x01, 0x4E, 0x2E, 0x06, SYSEX_END // version 1.2.5
 }; 
 
+std::vector<unsigned char> config_cmd = {
+    SYSEX_HEAD, OPZ_VENDOR_ID[0], OPZ_VENDOR_ID[1], OPZ_VENDOR_ID[2], OPZ_MAX_PROTOCOL_VERSION, 0x0F, SYSEX_END
+};
+
 std::string event_name[] = {
     "VOLUME_CHANGE",
     "KEY_PROJECT", "KEY_MIXER", "KEY_TEMPO", "KEY_SCREEN",
@@ -52,7 +56,7 @@ std::string page_name[] = {
 };
 
  std::string mic_fx_name[] = {
-    "NONE", "DELAY", "REVERB", "DELAY_REVERB"
+    "NONE", "FX1", "FX2", "FX1 & FX2"
 };
 
 // https://teenage.engineering/guides/op-z/tracks
@@ -236,6 +240,7 @@ m_midi_enable(false) {
 
 const std::vector<unsigned char>* OPZ::getInitMsg() { return &initial_message; }
 const std::vector<unsigned char>* OPZ::getHeartBeat() { return &master_heartbeat; }
+const std::vector<unsigned char>* OPZ::getConfigCmd() { return &config_cmd; };
 
 std::string& OPZ::toString( pattern_page_parameter_id _id ) { return pattern_page_parameter_name[_id]; } 
 std::string& OPZ::toString( page_parameter_id _id ) { return page_parameter_name[_id]; }
@@ -676,8 +681,12 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
             if (verbose)
                 printf("Msg %02X (Compressed MIDI Config)\n", header.parm_id);
 
-            if (verbose > 1 && verbose < 4)
+            std::vector<unsigned char> decompressed = decompress(&data[0], length);
+
+            if (verbose > 1 && verbose < 4) {
                 std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "   ENC " << printHex(&decompressed[0], decompressed.size()) << "(" << decompressed.size() << " bytes)" << std::endl;
+            }
         } break;
 
         case 0x12: {

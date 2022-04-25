@@ -101,6 +101,18 @@ void OPZ_RtMidi::keepawake(){
     usleep( 16700 );
 }
 
+void OPZ_RtMidi::midiConfigCmd() {
+    m_out->sendMessage( getConfigCmd() );
+}
+
+void OPZ_RtMidi::sendCmd(unsigned char _cmd) {
+    std::vector<unsigned char> cmd = {
+        SYSEX_HEAD, OPZ_VENDOR_ID[0], OPZ_VENDOR_ID[1], OPZ_VENDOR_ID[2], OPZ_MAX_PROTOCOL_VERSION, _cmd, SYSEX_END
+    };
+
+    m_out->sendMessage( &cmd );
+}
+
 void OPZ_RtMidi::disconnect() {
     if (m_in) {
         m_in->cancelCallback();

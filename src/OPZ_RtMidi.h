@@ -13,6 +13,9 @@ public:
     void disconnect();
 
     void keepawake();
+    void midiConfigCmd();
+
+    void sendCmd(unsigned char _cmd);
 
 private:
 

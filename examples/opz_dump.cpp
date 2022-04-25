@@ -12,12 +12,14 @@ int main(int argc, char** argv) {
     opz.connect();
     // opz.verbose = 1; // message type
     // opz.verbose = 2; // hex values
-    // opz.verbose = 3; // interpreted message
-    opz.verbose = 4; // interpreted message w no hex values
+    opz.verbose = 3; // interpreted message
+    // opz.verbose = 4; // interpreted message w no hex values
 
     // Listen to key events (no cc, neighter notes)
-    opz.setEventCallback( [](T3::event_id _id, int _value) {
-        std::cout << T3::OPZ::toString(_id) << " " << _value << std::endl;
+    opz.setEventCallback( [&](T3::event_id _id, int _value) {
+        // std::cout << T3::OPZ::toString(_id) << " " << _value << std::endl;
+        if (_id == T3::KEY_SCREEN && _value == 0) 
+            opz.midiConfigCmd();
     } );
 
     // opz.setMidiCallback( [](T3::midi_id _id, size_t channel, size_t _key, size_t _value) {

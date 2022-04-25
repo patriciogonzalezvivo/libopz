@@ -115,7 +115,7 @@ int main(int argc, char** argv) {
                                 opz.getActiveTrackParameters().step_count, 
                                 opz.getActiveTrackParameters().step_length,
                                 opz.getActiveTrackParameters().step_count * opz.getActiveTrackParameters().step_length);
-        mvprintw(y_max-1, (x_max-x_beg)/2 - 2, "%s %02i", ((opz.isPlaying())? "|>" : "[]") );
+        mvprintw(y_max-1, (x_max-x_beg)/2 - 3, "%s %02i", ((opz.isPlaying())? "|> " : "[ ]"), opz.getActiveStep() + 1 );
         refresh();
 
         if (mic_on) {

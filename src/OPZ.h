@@ -8,9 +8,6 @@
 
 namespace T3 {
 
-const uint8_t OPZ_VENDOR_ID[3] = {0x00, 0x20, 0x76};
-const uint8_t OPZ_MAX_PROTOCOL_VERSION = 0x01;
-
 // Standard MIDI events
 enum midi_id {
     NOTE_OFF            = 0x80, NOTE_ON             = 0x90, KEY_PRESSURE        = 0xA0, 
@@ -18,6 +15,10 @@ enum midi_id {
     SYSEX_HEAD          = 0xF0, SONG_POSITION       = 0xF2, SONG_SELECT         = 0xF3, TUNE_REQUEST        = 0xF6, SYSEX_END           = 0xF7, 
     TIMING_TICK         = 0xF8, START_SONG          = 0xFA, CONTINUE_SONG       = 0xFB, STOP_SONG           = 0xFC, ACTIVE_SENSING      = 0xFE, SYSTEM_RESET        = 0xFF
 };
+
+const uint8_t OPZ_VENDOR_ID[3] = {0x00, 0x20, 0x76};
+const uint8_t OPZ_MAX_PROTOCOL_VERSION = 0x01;
+
 
 // Non-musical keyboard events
 enum event_id {
@@ -76,7 +77,7 @@ enum page_id {
 };
 
 enum mic_fx_id {
-    MIC_FX_NONE = 0, MIC_FX_DELAY, MIC_FX_REVERB, MIC_FX_DELAY_REVERB
+    MIC_NO_FX = 0, MIC_FX_1, MIC_FX_2, MIC_FX_1_AND_2
 };
 
 enum note_style_id {
@@ -241,6 +242,7 @@ public:
 
     static const std::vector<unsigned char>* getInitMsg();
     static const std::vector<unsigned char>* getHeartBeat();
+    static const std::vector<unsigned char>* getConfigCmd();
     static void     process_message(double _deltatime, std::vector<unsigned char>* _message, void* _userData);
 
     void            setEventCallback(std::function<void(event_id, int)> _callback) { m_event = _callback; m_event_enable = true; }
