@@ -32,7 +32,6 @@ enum event_id {
     PARAMETER_CHANGE
 };
 
-
 enum project_parameter_id {
     DRUM_LEVEL = 0, SYNTH_LEVEL,    PUNCH_LEVEL,    MASTER_LEVEL,   PROJECT_TEMPO,
     SWING, // 44 unknown  
@@ -161,13 +160,6 @@ typedef struct {
 } track_parameter, *p_track_parameter;
 
 typedef struct {
-    uint8_t unknown1[2];
-    uint8_t value_type;
-    uint8_t unknown2[4];
-    uint8_t value;
-} track_change, *p_track_change;
-
-typedef struct {
     uint8_t pattern;
     uint8_t unknown1[16];
     uint8_t address; // id: project + pattern
@@ -253,8 +245,8 @@ public:
     mic_fx_id       getMicFx() const { return m_mic_fx; }
     uint8_t         getMicMode() const { return m_mic_mode; }
 
+    const bool&     isMute(track_id _id) const { return m_mutes[_id]; }
     const project&  getProject() const { return m_project; }
-
 
     uint8_t         getActiveProject() const { return m_active_project; }
     uint8_t         getActivePattern() const { return m_active_pattern; }
@@ -291,6 +283,7 @@ protected:
     // Project Data
     project             m_project;
     int8_t              m_octave[16];
+    bool                m_mutes[16];
 
     // Active states
     // uint8_t             m_active_address;

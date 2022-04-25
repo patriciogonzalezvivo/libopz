@@ -111,6 +111,9 @@ char *printHex(unsigned char *cp, size_t n) {
     return s;
 }
 
+uint8_t address2project(uint8_t _address) { return _address / 16; }
+uint8_t address2pattern(uint8_t _address) { return _address % 16; }
+
 // encode raw 8bit to 7bits  
 size_t encode(const unsigned char* inData, unsigned inLength, unsigned char* outSysEx, bool inFlipHeaderBits = true) {
     size_t outLength    = 0;     // Num bytes in output array.
@@ -325,13 +328,42 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
             if (verbose > 1 && verbose < 4)
                 std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
 
-            CAST_MESSAGE(track_change, ti);
-            // TODO
+            if (length == 11 && data[2] == 0x60) {
+                // counter  ??  type    ??  address ?? ?? ?? ?? ?? ??
+                // BA       10  60      53  11      04 00 80 00 00 00 
+                // A3       14  60      53  20      04 00 08 00 00 00
+                
+                bool mutes[] = {
+                    (data[ 7] & 0x02) ? true : false, (data[ 7] & 0x08) ? true : false, (data[ 7] & 0x20) ? true : false, (data[ 7] & 0x80) ? true : false,
+                    (data[ 8] & 0x02) ? true : false, (data[ 8] & 0x08) ? true : false, (data[ 8] & 0x20) ? true : false, (data[ 8] & 0x80) ? true : false, 
+                    (data[ 9] & 0x02) ? true : false, (data[ 9] & 0x08) ? true : false, (data[ 9] & 0x20) ? true : false, (data[ 9] & 0x80) ? true : false,
+                    (data[10] & 0x02) ? true : false, (data[10] & 0x08) ? true : false, (data[10] & 0x20) ? true : false, (data[10] & 0x80) ? true : false
+                };
+                memcpy(&m_mutes, &mutes, sizeof(bool) * 16);
 
-            if (verbose > 2) {
-                std::cout << "   value type: " << toString((pattern_page_parameter_id)ti.value_type) << std::endl;
-                std::cout << "   value:      " << ((int)ti.value / 255.0f) << std::endl;
+                if (verbose > 2) {
+                    printf("    project: %i\n", address2project(data[4]) );
+                    printf("    pattern: %i\n", address2pattern(data[4]) );
+                    printf("    type:    0x%02X\n", data[2]);
+                    printf("    mutes:   ");
+                    for (size_t i = 0; i < 16; i++)
+                        printf( "%c ", m_mutes[i] ? '1' : '0' );
+                    printf("\n");
+                    
+                }
+            } else if (length == 8) {
+                // counter  ??  type ??  address  ?? ?? value  
+                // F1       0F  09   00  10       01 00 47
+                // B8       10  09   00  11       01 00 3C
+
+                if (verbose > 2) {
+                    printf("    project: %i\n", address2project(data[4]) );
+                    printf("    pattern: %i\n", address2pattern(data[4]) );
+                    printf("    type:    %s\n", toString((pattern_page_parameter_id)data[2]).c_str() );
+                    printf("    value:   %03i\n", data[7] );
+                }
             }
+            
 
         } break;
 
@@ -466,21 +498,21 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
             m_active_page = (page_id)m_key_state.page;
 
             if (m_event_enable) {
-                if (verbose > 2) {
-                    printf( "   bit1 1-6:  %i %i %i %i %i %i\n", m_key_state.bit11, m_key_state.bit12, m_key_state.bit13, m_key_state.bit14, m_key_state.bit15, m_key_state.bit16);
-                    printf( "   page:      %i\n", m_key_state.page);
-                    printf( "   step:      %i\n", m_key_state.step);
-                    printf( "   shift:     %i\n", m_key_state.shift);
-                    printf( "   tempo:     %i\n", m_key_state.tempo);
-                    printf( "   mixer:     %i\n", m_key_state.mixer);
-                    printf( "   bit3 1-5:  %i %i %i %i %i\n", m_key_state.bit31, m_key_state.bit32, m_key_state.bit33, m_key_state.bit34, m_key_state.bit35);
-                    printf( "   screen:    %i\n", m_key_state.screen);
-                    printf( "   stop:      %i\n", m_key_state.stop);
-                    printf( "   record:    %i\n", m_key_state.record);
-                    printf( "   track:     %i\n", m_key_state.track);
-                    printf( "   project:   %i\n", m_key_state.project);
-                    printf( "   bit4 3-8:  %i %i %i %i %i %i\n", m_key_state.bit43, m_key_state.bit44, m_key_state.bit45, m_key_state.bit46, m_key_state.bit47, m_key_state.bit48);
-                }
+                // if (verbose > 2) {
+                //     printf( "   bit1 1-6:  %i %i %i %i %i %i\n", m_key_state.bit11, m_key_state.bit12, m_key_state.bit13, m_key_state.bit14, m_key_state.bit15, m_key_state.bit16);
+                //     printf( "   page:      %i\n", m_key_state.page);
+                //     printf( "   step:      %i\n", m_key_state.step);
+                //     printf( "   shift:     %i\n", m_key_state.shift);
+                //     printf( "   tempo:     %i\n", m_key_state.tempo);
+                //     printf( "   mixer:     %i\n", m_key_state.mixer);
+                //     printf( "   bit3 1-5:  %i %i %i %i %i\n", m_key_state.bit31, m_key_state.bit32, m_key_state.bit33, m_key_state.bit34, m_key_state.bit35);
+                //     printf( "   screen:    %i\n", m_key_state.screen);
+                //     printf( "   stop:      %i\n", m_key_state.stop);
+                //     printf( "   record:    %i\n", m_key_state.record);
+                //     printf( "   track:     %i\n", m_key_state.track);
+                //     printf( "   project:   %i\n", m_key_state.project);
+                //     printf( "   bit4 3-8:  %i %i %i %i %i %i\n", m_key_state.bit43, m_key_state.bit44, m_key_state.bit45, m_key_state.bit46, m_key_state.bit47, m_key_state.bit48);
+                // }
 
                 if (m_key_state.project) m_event( KEY_PROJECT, 1);
                 if (m_key_prev_state.project && !m_key_state.project ) m_event( KEY_PROJECT, 0);
@@ -503,12 +535,8 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 if (m_key_state.record) m_event( KEY_RECORD, 1);
                 if (m_key_prev_state.record && !m_key_state.record) m_event( KEY_RECORD, 0);
 
-                // TODO: KEY_PLAY
-
                 if (m_key_state.stop) m_event( KEY_STOP, 1);
                 if (m_key_prev_state.stop && !m_key_state.stop) m_event( KEY_STOP, 0);
-
-                // NOTE: MINUX / PLUS -> OCTAVE_CHANGE
 
                 if (m_key_state.shift) m_event( KEY_SHIFT, 1);
                 if (m_key_prev_state.shift && !m_key_state.shift) m_event( KEY_SHIFT, 0);
@@ -576,6 +604,9 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
             if (verbose)
                 printf("Msg %02X (Pattern)\n", header.parm_id);
             
+            uint8_t pattern_address = data[0];
+            uint8_t project = address2project(data[0]); //pattern_address / 16;
+            uint8_t pattern = address2pattern(data[0]); //pattern_address % 16;
             std::vector<unsigned char> decompressed = decompress(&data[6], length-6);
 
             if (verbose > 1 && verbose < 4) {
@@ -583,22 +614,23 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 std::cout << "   ENC " << printHex(&decompressed[0], decompressed.size()) << "(" << decompressed.size() << " bytes)" << std::endl;
             }
 
-            const pattern_chunck & pi = (const pattern_chunck &)decompressed[0];
-            memcpy(&m_project.pattern[(size_t)m_active_pattern].track_param[0], &pi.track_param[0], sizeof(uint8_t) * decompressed.size());
+            const pattern_chunck & pi = (const pattern_chunck&)decompressed[0];
+            memcpy(&m_project.pattern[(size_t)pattern].track_param[0], &pi.track_param[0], sizeof(uint8_t) * decompressed.size());
 
             if (verbose > 2) {
-                printf("   ???????:     %02X %02X  %02X %02X  %02X\n", data[0], data[1], data[2], data[3], data[4]);
+                printf("   address:     0x%02X\n", data[0]);
+                printf("   ???????:     0x%02X 0x%02X 0x%02X 0x%02X\n", data[1], data[2], data[3], data[4]);
                 for (size_t i = 0; i < 7; i++) {
-                    printf("   %7s:     plug: 0x%02X, step_count: %03i, unknown1: 0x%02X, step_length: %03i, quantize: %03i, note_style: %03i, note_length: %03i, unknown2: 0x%02X 0x%02X \n", 
-                        toString((track_id)i).c_str(),
-                        m_project.pattern[(size_t)m_active_pattern].track_param[i].plug,
-                        m_project.pattern[(size_t)m_active_pattern].track_param[i].step_count,
-                        m_project.pattern[(size_t)m_active_pattern].track_param[i].unknown1,
-                        m_project.pattern[(size_t)m_active_pattern].track_param[i].step_length,
-                        m_project.pattern[(size_t)m_active_pattern].track_param[i].quantize,
-                        m_project.pattern[(size_t)m_active_pattern].track_param[i].note_style,
-                        m_project.pattern[(size_t)m_active_pattern].track_param[i].note_length,
-                        m_project.pattern[(size_t)m_active_pattern].track_param[i].unknown2[0], m_project.pattern[(size_t)m_active_pattern].track_param[i].unknown2[1]
+                    printf("   project %02i pattern %02i %6s: plug 0x%02X, step_count %03i, ?? 0x%02X, step_length %03i, quantize %03i, note_style %03i, note_length %03i, ?? 0x%02X 0x%02X\n", 
+                        project, pattern, toString((track_id)i).c_str(),
+                        m_project.pattern[(size_t)pattern].track_param[i].plug,
+                        m_project.pattern[(size_t)pattern].track_param[i].step_count,
+                        m_project.pattern[(size_t)pattern].track_param[i].unknown1,
+                        m_project.pattern[(size_t)pattern].track_param[i].step_length,
+                        m_project.pattern[(size_t)pattern].track_param[i].quantize,
+                        m_project.pattern[(size_t)pattern].track_param[i].note_style,
+                        m_project.pattern[(size_t)pattern].track_param[i].note_length,
+                        m_project.pattern[(size_t)pattern].track_param[i].unknown2[0], m_project.pattern[(size_t)pattern].track_param[i].unknown2[1]
                     );
                 }
             }
@@ -621,14 +653,14 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
             memcpy(&m_project, &pi, sizeof(uint8_t) * decompressed.size());// sizeof(pi));
 
             if (verbose > 2) {
-                printf("    drum level:     %i\n", pi.drum_level);
-                printf("    synth level:    %i\n", pi.synth_level);
-                printf("    pinch level:    %i\n", pi.punch_level);
-                printf("    master level:   %i\n", pi.master_level);
-                printf("    project tempo:  %i\n", pi.tempo);
-                printf("    swing:          %i\n", pi.swing);
-                printf("    metronome_level:%i\n", pi.metronome_level);
-                printf("    metronome_sound:%i\n", pi.metronome_sound);
+                printf("    drum level:      %i\n", pi.drum_level);
+                printf("    synth level:     %i\n", pi.synth_level);
+                printf("    pinch level:     %i\n", pi.punch_level);
+                printf("    master level:    %i\n", pi.master_level);
+                printf("    project tempo:   %i\n", pi.tempo);
+                printf("    swing:           %i\n", pi.swing);
+                printf("    metronome_level: %i\n", pi.metronome_level);
+                printf("    metronome_sound: %i\n", pi.metronome_sound);
             }
 
         } break;

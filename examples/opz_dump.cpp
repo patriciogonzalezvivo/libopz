@@ -17,9 +17,10 @@ int main(int argc, char** argv) {
 
     // Listen to key events (no cc, neighter notes)
     opz.setEventCallback( [&](T3::event_id _id, int _value) {
-        // std::cout << T3::OPZ::toString(_id) << " " << _value << std::endl;
+    //     // std::cout << T3::OPZ::toString(_id) << " " << _value << std::endl;
         if (_id == T3::KEY_SCREEN && _value == 0) 
-            opz.midiConfigCmd();
+            opz.sendCmd(9);
+    //     //     opz.midiConfigCmd();
     } );
 
     // opz.setMidiCallback( [](T3::midi_id _id, size_t channel, size_t _key, size_t _value) {
