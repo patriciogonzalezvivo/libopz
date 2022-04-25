@@ -39,7 +39,7 @@ enum project_parameter_id {
     // 4 unknown
 };
 
-enum pattern_sound_parameter_id {
+enum pattern_page_parameter_id {
     KICK_PLUG = 0,  KICK_PLUG1,     KICK_PLUG2,     KICK_PLUG3,     KICK_STEP_COUNT,    KICK_UNKNOWN,   KICK_STEP_LENGTH,   KICK_QUANTIZE,  KICK_NOTE_STYLE,    KICK_NOTE_LENGTH,   KICK_BYTE1,     KICK_BYTE2,
     SNARE_PLUG,     SNARE_PLUG1,    SNARE_PLUG2,    SNARE_PLUG3,    SNARE_STEP_COUNT,   SNARE_UNKNOWN,  SNARE_STEP_LENGTH,  SNARE_QUANTIZE, SNARE_NOTE_STYLE,   SNARE_NOTE_LENGTH,  SNARE_BYTE1,    SNARE_BYTE2,
     PERC_PLUG,      PERC_PLUG1,     PERC_PLUG2,     PERC_PLUG3,     PERC_STEP_COUNT,    PERC_UNKNOWN,   PERC_STEP_LENGTH,   PERC_QUANTIZE,  PERC_NOTE_STYLE,    PERC_NOTE_LENGTH,   PERC_BYTE1,     PERC_BYTE2,
@@ -62,7 +62,7 @@ enum track_id {
     KICK = 0, SNARE, PERC, SAMPLE, BASS, LEAD, ARP, CHORD, FX1, FX2, TAPE, MASTER, PERFORM, MODULE, LIGHT, MOTION  
 };
 
-enum sound_parameter_id {
+enum page_parameter_id {
     SOUND_PARAM1 = 0,   SOUND_PARAM2,   SOUND_FILTER,       SOUND_RESONANCE, 
     ENVELOPE_ATTACK,    ENVELOPE_DECAY, ENVELOPE_SUSTAIN,   ENVELOPE_RELEASE,
     SOUND_FX1,          SOUND_FX2,      SOUND_PAN,          SOUND_LEVEL,
@@ -145,7 +145,7 @@ typedef struct {
     uint8_t lfo_value;
     uint8_t lfo_shape;
     uint8_t note_style;
-} sound_parameter, *p_sound_parameter;     
+} page_parameter, *p_page_parameter;     
 
 // https://github.com/lrk/z-po-project/wiki/Project-file-format#track-chunk
 typedef struct {
@@ -193,10 +193,10 @@ typedef struct {
 
 // https://github.com/lrk/z-po-project/wiki/Project-file-format#pattern-chunk
 typedef struct {
-    track_parameter track[16];
+    track_parameter track_param[16];
     note_chunck     note[880];
     step_chunck     step[256];
-    sound_parameter parameter[16];
+    page_parameter  page_param[16];
     uint8_t         mute[40];          // mute config, tracks are mapped with bitmask
     uint16_t        send_tape;          // Send mapping for Tape track using bitmask
     uint16_t        send_master;        // SendMaster  Send mapping for Master track using bitmask
@@ -236,8 +236,8 @@ public:
     static std::string& toString( mic_fx_id _id );
     static std::string& toString( track_id  _id );
     static std::string& toString( note_style_id  _id );
-    static std::string& toString( pattern_sound_parameter_id _id );
-    static std::string& toString( sound_parameter_id _id);
+    static std::string& toString( pattern_page_parameter_id _id );
+    static std::string& toString( page_parameter_id _id);
 
     static const std::vector<unsigned char>* getInitMsg();
     static const std::vector<unsigned char>* getHeartBeat();
@@ -258,17 +258,17 @@ public:
     uint8_t         getActivePattern() const { return m_active_pattern; }
     track_id        getActiveTrack() const { return m_active_track; }
 
-    const track_parameter&  getTrackParameters(uint8_t patterm, track_id _track) const { return m_project.pattern[patterm].track[(size_t)_track]; }
-    const track_parameter&  getTrackParameters(track_id _track) const { return m_project.pattern[m_active_pattern].track[(size_t)_track]; }
-    const track_parameter&  getActiveTrackParameters() const { return m_project.pattern[m_active_pattern].track[(size_t)m_active_track]; }
+    const track_parameter&  getTrackParameters(uint8_t patterm, track_id _track) const { return m_project.pattern[patterm].track_param[(size_t)_track]; }
+    const track_parameter&  getTrackParameters(track_id _track) const { return m_project.pattern[m_active_pattern].track_param[(size_t)_track]; }
+    const track_parameter&  getActiveTrackParameters() const { return m_project.pattern[m_active_pattern].track_param[(size_t)m_active_track]; }
     
-    const sound_parameter&  getTrackSoundParameters(uint8_t patterm, track_id _track) const { return m_project.pattern[patterm].parameter[_track]; };
-    const sound_parameter&  getTrackSoundParameters(track_id _track) const { return m_project.pattern[m_active_pattern].parameter[_track]; };
-    const sound_parameter&  getActiveTrackSoundParameters() const { return m_project.pattern[m_active_pattern].parameter[(size_t)m_active_track]; };
+    const page_parameter&  getTrackPageParameters(uint8_t patterm, track_id _track) const { return m_project.pattern[patterm].page_param[_track]; };
+    const page_parameter&  getTrackPageParameters(track_id _track) const { return m_project.pattern[m_active_pattern].page_param[_track]; };
+    const page_parameter&  getActiveTrackPageParameters() const { return m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track]; };
     
-    float           getTrackSoundParameter(uint8_t patterm, track_id _track, sound_parameter_id _prop) const;
-    float           getTrackSoundParameter(track_id _track, sound_parameter_id _prop) const {  return getTrackSoundParameter(m_active_pattern, _track, _prop); };
-    float           getActiveSoundParameter(sound_parameter_id _prop) const { return getTrackSoundParameter(m_active_pattern, m_active_track, _prop); }
+    float           getTrackPageParameter(uint8_t patterm, track_id _track, page_parameter_id _prop) const;
+    float           getTrackPageParameter(track_id _track, page_parameter_id _prop) const {  return getTrackPageParameter(m_active_pattern, _track, _prop); };
+    float           getActivePageParameter(page_parameter_id _prop) const { return getTrackPageParameter(m_active_pattern, m_active_track, _prop); }
 
     int             getActiveOctave() const { return m_octave[(size_t)m_active_track]; }
     page_id         getActivePage() const { return m_active_page; }

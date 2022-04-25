@@ -60,7 +60,7 @@ std::string track_name[] = {
     "KICK", "SNARE", "PERC", "SAMPLE", "BASS", "LEAD", "ARP", "CHORD", "FX1", "FX2", "TAPE", "MASTER", "PERFORM", "MODULE", "LIGHT", "MOTION", "UNKNOWN" 
 };
 
-std::string pattern_sound_parameter_name[] = { 
+std::string pattern_page_parameter_name[] = { 
     "KICK_PLUG",    "KICK_PLUG1",   "KICK_PLUG2",   "KICK_PLUG3",   "KICK_STEP_COUNT",  "KICK_UNKNOWN", "KICK_STEP_LENGTH",     "KICK_QUANTIZE",    "KICK_NOTE_STYLE",  "KICK_NOTE_LENGTH",     "KICK_BYTE1",   "KICK_BYTE2",
     "SNARE_PLUG",   "SNARE_PLUG1",  "SNARE_PLUG2",  "SNARE_PLUG3",  "SNARE_STEP_COUNT", "SNARE_UNKNOWN","SNARE_STEP_LENGTH",    "SNARE_QUANTIZE",   "SNARE_NOTE_STYLE", "SNARE_NOTE_LENGTH",        "SNARE_BYTE1", "SNARE_BYTE2",
     "PERC_PLUG",    "PERC_PLUG1",   "PERC_PLUG2",   "PERC_PLUG3",   "PERC_STEP_COUNT",  "PERC_UNKNOWN", "PERC_STEP_LENGTH",     "PERC_QUANTIZE",    "PERC_NOTE_STYLE",  "PERC_NOTE_LENGTH","PERC_BYTE1",    "PERC_BYTE2",
@@ -79,7 +79,7 @@ std::string pattern_sound_parameter_name[] = {
     "MOTION_PLUG",  "MOTION_PLUG1", "MOTION_PLUG2", "MOTION_PLUG3", "MOTION_STEP_COUNT","MOTION_UNKNOWN", "MOTION_STEP_LENGTH", "MOTION_QUANTIZE","MOTION_NOTE_STYLE",  "MOTION_NOTE_LENGTH", "MOTION_BYTE1",   "MOTION_BYTE2"
 };
 
-std::string sound_parameter_name[] = { 
+std::string page_parameter_name[] = { 
     "SOUND_PARAM1",     "SOUND_PARAM2",     "SOUND_FILTER",     "SOUND_RESONANCE", 
     "ENVELOPE_ATTACK",  "ENVELOPE_DECAY",   "ENVELOPE_SUSTAIN", "ENVELOPE_RELEASE",
     "SOUND_FX1",        "SOUND_FX2",        "SOUND_PAN",        "SOUND_LEVEL",
@@ -237,8 +237,8 @@ m_midi_enable(false) {
 const std::vector<unsigned char>* OPZ::getInitMsg() { return &initial_message; }
 const std::vector<unsigned char>* OPZ::getHeartBeat() { return &master_heartbeat; }
 
-std::string& OPZ::toString( pattern_sound_parameter_id _id ) { return pattern_sound_parameter_name[_id]; } 
-std::string& OPZ::toString( sound_parameter_id _id ) { return sound_parameter_name[_id]; }
+std::string& OPZ::toString( pattern_page_parameter_id _id ) { return pattern_page_parameter_name[_id]; } 
+std::string& OPZ::toString( page_parameter_id _id ) { return page_parameter_name[_id]; }
 std::string& OPZ::toString( track_id _id ) { return track_name[_id]; }
 std::string& OPZ::toString( page_id  _id ) { return page_name[_id]; }
 std::string& OPZ::toString( mic_fx_id _id ) { return mic_fx_name[_id]; }
@@ -324,7 +324,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
             // TODO
 
             if (verbose > 2) {
-                std::cout << "   value type: " << toString((pattern_sound_parameter_id)ti.value_type) << std::endl;
+                std::cout << "   value type: " << toString((pattern_page_parameter_id)ti.value_type) << std::endl;
                 std::cout << "   value:      " << ((int)ti.value / 255.0f) << std::endl;
             }
 
@@ -579,21 +579,21 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
             }
 
             const pattern_chunck & pi = (const pattern_chunck &)decompressed[0];
-            memcpy(&m_project.pattern[(size_t)m_active_pattern].track[0], &pi.track[0], sizeof(uint8_t) * decompressed.size());
+            memcpy(&m_project.pattern[(size_t)m_active_pattern].track_param[0], &pi.track_param[0], sizeof(uint8_t) * decompressed.size());
 
             if (verbose > 2) {
                 printf("   ???????:     %02X %02X  %02X %02X  %02X\n", data[0], data[1], data[2], data[3], data[4]);
                 for (size_t i = 0; i < 7; i++) {
                     printf("   %7s:     plug: 0x%02X, step_count: %03i, unknown1: 0x%02X, step_length: %03i, quantize: %03i, note_style: %03i, note_length: %03i, unknown2: 0x%02X 0x%02X \n", 
                         toString((track_id)i).c_str(),
-                        m_project.pattern[(size_t)m_active_pattern].track[i].plug,
-                        m_project.pattern[(size_t)m_active_pattern].track[i].step_count,
-                        m_project.pattern[(size_t)m_active_pattern].track[i].unknown1,
-                        m_project.pattern[(size_t)m_active_pattern].track[i].step_length,
-                        m_project.pattern[(size_t)m_active_pattern].track[i].quantize,
-                        m_project.pattern[(size_t)m_active_pattern].track[i].note_style,
-                        m_project.pattern[(size_t)m_active_pattern].track[i].note_length,
-                        m_project.pattern[(size_t)m_active_pattern].track[i].unknown2[0], m_project.pattern[(size_t)m_active_pattern].track[i].unknown2[1]
+                        m_project.pattern[(size_t)m_active_pattern].track_param[i].plug,
+                        m_project.pattern[(size_t)m_active_pattern].track_param[i].step_count,
+                        m_project.pattern[(size_t)m_active_pattern].track_param[i].unknown1,
+                        m_project.pattern[(size_t)m_active_pattern].track_param[i].step_length,
+                        m_project.pattern[(size_t)m_active_pattern].track_param[i].quantize,
+                        m_project.pattern[(size_t)m_active_pattern].track_param[i].note_style,
+                        m_project.pattern[(size_t)m_active_pattern].track_param[i].note_length,
+                        m_project.pattern[(size_t)m_active_pattern].track_param[i].unknown2[0], m_project.pattern[(size_t)m_active_pattern].track_param[i].unknown2[1]
                     );
                 }
             }
@@ -642,32 +642,32 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                     m_event(TRACK_CHANGE, (int)m_active_track);
             }
 
-            const sound_parameter &si = (const sound_parameter &)data[1];
-            memcpy(&m_project.pattern[m_active_pattern].parameter[(size_t)m_active_track], &si, sizeof(sound_parameter));
+            const page_parameter &si = (const page_parameter &)data[1];
+            memcpy(&m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track], &si, sizeof(page_parameter));
 
             if (m_event_enable)
                 m_event(PARAMETER_CHANGE, 1);
                 
             if (verbose > 2) {
                 printf( " Proj. %i, pattern %i, track %s\n", m_active_project, m_active_pattern, toString(m_active_track).c_str());
-                printf( "   param1:     %i\n", m_project.pattern[m_active_pattern].parameter[(size_t)m_active_track].param1);
-                printf( "   param2:     %i\n", m_project.pattern[m_active_pattern].parameter[(size_t)m_active_track].param2);
-                printf( "   attack:     %i\n", m_project.pattern[m_active_pattern].parameter[(size_t)m_active_track].attack);
-                printf( "   decay:      %i\n", m_project.pattern[m_active_pattern].parameter[(size_t)m_active_track].decay);
-                printf( "   ustain:     %i\n", m_project.pattern[m_active_pattern].parameter[(size_t)m_active_track].sustain);
-                printf( "   release:    %i\n", m_project.pattern[m_active_pattern].parameter[(size_t)m_active_track].release);
-                printf( "   fx1:        %i\n", m_project.pattern[m_active_pattern].parameter[(size_t)m_active_track].fx1);
-                printf( "   fx2:        %i\n", m_project.pattern[m_active_pattern].parameter[(size_t)m_active_track].fx2);
-                printf( "   filter:     %i\n", m_project.pattern[m_active_pattern].parameter[(size_t)m_active_track].filter);
-                printf( "   resonance:  %i\n", m_project.pattern[m_active_pattern].parameter[(size_t)m_active_track].resonance);
-                printf( "   pan:        %i\n", m_project.pattern[m_active_pattern].parameter[(size_t)m_active_track].pan);
-                printf( "   level:      %i\n", m_project.pattern[m_active_pattern].parameter[(size_t)m_active_track].level);
-                printf( "   portamendo: %i\n", m_project.pattern[m_active_pattern].parameter[(size_t)m_active_track].portamento);
-                printf( "   lfo_depth:  %i\n", m_project.pattern[m_active_pattern].parameter[(size_t)m_active_track].lfo_depth);
-                printf( "   lfo_speed:  %i\n", m_project.pattern[m_active_pattern].parameter[(size_t)m_active_track].lfo_speed);
-                printf( "   lfo_value:  %i\n", m_project.pattern[m_active_pattern].parameter[(size_t)m_active_track].lfo_value);
-                printf( "   lfo_shape:  %i\n", m_project.pattern[m_active_pattern].parameter[(size_t)m_active_track].lfo_shape);
-                printf( "   note_style: %i\n", m_project.pattern[m_active_pattern].parameter[(size_t)m_active_track].note_style);
+                printf( "   param1:     %i\n", m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track].param1);
+                printf( "   param2:     %i\n", m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track].param2);
+                printf( "   attack:     %i\n", m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track].attack);
+                printf( "   decay:      %i\n", m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track].decay);
+                printf( "   ustain:     %i\n", m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track].sustain);
+                printf( "   release:    %i\n", m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track].release);
+                printf( "   fx1:        %i\n", m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track].fx1);
+                printf( "   fx2:        %i\n", m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track].fx2);
+                printf( "   filter:     %i\n", m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track].filter);
+                printf( "   resonance:  %i\n", m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track].resonance);
+                printf( "   pan:        %i\n", m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track].pan);
+                printf( "   level:      %i\n", m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track].level);
+                printf( "   portamendo: %i\n", m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track].portamento);
+                printf( "   lfo_depth:  %i\n", m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track].lfo_depth);
+                printf( "   lfo_speed:  %i\n", m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track].lfo_speed);
+                printf( "   lfo_value:  %i\n", m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track].lfo_value);
+                printf( "   lfo_shape:  %i\n", m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track].lfo_shape);
+                printf( "   note_style: %i\n", m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track].note_style);
             }
         } break;
 
@@ -812,62 +812,62 @@ void OPZ::process_event(std::vector<unsigned char>* _message) {
     }
 }
 
-float OPZ::getTrackSoundParameter(uint8_t _pattern, track_id _track, sound_parameter_id _prop) const {
+float OPZ::getTrackPageParameter(uint8_t _pattern, track_id _track, page_parameter_id _prop) const {
     if (_prop == SOUND_PARAM1)
-        return m_project.pattern[_pattern].parameter[_track].param1 / 255.0f;
+        return m_project.pattern[_pattern].page_param[_track].param1 / 255.0f;
     else if (_prop == SOUND_PARAM2)
-        return m_project.pattern[_pattern].parameter[_track].param2 / 255.0f;
+        return m_project.pattern[_pattern].page_param[_track].param2 / 255.0f;
     else if (_prop == SOUND_FILTER)
-        return m_project.pattern[_pattern].parameter[_track].filter / 255.0f; 
+        return m_project.pattern[_pattern].page_param[_track].filter / 255.0f; 
     else if (_prop == SOUND_RESONANCE)
-        return m_project.pattern[_pattern].parameter[_track].resonance / 255.0f;
+        return m_project.pattern[_pattern].page_param[_track].resonance / 255.0f;
 
     // TODO
     //      - I got the names wrong
     else if (_prop == ENVELOPE_ATTACK) // S
-        return m_project.pattern[_pattern].parameter[_track].attack / 255.0f;
+        return m_project.pattern[_pattern].page_param[_track].attack / 255.0f;
     else if (_prop == ENVELOPE_DECAY) // A
-        return m_project.pattern[_pattern].parameter[_track].decay  / 255.0f;
+        return m_project.pattern[_pattern].page_param[_track].decay  / 255.0f;
     else if (_prop == ENVELOPE_SUSTAIN) // H
-        return m_project.pattern[_pattern].parameter[_track].sustain / 255.0f; 
+        return m_project.pattern[_pattern].page_param[_track].sustain / 255.0f; 
     else if (_prop == ENVELOPE_RELEASE) // D
-        return m_project.pattern[_pattern].parameter[_track].release / 255.0f; 
+        return m_project.pattern[_pattern].page_param[_track].release / 255.0f; 
 
     else if (_prop == LFO_DEPTH)
-        return m_project.pattern[_pattern].parameter[_track].lfo_depth / 255.0f;
+        return m_project.pattern[_pattern].page_param[_track].lfo_depth / 255.0f;
     else if (_prop == LFO_SPEED) // RATE
-        return m_project.pattern[_pattern].parameter[_track].lfo_speed / 255.0f;
+        return m_project.pattern[_pattern].page_param[_track].lfo_speed / 255.0f;
     else if (_prop == LFO_VALUE) // DEST
-        return m_project.pattern[_pattern].parameter[_track].lfo_value / 255.0f; 
+        return m_project.pattern[_pattern].page_param[_track].lfo_value / 255.0f; 
     else if (_prop == LFO_SHAPE)
-        return m_project.pattern[_pattern].parameter[_track].lfo_shape / 255.0f;
+        return m_project.pattern[_pattern].page_param[_track].lfo_shape / 255.0f;
 
     else if (_prop == SOUND_FX1)
-        return m_project.pattern[_pattern].parameter[_track].fx1 / 255.0f;
+        return m_project.pattern[_pattern].page_param[_track].fx1 / 255.0f;
     else if (_prop == SOUND_FX2)
-        return (m_project.pattern[_pattern].parameter[_track].fx2 / 255.0f) * 2.0 - 1.0f;
+        return (m_project.pattern[_pattern].page_param[_track].fx2 / 255.0f) * 2.0 - 1.0f;
     else if (_prop == SOUND_PAN)
-        return m_project.pattern[_pattern].parameter[_track].pan / 255.0f; 
+        return m_project.pattern[_pattern].page_param[_track].pan / 255.0f; 
     else if (_prop == SOUND_LEVEL)
-        return m_project.pattern[_pattern].parameter[_track].level / 255.0f;
+        return m_project.pattern[_pattern].page_param[_track].level / 255.0f;
 
     else if (_prop == NOTE_LENGTH)
-        return (float)m_project.pattern[_pattern].track[_track].note_length;
+        return (float)m_project.pattern[_pattern].track_param[_track].note_length;
 
     else if (_prop == NOTE_STYLE)
-        return m_project.pattern[_pattern].parameter[_track].note_style / 255.0f;
+        return m_project.pattern[_pattern].page_param[_track].note_style / 255.0f;
 
     else if (_prop == QUANTIZE)
-        return (float)m_project.pattern[_pattern].track[_track].quantize;
+        return (float)m_project.pattern[_pattern].track_param[_track].quantize;
 
     else if (_prop == PORTAMENTO)
-        return m_project.pattern[_pattern].parameter[_track].portamento / 255.0f;
+        return m_project.pattern[_pattern].page_param[_track].portamento / 255.0f;
 
     else if (_prop == STEP_COUNT)
-        return (float)m_project.pattern[_pattern].track[_track].step_count;
+        return (float)m_project.pattern[_pattern].track_param[_track].step_count;
 
     else if (_prop == STEP_LENGTH)
-        return (float)m_project.pattern[_pattern].track[_track].step_length;
+        return (float)m_project.pattern[_pattern].track_param[_track].step_length;
 
     return 0.0f;
 }

@@ -179,65 +179,65 @@ int main(int argc, char** argv) {
 
             // PAGE 1: SOUND        
             mvwprintw(windows[0], 1, 1, "SOUND  P1      P2      FILTER  RESONA.");
-            mvwprintw(windows[0], 2, 1, "       %s %s %s %s",   hBar(7, (size_t)opz.getActiveTrackSoundParameters().param1).c_str(),
-                                                    hBar(7, (size_t)opz.getActiveTrackSoundParameters().param2).c_str(),
-                                                    hBar(7, (size_t)opz.getActiveTrackSoundParameters().filter).c_str(),
-                                                    hBar(7, (size_t)opz.getActiveTrackSoundParameters().resonance).c_str() );
+            mvwprintw(windows[0], 2, 1, "       %s %s %s %s",   hBar(7, (size_t)opz.getActiveTrackPageParameters().param1).c_str(),
+                                                    hBar(7, (size_t)opz.getActiveTrackPageParameters().param2).c_str(),
+                                                    hBar(7, (size_t)opz.getActiveTrackPageParameters().filter).c_str(),
+                                                    hBar(7, (size_t)opz.getActiveTrackPageParameters().resonance).c_str() );
             mvwprintw(windows[0], 3, 1, "       %7i %7i %7i %7i", 
-                                                    (int)((int)opz.getActiveTrackSoundParameters().param1 / 2.55f), 
-                                                    (int)((int)opz.getActiveTrackSoundParameters().param2 / 2.55f), 
-                                                    (int)((int)opz.getActiveTrackSoundParameters().filter / 2.55f), 
-                                                    (int)((int)opz.getActiveTrackSoundParameters().resonance / 2.55f) );
+                                                    (int)((int)opz.getActiveTrackPageParameters().param1 / 2.55f), 
+                                                    (int)((int)opz.getActiveTrackPageParameters().param2 / 2.55f), 
+                                                    (int)((int)opz.getActiveTrackPageParameters().filter / 2.55f), 
+                                                    (int)((int)opz.getActiveTrackPageParameters().resonance / 2.55f) );
 
             // PAGE 2: ENVELOPE
             mvwprintw(windows[1], 1, 1, "ENV.   ATTACK  DECAY   SUSTAIN RELEASE");
             mvwprintw(windows[1], 2, 1, "       %7i %7i %7i %7i",
-                                                    (int)((int)opz.getActiveTrackSoundParameters().attack / 2.55f), 
-                                                    (int)((int)opz.getActiveTrackSoundParameters().decay / 2.55f), 
-                                                    (int)((int)opz.getActiveTrackSoundParameters().sustain / 2.55f), 
-                                                    (int)((int)opz.getActiveTrackSoundParameters().release / 2.55f) );
+                                                    (int)((int)opz.getActiveTrackPageParameters().attack / 2.55f), 
+                                                    (int)((int)opz.getActiveTrackPageParameters().decay / 2.55f), 
+                                                    (int)((int)opz.getActiveTrackPageParameters().sustain / 2.55f), 
+                                                    (int)((int)opz.getActiveTrackPageParameters().release / 2.55f) );
 
             // PAGE 3: LFO
             mvwprintw(windows[2],1, 1, "LFO    DEPTH   RATE    DEST    SHAPE");
-            mvwprintw(windows[2],2, 1, "       %s %s %s %s",  hBar(7, (size_t)opz.getActiveTrackSoundParameters().lfo_depth).c_str(),
-                                                    hBar(7, (size_t)opz.getActiveTrackSoundParameters().lfo_speed).c_str(),
-                                                    hBar(7, (size_t)opz.getActiveTrackSoundParameters().lfo_value).c_str(),
-                                                    hBar(7, (size_t)opz.getActiveTrackSoundParameters().lfo_shape).c_str() );
+            mvwprintw(windows[2],2, 1, "       %s %s %s %s",  hBar(7, (size_t)opz.getActiveTrackPageParameters().lfo_depth).c_str(),
+                                                    hBar(7, (size_t)opz.getActiveTrackPageParameters().lfo_speed).c_str(),
+                                                    hBar(7, (size_t)opz.getActiveTrackPageParameters().lfo_value).c_str(),
+                                                    hBar(7, (size_t)opz.getActiveTrackPageParameters().lfo_shape).c_str() );
             mvwprintw(windows[2],3, 1, "       %7i %7i %7i %7i", 
-                                                    (int)((int)opz.getActiveTrackSoundParameters().lfo_depth / 2.55f), 
-                                                    (int)((int)opz.getActiveTrackSoundParameters().lfo_speed / 2.55f), 
-                                                    (int)((int)opz.getActiveTrackSoundParameters().lfo_value / 2.55f), 
-                                                    (int)((int)opz.getActiveTrackSoundParameters().lfo_shape / 2.55f) );
+                                                    (int)((int)opz.getActiveTrackPageParameters().lfo_depth / 2.55f), 
+                                                    (int)((int)opz.getActiveTrackPageParameters().lfo_speed / 2.55f), 
+                                                    (int)((int)opz.getActiveTrackPageParameters().lfo_value / 2.55f), 
+                                                    (int)((int)opz.getActiveTrackPageParameters().lfo_shape / 2.55f) );
 
             // PAGE 4: FX / PAN & LEVEL
             mvwprintw(windows[3], 1, 1, " FX  1       2");
-            mvwprintw(windows[3], 2, 1, "     %s %s", hBar(7, (size_t)opz.getActiveTrackSoundParameters().fx1).c_str(),
-                                                    hBar(7, (size_t)opz.getActiveTrackSoundParameters().fx2).c_str());
+            mvwprintw(windows[3], 2, 1, "     %s %s", hBar(7, (size_t)opz.getActiveTrackPageParameters().fx1).c_str(),
+                                                    hBar(7, (size_t)opz.getActiveTrackPageParameters().fx2).c_str());
             mvwprintw(windows[3], 3, 1, "     %7i %7i", 
-                                                    (int)((int)opz.getActiveTrackSoundParameters().fx1 / 2.55f),
-                                                    (int)((int)opz.getActiveTrackSoundParameters().fx2 / 2.55f) );
+                                                    (int)((int)opz.getActiveTrackPageParameters().fx1 / 2.55f),
+                                                    (int)((int)opz.getActiveTrackPageParameters().fx2 / 2.55f) );
 
             mvwprintw(windows[3], 6, 1, " PAN L             R");
             mvwprintw(windows[3], 7, 1, "     ");
             for (size_t i = 0; i < 15; i++) {
-                size_t p = opz.getActiveTrackSoundParameters().pan;
+                size_t p = opz.getActiveTrackPageParameters().pan;
                 p = (p/254.0)*15;
                 if (i + 2 > p  && i < p ) wprintw(windows[3], "|");
                 else wprintw(windows[3],".");
             }
             
             mvwprintw(windows[3], 10, 1, " LEVEL");
-            mvwprintw(windows[3], 11, 1, "     %s", hBar(15, (size_t)opz.getActiveTrackSoundParameters().level).c_str() );
-            mvwprintw(windows[3], 12, 1, "           %03i", (int)( (int)opz.getActiveTrackSoundParameters().level / 2.55f));
+            mvwprintw(windows[3], 11, 1, "     %s", hBar(15, (size_t)opz.getActiveTrackPageParameters().level).c_str() );
+            mvwprintw(windows[3], 12, 1, "           %03i", (int)( (int)opz.getActiveTrackPageParameters().level / 2.55f));
 
             mvwprintw(windows[4], 1,  2, "NOTE LENGTH");
             mvwprintw(windows[4], 2,  2, "%i", opz.getActiveTrackParameters().note_length);
             mvwprintw(windows[4], 4,  2, "NOTE STYLE");
-            mvwprintw(windows[4], 5,  2, "%i", opz.getActiveTrackSoundParameters().note_style );
+            mvwprintw(windows[4], 5,  2, "%i", opz.getActiveTrackPageParameters().note_style );
             mvwprintw(windows[4], 8,  2, "QUANTIZE");
             mvwprintw(windows[4], 9,  2, "%i", opz.getActiveTrackParameters().quantize);
             mvwprintw(windows[4], 11, 2, "PORTAMENTO");
-            mvwprintw(windows[4], 12, 2, "%i", opz.getActiveTrackSoundParameters().portamento );
+            mvwprintw(windows[4], 12, 2, "%i", opz.getActiveTrackPageParameters().portamento );
 
             for (size_t i = 0; i < 5; i++)
                 wrefresh(windows[i]);
