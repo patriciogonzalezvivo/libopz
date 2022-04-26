@@ -37,7 +37,8 @@ double getTimeSec(const timespec &time_start) {
 
 OPZ_RtMidi::OPZ_RtMidi() : 
 m_in(NULL), m_out(NULL),
-m_last_heartbeat(0.0), m_last_time(0.0) {
+m_last_heartbeat(0.0), m_last_time(0.0),
+m_connected(false) {
 }
 
 bool OPZ_RtMidi::connect() {
@@ -73,6 +74,8 @@ bool OPZ_RtMidi::connect() {
                     m_out = new RtMidiOut(RtMidi::Api(0), "opz_dump");
                     m_out->openPort(i, name);
                     m_out->sendMessage( getInitMsg() );
+
+                    m_connected = true;
                     return true;
                 }
                 catch(RtMidiError &error) {
@@ -94,7 +97,12 @@ void OPZ_RtMidi::keepawake(){
     m_last_heartbeat += delta;
 
     if (m_last_heartbeat > 1.0) {
-        m_out->sendMessage( getHeartBeat() );
+
+        if (m_connected)
+            m_out->sendMessage( getHeartBeat() );
+        else
+            m_event(NO_CONNECTION, 0);
+
         m_last_heartbeat = 0.0;
     }
 
@@ -102,15 +110,23 @@ void OPZ_RtMidi::keepawake(){
 }
 
 void OPZ_RtMidi::midiConfigCmd() {
-    m_out->sendMessage( getConfigCmd() );
+    if (m_connected)
+        m_out->sendMessage( getConfigCmd() );
 }
 
 void OPZ_RtMidi::sendCmd(unsigned char _cmd) {
+    if (!m_connected)
+        return;
+
     std::vector<unsigned char> cmd = {
         SYSEX_HEAD, OPZ_VENDOR_ID[0], OPZ_VENDOR_ID[1], OPZ_VENDOR_ID[2], OPZ_MAX_PROTOCOL_VERSION, _cmd, SYSEX_END
     };
-
     m_out->sendMessage( &cmd );
+}
+
+void OPZ_RtMidi::process_message(double _deltatime, std::vector<unsigned char>* _message, void* _userData) {
+    OPZ *device = static_cast<OPZ*>(_userData);
+    device->process_message(&_message->at(0), _message->size());
 }
 
 void OPZ_RtMidi::disconnect() {
@@ -126,6 +142,8 @@ void OPZ_RtMidi::disconnect() {
         delete m_out;
         m_out = NULL;
     }
+
+    m_connected = false;
 }
 
 }

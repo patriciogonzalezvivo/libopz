@@ -34,7 +34,6 @@ int main(int argc, char** argv) {
     init_color(COLOR_BLACK, 0, 0, 0);
     init_pair(1, COLOR_WHITE, COLOR_BLACK);
     init_pair(2, COLOR_RED, COLOR_BLACK);
-    init_pair(3, COLOR_CYAN, COLOR_BLACK);
 
     cbreak();
     keypad(stdscr, TRUE);
@@ -58,9 +57,10 @@ int main(int argc, char** argv) {
         else if (_id == T3::MICROPHONE_MODE_CHANGE) mic_on = _value != 0;
     } );
 
-    std::thread waitForKeys([&](){
+    std::thread waitForKeys([](){
         char ch;
-        while ( (ch = getch()) != KEY_F(1) ) {
+        while ( true ) {
+            ch = getch();
             if (ch == 'q') {
                 keepRunnig = false;
                 keepRunnig.store(false);
@@ -86,7 +86,6 @@ int main(int argc, char** argv) {
         getmaxyx(stdscr, y_max, x_max);
 
         opz.keepawake();
-        // attron(COLOR_PAIR(1));
 
         if (change)
             change = false;

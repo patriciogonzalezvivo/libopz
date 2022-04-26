@@ -32,7 +32,8 @@ std::vector<unsigned char> initial_message = {
 // 0x00 Master Heartbeat (https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#00-master-heartbeat)
 std::vector<unsigned char> master_heartbeat = { 
     // Midi::SYSTEM_EXCLUSIVE, OPZ_VENDOR_ID[0], OPZ_VENDOR_ID[1], OPZ_VENDOR_ID[2], OPZ_MAX_PROTOCOL_VERSION, 0x00, 0x03, 0x2D, 0x0E, 0x05, Midi::END_OF_SYSEX // prior to version 1.2.5
-    SYSEX_HEAD, OPZ_VENDOR_ID[0], OPZ_VENDOR_ID[1], OPZ_VENDOR_ID[2], OPZ_MAX_PROTOCOL_VERSION, 0x00, 0x01, 0x4E, 0x2E, 0x06, SYSEX_END // version 1.2.5
+    // SYSEX_HEAD, OPZ_VENDOR_ID[0], OPZ_VENDOR_ID[1], OPZ_VENDOR_ID[2], OPZ_MAX_PROTOCOL_VERSION, 0x00, 0x01, 0x4E, 0x2E, 0x06, SYSEX_END // version 1.2.5
+    SYSEX_HEAD, OPZ_VENDOR_ID[0], OPZ_VENDOR_ID[1], OPZ_VENDOR_ID[2], OPZ_MAX_PROTOCOL_VERSION, 0x00, 0x01, 0x7F, 0x75, 0x06, SYSEX_END // new version
 }; 
 
 std::vector<unsigned char> config_cmd = {
@@ -274,21 +275,19 @@ std::string OPZ::toString( midi_id _id ) {
     return "UNKNOWN";
 }
 
-void OPZ::process_message(double _deltatime, std::vector<unsigned char>* _message, void* _userData) {
-    OPZ *device = static_cast<OPZ*>(_userData);
-
-    if (_message->at(0) == SYSEX_HEAD)
-        device->process_sysex(_message);
+void OPZ::process_message(unsigned char* _message, size_t _length) {
+    if (_message[0] == SYSEX_HEAD)
+        process_sysex(_message, _length);
     else
-        device->process_event(_message);
+        process_event(_message, _length);
 }
 
-void OPZ::process_sysex(std::vector<unsigned char>* _message){
+void OPZ::process_sysex(unsigned char *_message, size_t _length){
 
     // if (verbose > 1 && verbose < 4)
-    //     std::cout << printHex(&_message->at(0), _message->size()) << "(" << _message->size() << " bytes)" << std::endl;
+    //     std::cout << printHex(&_message[0], _length) << "(" << _length << " bytes)" << std::endl;
 
-    const sysex_header &header = (const sysex_header&)_message->at(0);
+    const sysex_header &header = (const sysex_header&)_message[0];
     if (memcmp(OPZ_VENDOR_ID, header.vendor_id, sizeof(OPZ_VENDOR_ID)) != 0){
         if (verbose)
             printf("Vendor ID %02X:%02X:%02X is not the expected ID %02X:%02X:%02X\n", header.vendor_id[0],header.vendor_id[1],header.vendor_id[2], OPZ_VENDOR_ID[0],OPZ_VENDOR_ID[1],OPZ_VENDOR_ID[2]);
@@ -304,11 +303,11 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
     // TODO: check that first bit of data is 'F000207601'
 
     // substract the header and end of SYSEX message
-    size_t data_length = _message->size()-sizeof(sysex_header)-1;
+    size_t data_length = _length-sizeof(sysex_header)-1;
     unsigned char *data = new unsigned char[data_length];
 
     // decode 7bit into raw 8bit
-    size_t length = decode(&_message->at(sizeof(sysex_header)), data_length, data);
+    size_t length = decode(&_message[sizeof(sysex_header)], data_length, data);
     
     switch (header.parm_id) {
         case 0x01: {
@@ -621,7 +620,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                 printf("   address:     0x%02X\n", data[0]);
                 printf("   ???????:     0x%02X 0x%02X 0x%02X 0x%02X\n", data[1], data[2], data[3], data[4]);
                 for (size_t i = 0; i < 7; i++) {
-                    printf("   project %02i pattern %02i %6s: plug 0x%02X, step_count %03i, ?? 0x%02X, step_length %03i, quantize %03i, note_style %03i, note_length %03i, ?? 0x%02X 0x%02X\n", 
+                    printf("   project %02i pattern %02i %6s: plug 0x%02X, step_count %03i, ?? 0x%02X, step_length %03i, quantize %03i, note_style %03i, note_length %03i, ?? 0x%02X 0x%02X 0x%02X 0x%02X\n", 
                         project, pattern, toString((track_id)i).c_str(),
                         m_project.pattern[(size_t)pattern].track_param[i].plug,
                         m_project.pattern[(size_t)pattern].track_param[i].step_count,
@@ -630,7 +629,7 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
                         m_project.pattern[(size_t)pattern].track_param[i].quantize,
                         m_project.pattern[(size_t)pattern].track_param[i].note_style,
                         m_project.pattern[(size_t)pattern].track_param[i].note_length,
-                        m_project.pattern[(size_t)pattern].track_param[i].unknown2[0], m_project.pattern[(size_t)pattern].track_param[i].unknown2[1]
+                        m_project.pattern[(size_t)pattern].track_param[i].unknown2[0], m_project.pattern[(size_t)pattern].track_param[i].unknown2[1], m_project.pattern[(size_t)pattern].track_param[i].unknown2[2], m_project.pattern[(size_t)pattern].track_param[i].unknown2[3]
                     );
                 }
             }
@@ -757,11 +756,11 @@ void OPZ::process_sysex(std::vector<unsigned char>* _message){
 
 }
 
-void OPZ::process_event(std::vector<unsigned char>* _message) {
+void OPZ::process_event(unsigned char* _message, size_t _length) {
 
-    if (_message->at(0) == START_SONG)
+    if (_message[0] == START_SONG)
         m_play = true;
-    else if (_message->at(0) == STOP_SONG)
+    else if (_message[0] == STOP_SONG)
         m_play = false;
 
     int bytes = 0;
@@ -769,14 +768,14 @@ void OPZ::process_event(std::vector<unsigned char>* _message) {
     unsigned char channel = 0;
 
     int j = 0;
-    if ((_message->at(0) & 0xf0) != 0xf0) {
-        channel = _message->at(0) & 0x0f;
+    if ((_message[0] & 0xf0) != 0xf0) {
+        channel = _message[0] & 0x0f;
         channel += 1;
-        status = _message->at(0) & 0xf0;
+        status = _message[0] & 0xf0;
     }
     else {
         channel = 0;
-        status = _message->at(0);
+        status = _message[0];
     }
 
     switch (status) {
@@ -841,12 +840,12 @@ void OPZ::process_event(std::vector<unsigned char>* _message) {
             break;
     }
 
-    if (status == NOTE_ON && _message->at(2) == 0)
+    if (status == NOTE_ON && _message[2] == 0)
         status = NOTE_OFF;
 
     if (m_midi_enable) {
         if (bytes >= 2)
-            m_midi((midi_id)status, (size_t)channel, (size_t)_message->at(1), (size_t)_message->at(2));
+            m_midi((midi_id)status, (size_t)channel, (size_t)_message[1], (size_t)_message[2]);
 
         else 
             m_midi((midi_id)status, (size_t)channel, 0, 0);

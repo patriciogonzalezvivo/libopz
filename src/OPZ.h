@@ -29,7 +29,8 @@ enum event_id {
     OCTAVE_CHANGE, KEY_SHIFT,
     PROJECT_CHANGE, PATTERN_CHANGE, TRACK_CHANGE, PAGE_CHANGE, 
     MICROPHONE_MODE_CHANGE, MICROPHONE_LEVEL_CHANGE, MICROPHONE_FX_CHANGE,
-    PARAMETER_CHANGE
+    PARAMETER_CHANGE, 
+    NO_CONNECTION
 };
 
 enum project_parameter_id {
@@ -235,7 +236,8 @@ public:
     static const std::vector<unsigned char>* getInitMsg();
     static const std::vector<unsigned char>* getHeartBeat();
     static const std::vector<unsigned char>* getConfigCmd();
-    static void     process_message(double _deltatime, std::vector<unsigned char>* _message, void* _userData);
+    
+    void            process_message(unsigned char *_message, size_t _length);
 
     void            setEventCallback(std::function<void(event_id, int)> _callback) { m_event = _callback; m_event_enable = true; }
     void            setMidiCallback(std::function<void(midi_id, size_t, size_t, size_t)> _callback) { m_midi = _callback; m_midi_enable = true; }
@@ -277,8 +279,8 @@ public:
                                 // 4 interpreted data without hex
 
 protected:
-    void                process_sysex(std::vector<unsigned char>* _message);
-    void                process_event(std::vector<unsigned char>* _message);
+    void                process_sysex(unsigned char *_message, size_t _length);
+    void                process_event(unsigned char *_message, size_t _length);
 
     // Project Data
     project             m_project;
