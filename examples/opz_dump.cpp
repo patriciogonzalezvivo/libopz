@@ -17,14 +17,13 @@ int main(int argc, char** argv) {
 
     // Listen to key events (no cc, neighter notes)
     opz.setEventCallback( [&](T3::opz_event_id _id, int _value) {
-    //     // std::cout << T3::OPZ::toString(_id) << " " << _value << std::endl;
-        if (_id == T3::KEY_SCREEN && _value == 0) 
-            opz.sendCmd(9);
-        else if (_id == T3::PATTERN_PACKAGE_RECIVED) {
-            std::vector<unsigned char> cmd = T3::opz_confirm_package_cmd( _value);
-            std::cout << "Recieved " << _value << std::endl;
+        if (_id == T3::KEY_SCREEN && _value == 0) {
+            std::vector<unsigned char> cmd = {
+                // 0x15, 0x00, 0x00, 0x00, 0x00, 0x00
+                0x0F
+            };
             opz.sendCmd(&cmd[0], cmd.size());
-        }
+        } 
     } );
 
     // opz.setMidiCallback( [](T3::midi_id _id, size_t channel, size_t _key, size_t _value) {

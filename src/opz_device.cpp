@@ -76,6 +76,20 @@ char *printHex(unsigned char *cp, size_t n) {
     return s;
 }
 
+char *printAscii(unsigned char *cp, size_t n) {
+    char *s = (char*)malloc(n);
+
+    if (s == NULL)
+        return s;
+
+    for (size_t k = 0; k < n; ++k)
+        sprintf(s + k, "%c", cp[k]);
+
+    s[n] = '\0';
+    return s;
+}
+
+
 uint8_t address2project(uint8_t _address) { return _address / 16; }
 uint8_t address2pattern(uint8_t _address) { return _address % 16; }
 
@@ -192,8 +206,8 @@ std::vector<unsigned char> decompress(const unsigned char* inData, size_t inLeng
 const std::vector<unsigned char>* opz_init_msg() { return &initial_message; }
 const std::vector<unsigned char>* opz_heartbeat() { return &master_heartbeat; }
 const std::vector<unsigned char>* opz_config_cmd() { return &config_cmd; };
-std::vector<unsigned char> opz_confirm_package_cmd(unsigned char _id) { return  { 
-        0x0B, 0x00, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, (unsigned char)(_id), 0x00, 0x00 
+std::vector<unsigned char> opz_confirm_package_cmd(uint8_t _cmd, uint8_t _package) { return  { 
+        0x0B, 0x00, _cmd, 0x00, 0x00, 0x00, 0x00, 0x00, _package, 0x00, 0x00 
     };
 }
 
@@ -320,7 +334,7 @@ void opz_device::process_sysex(unsigned char *_message, size_t _length){
                 if (verbose > 2) {
                     printf("    project: %i\n", address2project(data[4]) );
                     printf("    pattern: %i\n", address2pattern(data[4]) );
-                    printf("    type:    %s\n", toString((opz_page_parameter_id)data[2]).c_str() );
+                    printf("    type:    %s\n", toString((opz_sound_parameter_id)data[2]).c_str() );
                     printf("    value:   %03i\n", data[7] );
                 }
             }
@@ -576,7 +590,10 @@ void opz_device::process_sysex(unsigned char *_message, size_t _length){
             if (data[4] == 0x00)
                 m_packets.clear();
 
-            m_packets.insert(m_packets.end(), &data[offset], &data[data_length-1] );
+            m_packets.insert(m_packets.end(), &data[offset], &data[data_length-1]);
+
+            if (m_packet_recived_enabled)
+                m_packet_recived(header.parm_id, data[0], data[4]);
 
             if (m_event_enable)
                 m_event(PATTERN_PACKAGE_RECIVED, data[4]);
@@ -585,7 +602,7 @@ void opz_device::process_sysex(unsigned char *_message, size_t _length){
 
         case 0x0a: {
             if (verbose)
-                printf("Msg %02X (pattern request end)\n", header.parm_id);
+                printf("Msg %02X (Pattern Last Package)\n", header.parm_id);
 
             uint8_t pattern_address = data[0];
             uint8_t project = address2project(data[0]);
@@ -634,7 +651,7 @@ void opz_device::process_sysex(unsigned char *_message, size_t _length){
                 std::cout << "   ENC " << printHex(&decompressed[0], decompressed.size()) << "(" << decompressed.size() << " bytes)" << std::endl;
             }
             
-            const opz_project &pi = (const opz_project &)decompressed[0];
+            const opz_project_data &pi = (const opz_project_data &)decompressed[0];
 
             memcpy(&m_project, &pi, sizeof(uint8_t) * decompressed.size());// sizeof(pi));
 
@@ -665,8 +682,8 @@ void opz_device::process_sysex(unsigned char *_message, size_t _length){
                     m_event(TRACK_CHANGE, (int)m_active_track);
             }
 
-            const opz_page_parameter &si = (const opz_page_parameter &)data[1];
-            memcpy(&m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track], &si, sizeof(opz_page_parameter));
+            const opz_sound_parameter &si = (const opz_sound_parameter &)data[1];
+            memcpy(&m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track], &si, sizeof(opz_sound_parameter));
 
             if (m_event_enable)
                 m_event(PARAMETER_CHANGE, 1);
@@ -702,17 +719,20 @@ void opz_device::process_sysex(unsigned char *_message, size_t _length){
             std::vector<unsigned char> decompressed = decompress(&data[0], length);
 
             if (verbose > 1 && verbose < 4) {
-                std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "   RAW " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
                 std::cout << "   ENC " << printHex(&decompressed[0], decompressed.size()) << "(" << decompressed.size() << " bytes)" << std::endl;
             }
         } break;
 
         case 0x11: {
+            // https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#11-
             if (verbose)
                 printf("Msg %02X (unknown)\n", header.parm_id);
 
-            if (verbose > 1 && verbose < 4)
-                std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
+            if (verbose > 1 && verbose < 4) {
+                std::cout << "   RAW " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "   ASC " << printAscii(data, length) << std::endl;
+            }
         
         } break;
 
@@ -722,12 +742,24 @@ void opz_device::process_sysex(unsigned char *_message, size_t _length){
                 printf("Msg %02X (Sound State)\n", header.parm_id);
 
             if (verbose > 1 && verbose < 4)
-                std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "   RAW " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
         } break;
 
         case 0x16: {
             if (verbose)
                 printf("Msg %02X (Sample Data?)\n", header.parm_id);
+
+            size_t offset = 1;
+            std::vector<unsigned char> decompressed = decompress(&data[offset], length-offset);
+            if (verbose > 1 && verbose < 4) {
+                std::cout << "   RAW " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "   ENC " << printHex(&decompressed[0], decompressed.size()) << "(" << decompressed.size() << " bytes)" << std::endl;
+            }
+        } break;
+
+        case 0x18: {
+            if (verbose)
+                printf("Msg %02X (unknown after 0x15 0x00 0x00 0x00 0x00 0x00)\n", header.parm_id);
 
             size_t offset = 1;
             std::vector<unsigned char> decompressed = decompress(&data[offset], length-offset);

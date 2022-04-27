@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <vector>
 
-#include "opz_file.h"
+#include "opz_project.h"
 
 namespace T3 {
 
@@ -33,7 +33,7 @@ enum opz_event_id {
     NO_CONNECTION
 };
 
-enum opz_project_parameter_id {
+enum opz_project_data_parameter_id {
     DRUM_LEVEL = 0, SYNTH_LEVEL,    PUNCH_LEVEL,    MASTER_LEVEL,   PROJECT_TEMPO,
     SWING, 
     // 44 unknown  
@@ -99,17 +99,17 @@ typedef struct {
     uint8_t project;
 } opz_sequence_change, *p_opz_sequence_change;
 
-std::string  toString( midi_id    _id );
-std::string& toString( opz_page_id   _id );
-std::string& toString( opz_event_id  _id );
+std::string  toString( midi_id      _id );
+std::string& toString( opz_page_id  _id );
+std::string& toString( opz_event_id _id );
 std::string& toString( opz_mic_fx_id _id );
 
 const std::vector<unsigned char>* opz_init_msg();
 const std::vector<unsigned char>* opz_heartbeat();
 const std::vector<unsigned char>* opz_config_cmd();
-std::vector<unsigned char>        opz_confirm_package_cmd(unsigned char _id);
+std::vector<unsigned char>        opz_confirm_package_cmd(uint8_t _cmd, uint8_t _package);
 
-class opz_device : public opz_file {
+class opz_device : public opz_project {
 public:
     opz_device();
 
@@ -130,14 +130,14 @@ public:
     opz_mic_fx_id   getMicFx() const { return m_mic_fx; }
     uint8_t         getMicMode() const { return m_mic_mode; }
 
-    float           getTrackPageParameter(opz_track_id _track, opz_page_parameter_id _prop) const {  return opz_file::getTrackPageParameter(m_active_pattern, _track, _prop); };
-    float           getActivePageParameter(opz_page_parameter_id _prop) const { return getTrackPageParameter(m_active_track, _prop); }
+    float           getTrackPageParameter(opz_track_id _track, opz_sound_parameter_id _prop) const {  return opz_project::getSoundParameter(m_active_pattern, _track, _prop); };
+    float           getActivePageParameter(opz_sound_parameter_id _prop) const { return getTrackPageParameter(m_active_track, _prop); }
 
-    const opz_track_parameter&  getTrackParameters(opz_track_id _track) const { return opz_file::getTrackParameters( m_active_pattern, _track); }
+    const opz_track_parameter&  getTrackParameters(opz_track_id _track) const { return opz_project::getTrackParameters( m_active_pattern, _track); }
     const opz_track_parameter&  getActiveTrackParameters() const { return getTrackParameters(m_active_track); }
     
-    const opz_page_parameter&  getTrackPageParameters(opz_track_id _track) const { return opz_file::getTrackPageParameters(m_active_pattern, _track); };
-    const opz_page_parameter&  getActiveTrackPageParameters() const { return getTrackPageParameters(m_active_track); };
+    const opz_sound_parameter&  getSoundParameters(opz_track_id _track) const { return opz_project::getSoundParameters(m_active_pattern, _track); };
+    const opz_sound_parameter&  getActivePageParameters() const { return getSoundParameters(m_active_track); };
     
     const bool&     isTrackMute(opz_track_id _id) const { return m_mutes[_id]; }
     bool            isPlaying() const { return m_play; }
@@ -177,7 +177,10 @@ protected:
     bool                m_play;
 
     // CALLBACKS
-    std::function<void(opz_event_id, int)> m_event;
+    bool                m_packet_recived_enabled;
+    std::function<void(uint8_t, uint8_t, uint8_t)>  m_packet_recived;
+
+    std::function<void(opz_event_id, int)>  m_event;
     bool                m_event_enable;
 
     std::function<void(midi_id, size_t, size_t, size_t)> m_midi;

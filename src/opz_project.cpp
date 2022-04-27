@@ -1,4 +1,4 @@
-#include "opz_file.h"
+#include "opz_project.h"
 
 namespace T3 {
 
@@ -41,16 +41,16 @@ std::string  note_style_name[] = {
 };
 
 
-opz_file::opz_file() {
+opz_project::opz_project() {
 
 }
 
 std::string& toString( opz_track_id _id ) { return track_name[_id]; }
 std::string& toString( opz_note_style_id  _id ) { return note_style_name[_id]; }
-std::string& toString( opz_page_parameter_id _id ) { return page_parameter_name[_id]; }
+std::string& toString( opz_sound_parameter_id _id ) { return page_parameter_name[_id]; }
 std::string& toString( opz_pattern_parameter_id _id ) { return pattern_parameter_name[_id]; } 
 
-float opz_file::getTrackPageParameter(uint8_t _pattern, opz_track_id _track, opz_page_parameter_id _prop) const {
+float opz_project::getSoundParameter(uint8_t _pattern, opz_track_id _track, opz_sound_parameter_id _prop) const {
     if (_prop == SOUND_PARAM1)
         return m_project.pattern[_pattern].page_param[_track].param1 / 255.0f;
     else if (_prop == SOUND_PARAM2)

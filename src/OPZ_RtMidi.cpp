@@ -39,6 +39,17 @@ opz_rtmidi::opz_rtmidi() :
 m_in(NULL), m_out(NULL),
 m_last_heartbeat(0.0), m_last_time(0.0),
 m_connected(false) {
+    m_packet_recived_enabled = true;
+    m_packet_recived = [&](uint8_t _cmd, uint8_t _address, uint8_t _package) {
+            if (verbose > 2)
+                printf("Recieved package %02X\n", _package);
+                
+            std::vector<unsigned char> cmd = {
+                SYSEX_HEAD, OPZ_VENDOR_ID[0], OPZ_VENDOR_ID[1], OPZ_VENDOR_ID[2], OPZ_MAX_PROTOCOL_VERSION, 0x0B, 0x00, _cmd, 0x00, 0x00, 0x00, 0x00, 0x00, _package, 0x00, 0x00, SYSEX_END
+            };
+            if (m_connected)
+                m_out->sendMessage( &cmd );
+    };
 }
 
 bool opz_rtmidi::connect() {
