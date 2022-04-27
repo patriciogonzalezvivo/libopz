@@ -7,7 +7,7 @@
 #include <mutex>
 
 #include <ncurses.h>
-#include "OPZ_RtMidi.h"
+#include "opz_rtmidi.h"
 
 std::string version = "0.1";
 std::string name = "opz_companion";
@@ -25,7 +25,7 @@ std::string hBar(size_t _width, size_t _value) {
 
 int main(int argc, char** argv) {
 
-    T3::OPZ_RtMidi  opz;
+    T3::opz_rtmidi opz;
     opz.connect();
     
     initscr();
@@ -47,7 +47,7 @@ int main(int argc, char** argv) {
     bool mic_on = false;
 
     // Listen to key events (no cc, neighter notes)
-    opz.setEventCallback( [&](T3::event_id _id, int _value) {
+    opz.setEventCallback( [&](T3::opz_event_id _id, int _value) {
         change = true;
 
         if (_id == T3::KEY_TRACK)           pressing_track = _value;
@@ -92,11 +92,11 @@ int main(int argc, char** argv) {
         else
             continue;
 
-        T3::project project = opz.getProject();
+        T3::opz_project project = opz.getProject();
         uint8_t pattern = opz.getActivePattern();
-        T3::track_id track = opz.getActiveTrack();
+        T3::opz_track_id track = opz.getActiveTrack();
 
-        std::string title_name =  T3::OPZ::toString(track);
+        std::string title_name =  T3::toString(track);
 
         if (mic_on) title_name = "MICROPHONE";
         else if (pressing_project) title_name = "PROJECTS";
@@ -123,7 +123,7 @@ int main(int argc, char** argv) {
             mvwprintw(windows[5], 1, 2, "MIC LEVEL                  MIC FX ");
             mvwprintw(windows[5], 2, 2, "%s                  %s", 
                                                                     hBar(9, opz.getMicLevel() ).c_str(), 
-                                                                    T3::OPZ::toString(opz.getMicFx()).c_str());
+                                                                    T3::toString(opz.getMicFx()).c_str());
             wrefresh(windows[5]);
         }
         else if (pressing_project) {

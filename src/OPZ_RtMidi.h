@@ -1,13 +1,13 @@
 #pragma once
 
 #include "rtmidi/RtMidi.h"
-#include "OPZ.h"
+#include "opz_device.h"
 
 namespace T3 {
 
-class OPZ_RtMidi : public OPZ {
+class opz_rtmidi : public opz_device {
 public:
-    OPZ_RtMidi();
+    opz_rtmidi();
 
     bool connect();
     void disconnect();
@@ -17,6 +17,7 @@ public:
     void midiConfigCmd();
 
     void sendCmd(unsigned char _cmd);
+    void sendCmd(unsigned char* _cmd, size_t _length);
 
 private:
     static void     process_message(double _deltatime, std::vector<unsigned char>* _message, void* _userData);

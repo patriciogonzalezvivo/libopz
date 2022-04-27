@@ -1,14 +1,14 @@
 #include <iostream>
 #include <fstream>
 
-#include "OPZ_RtMidi.h"
+#include "opz_rtmidi.h"
 
 std::string version = "0.1";
 std::string name = "opz_dump";
 std::string header = name + " " + version + " by Patricio Gonzalez Vivo ( patriciogonzalezvivo.com )"; 
 
 int main(int argc, char** argv) {
-    T3::OPZ_RtMidi  opz;
+    T3::opz_rtmidi  opz;
     opz.connect();
     // opz.verbose = 1; // message type
     // opz.verbose = 2; // hex values
@@ -16,11 +16,15 @@ int main(int argc, char** argv) {
     // opz.verbose = 4; // interpreted message w no hex values
 
     // Listen to key events (no cc, neighter notes)
-    opz.setEventCallback( [&](T3::event_id _id, int _value) {
+    opz.setEventCallback( [&](T3::opz_event_id _id, int _value) {
     //     // std::cout << T3::OPZ::toString(_id) << " " << _value << std::endl;
         if (_id == T3::KEY_SCREEN && _value == 0) 
             opz.sendCmd(9);
-    //     //     opz.midiConfigCmd();
+        else if (_id == T3::PATTERN_PACKAGE_RECIVED) {
+            std::vector<unsigned char> cmd = T3::opz_confirm_package_cmd( _value);
+            std::cout << "Recieved " << _value << std::endl;
+            opz.sendCmd(&cmd[0], cmd.size());
+        }
     } );
 
     // opz.setMidiCallback( [](T3::midi_id _id, size_t channel, size_t _key, size_t _value) {

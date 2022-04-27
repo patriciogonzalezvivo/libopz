@@ -1,5 +1,5 @@
 
-#include "OPZ_RtMidi.h"
+#include "opz_rtmidi.h"
 
 namespace T3 {
 
@@ -35,13 +35,13 @@ double getTimeSec(const timespec &time_start) {
     return double(temp.tv_sec) + double(temp.tv_nsec/1000000000.);
 }
 
-OPZ_RtMidi::OPZ_RtMidi() : 
+opz_rtmidi::opz_rtmidi() : 
 m_in(NULL), m_out(NULL),
 m_last_heartbeat(0.0), m_last_time(0.0),
 m_connected(false) {
 }
 
-bool OPZ_RtMidi::connect() {
+bool opz_rtmidi::connect() {
 
     m_in = new RtMidiIn();
     unsigned int nPorts = m_in->getPortCount();
@@ -73,7 +73,7 @@ bool OPZ_RtMidi::connect() {
 
                     m_out = new RtMidiOut(RtMidi::Api(0), "opz_dump");
                     m_out->openPort(i, name);
-                    m_out->sendMessage( getInitMsg() );
+                    m_out->sendMessage( opz_init_msg() );
 
                     m_connected = true;
                     return true;
@@ -89,7 +89,7 @@ bool OPZ_RtMidi::connect() {
     return false;
 }
 
-void OPZ_RtMidi::keepawake(){
+void opz_rtmidi::keepawake(){
     double now = getTimeSec(time_start);; 
     double delta = now - m_last_time;
     m_last_time = now;
@@ -99,7 +99,7 @@ void OPZ_RtMidi::keepawake(){
     if (m_last_heartbeat > 1.0) {
 
         if (m_connected)
-            m_out->sendMessage( getHeartBeat() );
+            m_out->sendMessage( opz_heartbeat() );
         else
             m_event(NO_CONNECTION, 0);
 
@@ -109,12 +109,12 @@ void OPZ_RtMidi::keepawake(){
     usleep( 16700 );
 }
 
-void OPZ_RtMidi::midiConfigCmd() {
+void opz_rtmidi::midiConfigCmd() {
     if (m_connected)
-        m_out->sendMessage( getConfigCmd() );
+        m_out->sendMessage( opz_config_cmd() );
 }
 
-void OPZ_RtMidi::sendCmd(unsigned char _cmd) {
+void opz_rtmidi::sendCmd(unsigned char _cmd) {
     if (!m_connected)
         return;
 
@@ -124,12 +124,23 @@ void OPZ_RtMidi::sendCmd(unsigned char _cmd) {
     m_out->sendMessage( &cmd );
 }
 
-void OPZ_RtMidi::process_message(double _deltatime, std::vector<unsigned char>* _message, void* _userData) {
-    OPZ *device = static_cast<OPZ*>(_userData);
+void opz_rtmidi::sendCmd(unsigned char* _cmd, size_t _length) {
+    if (!m_connected)
+        return;
+
+    std::vector<unsigned char> cmd = { SYSEX_HEAD, OPZ_VENDOR_ID[0], OPZ_VENDOR_ID[1], OPZ_VENDOR_ID[2], OPZ_MAX_PROTOCOL_VERSION };
+    for (size_t i = 0; i < _length; i++)
+        cmd.push_back(_cmd[i]);
+    cmd.push_back(SYSEX_END);
+    m_out->sendMessage( &cmd );
+}
+
+void opz_rtmidi::process_message(double _deltatime, std::vector<unsigned char>* _message, void* _userData) {
+    opz_device *device = static_cast<opz_device*>(_userData);
     device->process_message(&_message->at(0), _message->size());
 }
 
-void OPZ_RtMidi::disconnect() {
+void opz_rtmidi::disconnect() {
     if (m_in) {
         m_in->cancelCallback();
         m_in->closePort();

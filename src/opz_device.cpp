@@ -2,11 +2,10 @@
 #include <stdlib.h> /* malloc() */
 #include <string.h>
 #include <iostream>
-#include <vector>
 
 #include <zlib.h>
 
-#include "OPZ.h"
+#include "opz_device.h"
 
 namespace T3 {
 
@@ -33,7 +32,8 @@ std::vector<unsigned char> initial_message = {
 std::vector<unsigned char> master_heartbeat = { 
     // Midi::SYSTEM_EXCLUSIVE, OPZ_VENDOR_ID[0], OPZ_VENDOR_ID[1], OPZ_VENDOR_ID[2], OPZ_MAX_PROTOCOL_VERSION, 0x00, 0x03, 0x2D, 0x0E, 0x05, Midi::END_OF_SYSEX // prior to version 1.2.5
     // SYSEX_HEAD, OPZ_VENDOR_ID[0], OPZ_VENDOR_ID[1], OPZ_VENDOR_ID[2], OPZ_MAX_PROTOCOL_VERSION, 0x00, 0x01, 0x4E, 0x2E, 0x06, SYSEX_END // version 1.2.5
-    SYSEX_HEAD, OPZ_VENDOR_ID[0], OPZ_VENDOR_ID[1], OPZ_VENDOR_ID[2], OPZ_MAX_PROTOCOL_VERSION, 0x00, 0x01, 0x7F, 0x75, 0x06, SYSEX_END // new version
+    // SYSEX_HEAD, OPZ_VENDOR_ID[0], OPZ_VENDOR_ID[1], OPZ_VENDOR_ID[2], OPZ_MAX_PROTOCOL_VERSION, 0x00, 0x01, 0x7F, 0x75, 0x06, SYSEX_END // new version
+    SYSEX_HEAD, OPZ_VENDOR_ID[0], OPZ_VENDOR_ID[1], OPZ_VENDOR_ID[2], OPZ_MAX_PROTOCOL_VERSION, 0x00, 0x00, 0x2C, 0x54, 0x06, SYSEX_END 
 }; 
 
 std::vector<unsigned char> config_cmd = {
@@ -48,7 +48,9 @@ std::string event_name[] = {
     "OCTAVE_CHANGE", "KEY_SHIFT",
     "PROJECT_CHANGE", "PATTERN_CHANGE", "TRACK_CHANGE", "PAGE_CHANGE",
     "MICROPHONE_MODE_CHANGE", "MICROPHONE_LEVEL_CHANGE", "MICROPHONE_FX_CHANGE",
-    "PARAMETER_CHANGE"
+    "PARAMETER_CHANGE",
+    "PATTERN_PACKAGE_RECIVED", "PATTERN_DOWNLOADED"
+    "NO_CONNECTION"
 };
 
 // https://teenage.engineering/guides/op-z/parameter-pages
@@ -56,51 +58,13 @@ std::string page_name[] = {
     "ONE", "TWO", "THREE", "FOUR" 
 };
 
- std::string mic_fx_name[] = {
+std::string mic_fx_name[] = {
     "NONE", "FX1", "FX2", "FX1 & FX2"
-};
-
-// https://teenage.engineering/guides/op-z/tracks
-std::string track_name[] = { 
-    "KICK", "SNARE", "PERC", "SAMPLE", "BASS", "LEAD", "ARP", "CHORD", "FX1", "FX2", "TAPE", "MASTER", "PERFORM", "MODULE", "LIGHT", "MOTION", "UNKNOWN" 
-};
-
-std::string pattern_page_parameter_name[] = { 
-    "KICK_PLUG",    "KICK_PLUG1",   "KICK_PLUG2",   "KICK_PLUG3",   "KICK_STEP_COUNT",  "KICK_UNKNOWN", "KICK_STEP_LENGTH",     "KICK_QUANTIZE",    "KICK_NOTE_STYLE",  "KICK_NOTE_LENGTH",     "KICK_BYTE1",   "KICK_BYTE2",
-    "SNARE_PLUG",   "SNARE_PLUG1",  "SNARE_PLUG2",  "SNARE_PLUG3",  "SNARE_STEP_COUNT", "SNARE_UNKNOWN","SNARE_STEP_LENGTH",    "SNARE_QUANTIZE",   "SNARE_NOTE_STYLE", "SNARE_NOTE_LENGTH",        "SNARE_BYTE1", "SNARE_BYTE2",
-    "PERC_PLUG",    "PERC_PLUG1",   "PERC_PLUG2",   "PERC_PLUG3",   "PERC_STEP_COUNT",  "PERC_UNKNOWN", "PERC_STEP_LENGTH",     "PERC_QUANTIZE",    "PERC_NOTE_STYLE",  "PERC_NOTE_LENGTH","PERC_BYTE1",    "PERC_BYTE2",
-    "SAMPLE_PLUG",  "SAMPLE_PLUG1", "SAMPLE_PLUG2", "SAMPLE_PLUG3", "SAMPLE_STEP_COUNT","SAMPLE_UNKNOWN","SAMPLE_STEP_LENGTH",  "SAMPLE_QUANTIZE", "SAMPLE_NOTE_STYLE", "SAMPLE_NOTE_LENGTH", "SAMPLE_BYTE1",   "SAMPLE_BYTE2",
-    "BASS_PLUG",    "BASS_PLUG1",   "BASS_PLUG2",   "BASS_PLUG3",   "BASS_STEP_COUNT",  "BASS_UNKNOWN", "BASS_STEP_LENGTH",     "BASS_QUANTIZE",  "BASS_NOTE_STYLE",    "BASS_NOTE_LENGTH",   "BASS_BYTE1",     "BASS_BYTE2",
-    "LEAD_PLUG",    "LEAD_PLUG1",   "LEAD_PLUG2",   "LEAD_PLUG3",   "LEAD_STEP_COUNT",  "LEAD_UNKNOWN", "LEAD_STEP_LENGTH",   "LEAD_QUANTIZE",  "LEAD_NOTE_STYLE",    "LEAD_NOTE_LENGTH",   "LEAD_BYTE1",     "LEAD_BYTE2",
-    "ARC_PLUG",     "ARC_PLUG1",    "ARC_PLUG2",    "ARC_PLUG3",    "ARC_STEP_COUNT",   "ARC_UNKNOWN",  "ARC_STEP_LENGTH",    "ARC_QUANTIZE",   "ARC_NOTE_STYLE",     "ARC_NOTE_LENGTH",    "ARC_BYTE1",      "ARC_BYTE2",
-    "CHORD_PLUG",   "CHORD_PLUG1",  "CHORD_PLUG2",  "CHORD_PLUG3",  "CHORD_STEP_COUNT", "CHORD_UNKNOWN",  "CHORD_STEP_LENGTH",  "CHORD_QUANTIZE", "CHORD_NOTE_STYLE",   "CHORD_NOTE_LENGTH",  "CHORD_BYTE1",    "CHORD_BYTE2",
-    "FX1_PLUG",     "FX1_PLUG1",    "FX1_PLUG2",    "FX1_PLUG3",    "FX1_STEP_COUNT",   "FX1_UNKNOWN",    "FX1_STEP_LENGTH",    "FX1_QUANTIZE",   "FX1_NOTE_STYLE",     "FX1_NOTE_LENGTH",    "FX1_BYTE1",      "FX1_BYTE2",
-    "FX2_PLUG",     "FX2_PLUG1",    "FX2_PLUG2",    "FX2_PLUG3",    "FX2_STEP_COUNT",   "FX2_UNKNOWN",    "FX2_STEP_LENGTH",    "FX2_QUANTIZE",   "FX2_NOTE_STYLE",     "FX2_NOTE_LENGTH",    "FX2_BYTE1",      "FX2_BYTE2",
-    "TAPE_PLUG",    "TAPE_PLUG1",   "TAPE_PLUG2",   "TAPE_PLUG3",   "TAPE_STEP_COUNT",  "TAPE_UNKNOWN",   "TAPE_STEP_LENGTH",   "TAPE_QUANTIZE",  "TAPE_NOTE_STYLE",    "TAPE_NOTE_LENGTH",   "TAPE_BYTE1",     "TAPE_BYTE2",
-    "MASTER_PLUG",  "MASTER_PLUG1", "MASTER_PLUG2", "MASTER_PLUG3", "MASTER_STEP_COUNT","MASTER_UNKNOWN", "MASTER_STEP_LENGTH", "MASTER_QUANTIZE","MASTER_NOTE_STYLE",  "MASTER_NOTE_LENGTH", "MASTER_BYTE1",   "MASTER_BYTE2",
-    "PERFORM_PLUG", "PERFORM_PLUG1","PERFORM_PLUG2","PERFORM_PLUG3","PERFORM_STEP_COUNT","PERFORM_UNKNOWN","PERFORM_STEP_LENGTH","PERFORM_QUANTIZE","PERFORM_NOTE_STYLE","PERFORM_NOTE_LENGTH","PERFORM_BYTE1",  "PERFORM_BYTE2",
-    "MODULE_PLUG",  "MODULE_PLUG1", "MODULE_PLUG2", "MODULE_PLUG3", "MODULE_STEP_COUNT","MODULE_UNKNOWN", "MODULE_STEP_LENGTH", "MODULE_QUANTIZE","MODULE_NOTE_STYLE",  "MODULE_NOTE_LENGTH", "MODULE_BYTE1",   "MODULE_BYTE2",
-    "LIGHT_PLUG",   "LIGHT_PLUG1",  "LIGHT_PLUG2",  "LIGHT_PLUG3",  "LIGHT_STEP_COUNT", "LIGHT_UNKNOWN",  "LIGHT_STEP_LENGTH",  "LIGHT_QUANTIZE", "LIGHT_NOTE_STYLE",   "LIGHT_NOTE_LENGTH",  "LIGHT_BYTE1",    "LIGHT_BYTE2",
-    "MOTION_PLUG",  "MOTION_PLUG1", "MOTION_PLUG2", "MOTION_PLUG3", "MOTION_STEP_COUNT","MOTION_UNKNOWN", "MOTION_STEP_LENGTH", "MOTION_QUANTIZE","MOTION_NOTE_STYLE",  "MOTION_NOTE_LENGTH", "MOTION_BYTE1",   "MOTION_BYTE2"
-};
-
-std::string page_parameter_name[] = { 
-    "SOUND_PARAM1",     "SOUND_PARAM2",     "SOUND_FILTER",     "SOUND_RESONANCE", 
-    "ENVELOPE_ATTACK",  "ENVELOPE_DECAY",   "ENVELOPE_SUSTAIN", "ENVELOPE_RELEASE",
-    "SOUND_FX1",        "SOUND_FX2",        "SOUND_PAN",        "SOUND_LEVEL",
-    "LFO_DEPTH",        "LFO_SPEED",        "LFO_VALUE",        "LFO_SHAPE",
-    "NOTE_LENGTH",      "NOTE_STYLE",       "QUANTIZE",         "PORTAMENTO",
-    "STEP_COUNT",       "STEP_LENGTH"
-};
-
-std::string  note_style_name[] = {
-    "DRUM_RETRIG",    "DRUM_MONO",  "DRUM_GATE",      "DRUM_LOOP",
-    "SYNTH_POLY",     "SYNTH_MONO", "SYNTH_LEGATO"     
 };
 
 // print array of unsigend chars as HEX pairs
 char *printHex(unsigned char *cp, size_t n) {
-    char *s = (char*)malloc(3*n + 1);
+    char *s = (char*)malloc(3*n );
 
     if (s == NULL)
         return s;
@@ -225,35 +189,18 @@ std::vector<unsigned char> decompress(const unsigned char* inData, size_t inLeng
     return output;
 }
 
-
-
-OPZ::OPZ():
-verbose(0),
-m_level(0.0f), 
-// m_active_address(0),
-m_active_project(0),
-m_active_pattern(0),
-m_active_track(KICK), 
-m_active_page(PAGE_ONE),
-m_active_step(0),
-m_mic_mode(0),
-m_play(false),
-m_event_enable(false),
-m_midi_enable(false) {
+const std::vector<unsigned char>* opz_init_msg() { return &initial_message; }
+const std::vector<unsigned char>* opz_heartbeat() { return &master_heartbeat; }
+const std::vector<unsigned char>* opz_config_cmd() { return &config_cmd; };
+std::vector<unsigned char> opz_confirm_package_cmd(unsigned char _id) { return  { 
+        0x0B, 0x00, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, (unsigned char)(_id), 0x00, 0x00 
+    };
 }
 
-const std::vector<unsigned char>* OPZ::getInitMsg() { return &initial_message; }
-const std::vector<unsigned char>* OPZ::getHeartBeat() { return &master_heartbeat; }
-const std::vector<unsigned char>* OPZ::getConfigCmd() { return &config_cmd; };
-
-std::string& OPZ::toString( pattern_page_parameter_id _id ) { return pattern_page_parameter_name[_id]; } 
-std::string& OPZ::toString( page_parameter_id _id ) { return page_parameter_name[_id]; }
-std::string& OPZ::toString( track_id _id ) { return track_name[_id]; }
-std::string& OPZ::toString( page_id  _id ) { return page_name[_id]; }
-std::string& OPZ::toString( mic_fx_id _id ) { return mic_fx_name[_id]; }
-std::string& OPZ::toString( note_style_id  _id ) { return note_style_name[_id]; }
-std::string& OPZ::toString( event_id _id ) { return event_name[_id]; }
-std::string OPZ::toString( midi_id _id ) { 
+std::string& toString( opz_page_id  _id ) { return page_name[_id]; }
+std::string& toString( opz_mic_fx_id _id ) { return mic_fx_name[_id]; }
+std::string& toString( opz_event_id _id ) { return event_name[_id]; }
+std::string toString( midi_id _id ) { 
     if (_id == CONTROLLER_CHANGE) return "CONTROLLER_CHANGE";
     else if (_id == NOTE_ON) return "NOTE_ON";
     else if (_id == NOTE_OFF) return "NOTE_OFF";
@@ -275,19 +222,34 @@ std::string OPZ::toString( midi_id _id ) {
     return "UNKNOWN";
 }
 
-void OPZ::process_message(unsigned char* _message, size_t _length) {
+opz_device::opz_device():
+verbose(0),
+m_level(0.0f), 
+// m_active_address(0),
+m_active_project(0),
+m_active_pattern(0),
+m_active_track(KICK), 
+m_active_page(PAGE_ONE),
+m_active_step(0),
+m_mic_mode(0),
+m_play(false),
+m_event_enable(false),
+m_midi_enable(false) {
+}
+
+void opz_device::process_message(unsigned char* _message, size_t _length) {
     if (_message[0] == SYSEX_HEAD)
         process_sysex(_message, _length);
     else
         process_event(_message, _length);
 }
 
-void OPZ::process_sysex(unsigned char *_message, size_t _length){
+void opz_device::process_sysex(unsigned char *_message, size_t _length){
 
     // if (verbose > 1 && verbose < 4)
     //     std::cout << printHex(&_message[0], _length) << "(" << _length << " bytes)" << std::endl;
 
-    const sysex_header &header = (const sysex_header&)_message[0];
+    const opz_sysex_header &header = (const opz_sysex_header&)_message[0];
     if (memcmp(OPZ_VENDOR_ID, header.vendor_id, sizeof(OPZ_VENDOR_ID)) != 0){
         if (verbose)
             printf("Vendor ID %02X:%02X:%02X is not the expected ID %02X:%02X:%02X\n", header.vendor_id[0],header.vendor_id[1],header.vendor_id[2], OPZ_VENDOR_ID[0],OPZ_VENDOR_ID[1],OPZ_VENDOR_ID[2]);
@@ -303,11 +265,11 @@ void OPZ::process_sysex(unsigned char *_message, size_t _length){
     // TODO: check that first bit of data is 'F000207601'
 
     // substract the header and end of SYSEX message
-    size_t data_length = _length-sizeof(sysex_header)-1;
+    size_t data_length = _length-sizeof(opz_sysex_header)-1;
     unsigned char *data = new unsigned char[data_length];
 
     // decode 7bit into raw 8bit
-    size_t length = decode(&_message[sizeof(sysex_header)], data_length, data);
+    size_t length = decode(&_message[sizeof(opz_sysex_header)], data_length, data);
     
     switch (header.parm_id) {
         case 0x01: {
@@ -358,7 +320,7 @@ void OPZ::process_sysex(unsigned char *_message, size_t _length){
                 if (verbose > 2) {
                     printf("    project: %i\n", address2project(data[4]) );
                     printf("    pattern: %i\n", address2pattern(data[4]) );
-                    printf("    type:    %s\n", toString((pattern_page_parameter_id)data[2]).c_str() );
+                    printf("    type:    %s\n", toString((opz_page_parameter_id)data[2]).c_str() );
                     printf("    value:   %03i\n", data[7] );
                 }
             }
@@ -386,7 +348,7 @@ void OPZ::process_sysex(unsigned char *_message, size_t _length){
                 m_play = false;
             }
 
-            track_id t =  (track_id)data[1];
+            opz_track_id t =  (opz_track_id)data[1];
             if (m_active_track != t)
                 if (m_event_enable)
                     m_event(TRACK_CHANGE, (int)m_active_track);
@@ -408,7 +370,7 @@ void OPZ::process_sysex(unsigned char *_message, size_t _length){
 
             float   volume = data[1]/ 255.0f;
             float   mic_level = (data[2]%16) / 15.0f;
-            mic_fx_id mic_fx = (mic_fx_id)(data[2]/16);
+            opz_mic_fx_id mic_fx = (opz_mic_fx_id)(data[2]/16);
             if (verbose > 2) {
                 printf(" ????????   %02x\n", data[0] );
                 printf(" LEVEL      %f\n",  volume);
@@ -486,15 +448,15 @@ void OPZ::process_sysex(unsigned char *_message, size_t _length){
             if (verbose > 1 && verbose < 4)
                 std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
 
-            CAST_MESSAGE(key_state, ki);
+            CAST_MESSAGE(opz_key_state, ki);
             memcpy(&(m_key_prev_state), &m_key_state, sizeof(m_key_state));
             memcpy(&(m_key_state), &ki, sizeof(m_key_state));
 
-            if (m_active_page != (page_id)m_key_state.page)
+            if (m_active_page != (opz_page_id)m_key_state.page)
                 if (m_event_enable)
                     m_event(PAGE_CHANGE, (int)m_active_page);
         
-            m_active_page = (page_id)m_key_state.page;
+            m_active_page = (opz_page_id)m_key_state.page;
 
             if (m_event_enable) {
                 // if (verbose > 2) {
@@ -528,8 +490,8 @@ void OPZ::process_sysex(unsigned char *_message, size_t _length){
                 if (m_key_state.track) m_event( KEY_TRACK, 1);
                 if (m_key_prev_state.track && !m_key_state.track) m_event( KEY_TRACK, 0);
 
-                if (m_key_state.step < 16) m_event( event_id( 6+(int)m_key_state.step ), 1);
-                if (m_key_prev_state.step < 16 && m_key_state.step >= 16) m_event( event_id( 6+(int)m_key_prev_state.step ), 0);
+                if (m_key_state.step < 16) m_event( opz_event_id( 6+(int)m_key_state.step ), 1);
+                if (m_key_prev_state.step < 16 && m_key_state.step >= 16) m_event( opz_event_id( 6+(int)m_key_prev_state.step ), 0);
 
                 if (m_key_state.record) m_event( KEY_RECORD, 1);
                 if (m_key_prev_state.record && !m_key_state.record) m_event( KEY_RECORD, 0);
@@ -551,7 +513,7 @@ void OPZ::process_sysex(unsigned char *_message, size_t _length){
             if (verbose > 1 && verbose < 4)
                 std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
 
-            CAST_MESSAGE(sequence_change, si);
+            CAST_MESSAGE(opz_sequence_change, si);
 
             if (m_active_project != si.project)
                 if (m_event_enable)
@@ -604,24 +566,43 @@ void OPZ::process_sysex(unsigned char *_message, size_t _length){
                 printf("Msg %02X (Pattern)\n", header.parm_id);
             
             uint8_t pattern_address = data[0];
-            uint8_t project = address2project(data[0]); //pattern_address / 16;
-            uint8_t pattern = address2pattern(data[0]); //pattern_address % 16;
-            std::vector<unsigned char> decompressed = decompress(&data[6], length-6);
+            uint8_t project = address2project(data[0]);
+            uint8_t pattern = address2pattern(data[0]);
+            size_t offset = 6;
+            
+            if (verbose > 1 && verbose < 4) 
+                std::cout << "   RAW " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
 
-            if (verbose > 1 && verbose < 4) {
-                std::cout << "   RAW " << printHex(data, 6) << "(" << 6 << " bytes)" << std::endl;
+            if (data[4] == 0x00)
+                m_packets.clear();
+
+            m_packets.insert(m_packets.end(), &data[offset], &data[data_length-1] );
+
+            if (m_event_enable)
+                m_event(PATTERN_PACKAGE_RECIVED, data[4]);
+
+        } break;
+
+        case 0x0a: {
+            if (verbose)
+                printf("Msg %02X (pattern request end)\n", header.parm_id);
+
+            uint8_t pattern_address = data[0];
+            uint8_t project = address2project(data[0]);
+            uint8_t pattern = address2pattern(data[0]);
+            std::vector<unsigned char> decompressed = decompress(&m_packets[0], m_packets.size());
+
+            if (verbose > 1 && verbose < 4)
                 std::cout << "   ENC " << printHex(&decompressed[0], decompressed.size()) << "(" << decompressed.size() << " bytes)" << std::endl;
-            }
 
-            const pattern_chunck & pi = (const pattern_chunck&)decompressed[0];
+            const opz_pattern & pi = (const opz_pattern&)decompressed[0];
             memcpy(&m_project.pattern[(size_t)pattern].track_param[0], &pi.track_param[0], sizeof(uint8_t) * decompressed.size());
 
             if (verbose > 2) {
                 printf("   address:     0x%02X\n", data[0]);
-                printf("   ???????:     0x%02X 0x%02X 0x%02X 0x%02X\n", data[1], data[2], data[3], data[4]);
                 for (size_t i = 0; i < 7; i++) {
-                    printf("   project %02i pattern %02i %6s: plug 0x%02X, step_count %03i, ?? 0x%02X, step_length %03i, quantize %03i, note_style %03i, note_length %03i, ?? 0x%02X 0x%02X 0x%02X 0x%02X\n", 
-                        project, pattern, toString((track_id)i).c_str(),
+                    printf("   project %02i pattern %02i %6s: plug 0x%02X, step_count %03i, ?? 0x%02X, step_length %03i, quantize %03i, note_style %03i, note_length %03i, ?? 0x%02X 0x%02X\n", 
+                        project, pattern, toString((opz_track_id)i).c_str(),
                         m_project.pattern[(size_t)pattern].track_param[i].plug,
                         m_project.pattern[(size_t)pattern].track_param[i].step_count,
                         m_project.pattern[(size_t)pattern].track_param[i].unknown1,
@@ -629,12 +610,16 @@ void OPZ::process_sysex(unsigned char *_message, size_t _length){
                         m_project.pattern[(size_t)pattern].track_param[i].quantize,
                         m_project.pattern[(size_t)pattern].track_param[i].note_style,
                         m_project.pattern[(size_t)pattern].track_param[i].note_length,
-                        m_project.pattern[(size_t)pattern].track_param[i].unknown2[0], m_project.pattern[(size_t)pattern].track_param[i].unknown2[1], m_project.pattern[(size_t)pattern].track_param[i].unknown2[2], m_project.pattern[(size_t)pattern].track_param[i].unknown2[3]
+                        m_project.pattern[(size_t)pattern].track_param[i].unknown2[0], 
+                        m_project.pattern[(size_t)pattern].track_param[i].unknown2[1]
                     );
                 }
             }
 
-        } break;
+            if (m_event_enable)
+                m_event(PATTERN_DOWNLOADED, pattern);
+            
+        }break;
 
         case 0x0c: {
             // Global Data ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#0c-global-data )
@@ -644,10 +629,12 @@ void OPZ::process_sysex(unsigned char *_message, size_t _length){
             // Global data is compressed using zlib
             std::vector<unsigned char> decompressed = decompress(data, length);
 
-            if (verbose > 1 && verbose < 4)
-                std::cout << "       " << printHex(&decompressed[0], decompressed.size()) << "(" << decompressed.size() << " bytes)" << std::endl;
+            if (verbose > 1 && verbose < 4) {
+                // std::cout << "   RAW " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "   ENC " << printHex(&decompressed[0], decompressed.size()) << "(" << decompressed.size() << " bytes)" << std::endl;
+            }
             
-            const project & pi = (const project &)decompressed[0];
+            const opz_project &pi = (const opz_project &)decompressed[0];
 
             memcpy(&m_project, &pi, sizeof(uint8_t) * decompressed.size());// sizeof(pi));
 
@@ -672,14 +659,14 @@ void OPZ::process_sysex(unsigned char *_message, size_t _length){
             if (verbose > 1 && verbose < 4)
                 std::cout << "       " << printHex(data, length) << "    (" << length << " bytes)" << std::endl;
 
-            if (m_active_track != (track_id)(data[0]%16)) {
-                m_active_track = (track_id)(data[0]%16);
+            if (m_active_track != (opz_track_id)(data[0]%16)) {
+                m_active_track = (opz_track_id)(data[0]%16);
                 if (m_event_enable)
                     m_event(TRACK_CHANGE, (int)m_active_track);
             }
 
-            const page_parameter &si = (const page_parameter &)data[1];
-            memcpy(&m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track], &si, sizeof(page_parameter));
+            const opz_page_parameter &si = (const opz_page_parameter &)data[1];
+            memcpy(&m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track], &si, sizeof(opz_page_parameter));
 
             if (m_event_enable)
                 m_event(PARAMETER_CHANGE, 1);
@@ -720,6 +707,15 @@ void OPZ::process_sysex(unsigned char *_message, size_t _length){
             }
         } break;
 
+        case 0x11: {
+            if (verbose)
+                printf("Msg %02X (unknown)\n", header.parm_id);
+
+            if (verbose > 1 && verbose < 4)
+                std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
+        
+        } break;
+
         case 0x12: {
             // Sound State ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#12-sound-state )
             if (verbose)
@@ -736,16 +732,16 @@ void OPZ::process_sysex(unsigned char *_message, size_t _length){
             size_t offset = 1;
             std::vector<unsigned char> decompressed = decompress(&data[offset], length-offset);
             if (verbose > 1 && verbose < 4) {
-                std::cout << "   RAW " << printHex(data, 1) << "(" << length << " bytes)" << std::endl;
+                std::cout << "   RAW " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
                 std::cout << "   ENC " << printHex(&decompressed[0], decompressed.size()) << "(" << decompressed.size() << " bytes)" << std::endl;
             }
-        }break;
+        } break;
 
         default: {
             if (verbose)
                 printf("Msg %02X (unknown)\n", header.parm_id);
 
-            size_t offset = 1;
+            size_t offset = 0;
             std::vector<unsigned char> decompressed = decompress(&data[offset], length-offset);
             if (verbose > 1 && verbose < 4) {
                 std::cout << "   RAW " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
@@ -756,7 +752,7 @@ void OPZ::process_sysex(unsigned char *_message, size_t _length){
 
 }
 
-void OPZ::process_event(unsigned char* _message, size_t _length) {
+void opz_device::process_event(unsigned char* _message, size_t _length) {
 
     if (_message[0] == START_SONG)
         m_play = true;
@@ -850,66 +846,6 @@ void OPZ::process_event(unsigned char* _message, size_t _length) {
         else 
             m_midi((midi_id)status, (size_t)channel, 0, 0);
     }
-}
-
-float OPZ::getTrackPageParameter(uint8_t _pattern, track_id _track, page_parameter_id _prop) const {
-    if (_prop == SOUND_PARAM1)
-        return m_project.pattern[_pattern].page_param[_track].param1 / 255.0f;
-    else if (_prop == SOUND_PARAM2)
-        return m_project.pattern[_pattern].page_param[_track].param2 / 255.0f;
-    else if (_prop == SOUND_FILTER)
-        return m_project.pattern[_pattern].page_param[_track].filter / 255.0f; 
-    else if (_prop == SOUND_RESONANCE)
-        return m_project.pattern[_pattern].page_param[_track].resonance / 255.0f;
-
-    // TODO
-    //      - I got the names wrong
-    else if (_prop == ENVELOPE_ATTACK) // S
-        return m_project.pattern[_pattern].page_param[_track].attack / 255.0f;
-    else if (_prop == ENVELOPE_DECAY) // A
-        return m_project.pattern[_pattern].page_param[_track].decay  / 255.0f;
-    else if (_prop == ENVELOPE_SUSTAIN) // H
-        return m_project.pattern[_pattern].page_param[_track].sustain / 255.0f; 
-    else if (_prop == ENVELOPE_RELEASE) // D
-        return m_project.pattern[_pattern].page_param[_track].release / 255.0f; 
-
-    else if (_prop == LFO_DEPTH)
-        return m_project.pattern[_pattern].page_param[_track].lfo_depth / 255.0f;
-    else if (_prop == LFO_SPEED) // RATE
-        return m_project.pattern[_pattern].page_param[_track].lfo_speed / 255.0f;
-    else if (_prop == LFO_VALUE) // DEST
-        return m_project.pattern[_pattern].page_param[_track].lfo_value / 255.0f; 
-    else if (_prop == LFO_SHAPE)
-        return m_project.pattern[_pattern].page_param[_track].lfo_shape / 255.0f;
-
-    else if (_prop == SOUND_FX1)
-        return m_project.pattern[_pattern].page_param[_track].fx1 / 255.0f;
-    else if (_prop == SOUND_FX2)
-        return (m_project.pattern[_pattern].page_param[_track].fx2 / 255.0f) * 2.0 - 1.0f;
-    else if (_prop == SOUND_PAN)
-        return m_project.pattern[_pattern].page_param[_track].pan / 255.0f; 
-    else if (_prop == SOUND_LEVEL)
-        return m_project.pattern[_pattern].page_param[_track].level / 255.0f;
-
-    else if (_prop == NOTE_LENGTH)
-        return (float)m_project.pattern[_pattern].track_param[_track].note_length;
-
-    else if (_prop == NOTE_STYLE)
-        return m_project.pattern[_pattern].page_param[_track].note_style / 255.0f;
-
-    else if (_prop == QUANTIZE)
-        return (float)m_project.pattern[_pattern].track_param[_track].quantize;
-
-    else if (_prop == PORTAMENTO)
-        return m_project.pattern[_pattern].page_param[_track].portamento / 255.0f;
-
-    else if (_prop == STEP_COUNT)
-        return (float)m_project.pattern[_pattern].track_param[_track].step_count;
-
-    else if (_prop == STEP_LENGTH)
-        return (float)m_project.pattern[_pattern].track_param[_track].step_length;
-
-    return 0.0f;
 }
 
 }
