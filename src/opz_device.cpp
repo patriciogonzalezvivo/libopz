@@ -592,11 +592,12 @@ void opz_device::process_sysex(unsigned char *_message, size_t _length){
 
             m_packets.insert(m_packets.end(), &data[offset], &data[data_length-1]);
 
-            if (m_packet_recived_enabled)
-                m_packet_recived(header.parm_id, data[0], data[4]);
+            //              cmd     0            1  2  3  4 
+            // OPZ_HEADER   09  00 10           00 56 1F 00   00 78
+            // OPZ_HEADER   0B  00 09 00 00     00 56 1F 00   00 00 F7
 
-            if (m_event_enable)
-                m_event(PATTERN_PACKAGE_RECIVED, data[4]);
+            if (m_packet_recived_enabled)
+                m_packet_recived(header.parm_id, &data[1], 4);
 
         } break;
 
@@ -607,13 +608,20 @@ void opz_device::process_sysex(unsigned char *_message, size_t _length){
             uint8_t pattern_address = data[0];
             uint8_t project = address2project(data[0]);
             uint8_t pattern = address2pattern(data[0]);
+            size_t offset = 6;
+
+            if (data_length > 6)
+                m_packets.insert(m_packets.end(), &data[offset], &data[data_length-1]);
+
             std::vector<unsigned char> decompressed = decompress(&m_packets[0], m_packets.size());
 
             if (verbose > 1 && verbose < 4)
-                std::cout << "   ENC " << printHex(&decompressed[0], decompressed.size()) << "(" << decompressed.size() << " bytes)" << std::endl;
+                std::cout << "   ENC "  << decompressed.size() << " bytes" << std::endl;
+            //     std::cout << "   ENC " << printHex(&decompressed[0], decompressed.size()) << "(" << decompressed.size() << " bytes)" << std::endl;
 
             const opz_pattern & pi = (const opz_pattern&)decompressed[0];
-            memcpy(&m_project.pattern[(size_t)pattern].track_param[0], &pi.track_param[0], sizeof(uint8_t) * decompressed.size());
+            // memcpy(&m_project.pattern[(size_t)pattern], &pi, sizeof(uint8_t) * decompressed.size() );
+            memcpy(&m_project.pattern[(size_t)pattern], &pi, std::min( sizeof(uint8_t) * decompressed.size(), sizeof(opz_pattern)));
 
             if (verbose > 2) {
                 printf("   address:     0x%02X\n", data[0]);

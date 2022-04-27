@@ -178,7 +178,7 @@ protected:
 
     // CALLBACKS
     bool                m_packet_recived_enabled;
-    std::function<void(uint8_t, uint8_t, uint8_t)>  m_packet_recived;
+    std::function<void(uint8_t, uint8_t*, size_t)>  m_packet_recived;
 
     std::function<void(opz_event_id, int)>  m_event;
     bool                m_event_enable;
