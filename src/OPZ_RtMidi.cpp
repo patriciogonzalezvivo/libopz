@@ -7,6 +7,8 @@ namespace T3 {
 #include <sys/time.h>
 #include <unistd.h>
 
+#include "tools.h"
+
 #ifdef PLATFORM_WINDOWS
 const int CLOCK_MONOTONIC = 0;
 int clock_gettime(int, struct timespec* spec)      //C-file part
@@ -41,20 +43,7 @@ m_last_heartbeat(0.0), m_last_time(0.0),
 m_connected(false) {
     m_packet_recived_enabled = true;
     m_packet_recived = [&](uint8_t _cmd, uint8_t *_data, size_t _lenght) {
-            if (verbose > 2)
-                printf("Recieved package %02X %02X %02X %02X \n", _data[0], _data[1], _data[2], _data[3] );
-
-            //              cmd     0            1  2  3  4 
-            // OPZ_HEADER   09  00 10           00 56 1F 00   00 78
-            // OPZ_HEADER   0B  00 09 00 00     00 56 1F 00   00 00 F7
-
-            std::vector<unsigned char> cmd = {
-                SYSEX_HEAD, OPZ_VENDOR_ID[0], OPZ_VENDOR_ID[1], OPZ_VENDOR_ID[2], OPZ_MAX_PROTOCOL_VERSION, 
-                0x0B, 0x00, 0x09, 0x00, 0x00, _data[0], _data[1], _data[2], _data[3], 0x00, 0x00, SYSEX_END
-                // 0x0B, 0x00, 0x09, 0x00, 0x00, 0x00,     _data[1], _data[2], _data[3], 0x00, 0x00, SYSEX_END
-                // 0x0B, 0x00, 0x09, 0x00, 0x00, 0x00,     0x00,     _data[2], _data[3], 0x00, 0x00, SYSEX_END
-                // 0x0B, 0x00, 0x09, 0x00, 0x00, 0x00,     0x00,     0x00,     _data[3], 0x00, 0x00, SYSEX_END
-            };
+            std::vector<unsigned char> cmd = opz_confirm_package_cmd(_data, _lenght);
             if (m_connected)
                 m_out->sendMessage( &cmd );
     };

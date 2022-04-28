@@ -42,7 +42,6 @@ std::string  note_style_name[] = {
 
 
 opz_project::opz_project() {
-
 }
 
 std::string& toString( opz_track_id _id ) { return track_name[_id]; }

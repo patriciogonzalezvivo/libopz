@@ -107,7 +107,7 @@ std::string& toString( opz_mic_fx_id _id );
 const std::vector<unsigned char>* opz_init_msg();
 const std::vector<unsigned char>* opz_heartbeat();
 const std::vector<unsigned char>* opz_config_cmd();
-std::vector<unsigned char>        opz_confirm_package_cmd(uint8_t _cmd, uint8_t _package);
+std::vector<unsigned char>        opz_confirm_package_cmd(uint8_t *_data, size_t _length);
 
 class opz_device : public opz_project {
 public:

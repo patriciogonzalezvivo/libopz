@@ -21,4 +21,3 @@ target_include_directories(opz_companion PRIVATE
     "${PROJECT_SOURCE_DIR}/src"
 )
 target_link_libraries(opz_companion PRIVATE libopz ncurses)
-

@@ -3,9 +3,8 @@
 #include <string.h>
 #include <iostream>
 
-#include <zlib.h>
-
 #include "opz_device.h"
+#include "tools.h"
 
 namespace T3 {
 
@@ -30,10 +29,11 @@ std::vector<unsigned char> initial_message = {
 
 // 0x00 Master Heartbeat (https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#00-master-heartbeat)
 std::vector<unsigned char> master_heartbeat = { 
-    // Midi::SYSTEM_EXCLUSIVE, OPZ_VENDOR_ID[0], OPZ_VENDOR_ID[1], OPZ_VENDOR_ID[2], OPZ_MAX_PROTOCOL_VERSION, 0x00, 0x03, 0x2D, 0x0E, 0x05, Midi::END_OF_SYSEX // prior to version 1.2.5
-    // SYSEX_HEAD, OPZ_VENDOR_ID[0], OPZ_VENDOR_ID[1], OPZ_VENDOR_ID[2], OPZ_MAX_PROTOCOL_VERSION, 0x00, 0x01, 0x4E, 0x2E, 0x06, SYSEX_END // version 1.2.5
+    // SYSEX_HEAD, OPZ_VENDOR_ID[0], OPZ_VENDOR_ID[1], OPZ_VENDOR_ID[2], OPZ_MAX_PROTOCOL_VERSION, 0x00, 0x03, 0x2D, 0x0E, 0x05, SYSEX_END // prior to version 1.2.5
+    SYSEX_HEAD, OPZ_VENDOR_ID[0], OPZ_VENDOR_ID[1], OPZ_VENDOR_ID[2], OPZ_MAX_PROTOCOL_VERSION, 0x00, 0x01, 0x4E, 0x2E, 0x06, SYSEX_END // version 1.2.5
     // SYSEX_HEAD, OPZ_VENDOR_ID[0], OPZ_VENDOR_ID[1], OPZ_VENDOR_ID[2], OPZ_MAX_PROTOCOL_VERSION, 0x00, 0x01, 0x7F, 0x75, 0x06, SYSEX_END // new version
-    SYSEX_HEAD, OPZ_VENDOR_ID[0], OPZ_VENDOR_ID[1], OPZ_VENDOR_ID[2], OPZ_MAX_PROTOCOL_VERSION, 0x00, 0x00, 0x2C, 0x54, 0x06, SYSEX_END 
+    // SYSEX_HEAD, OPZ_VENDOR_ID[0], OPZ_VENDOR_ID[1], OPZ_VENDOR_ID[2], OPZ_MAX_PROTOCOL_VERSION, 0x00, 0x00, 0x2C, 0x54, 0x06, SYSEX_END // 
+    // SYSEX_HEAD, OPZ_VENDOR_ID[0], OPZ_VENDOR_ID[1], OPZ_VENDOR_ID[2], OPZ_MAX_PROTOCOL_VERSION, 0x00, 0x02, 0x27, 0x3C, 0x06, SYSEX_END
 }; 
 
 std::vector<unsigned char> config_cmd = {
@@ -62,153 +62,26 @@ std::string mic_fx_name[] = {
     "NONE", "FX1", "FX2", "FX1 & FX2"
 };
 
-// print array of unsigend chars as HEX pairs
-char *printHex(unsigned char *cp, size_t n) {
-    char *s = (char*)malloc(3*n );
-
-    if (s == NULL)
-        return s;
-
-    for (size_t k = 0; k < n; ++k)
-        sprintf(s + 3*(k), "%02X ", cp[k]);
-
-    s[3*n] = '\0';
-    return s;
-}
-
-char *printAscii(unsigned char *cp, size_t n) {
-    char *s = (char*)malloc(n);
-
-    if (s == NULL)
-        return s;
-
-    for (size_t k = 0; k < n; ++k)
-        sprintf(s + k, "%c", cp[k]);
-
-    s[n] = '\0';
-    return s;
-}
-
-
-uint8_t address2project(uint8_t _address) { return _address / 16; }
-uint8_t address2pattern(uint8_t _address) { return _address % 16; }
-
-// encode raw 8bit to 7bits  
-size_t encode(const unsigned char* inData, unsigned inLength, unsigned char* outSysEx, bool inFlipHeaderBits = true) {
-    size_t outLength    = 0;     // Num bytes in output array.
-    unsigned char count = 0;     // Num 7bytes in a block.
-    outSysEx[0]         = 0;
-
-    for (unsigned i = 0; i < inLength; ++i) {
-        const unsigned char data = inData[i];
-        const unsigned char msb  = data >> 7;
-        const unsigned char body = data & 0x7f;
-
-        outSysEx[0] |= (msb << (inFlipHeaderBits ? count : (6 - count)));
-        outSysEx[1 + count] = body;
-
-        if (count++ == 6) {
-            outSysEx   += 8;
-            outLength  += 8;
-            outSysEx[0] = 0;
-            count       = 0;
-        }
-    }
-    return outLength + count + (count != 0 ? 1 : 0);
-}
-
-// decode 7bit to raw 8bits
-size_t decode(const unsigned char* inData, size_t inLength, unsigned char* outData, bool inFlipHeaderBits = true) {
-    size_t count  = 0;
-    unsigned char msbStorage = 0;
-    unsigned char byteIndex  = 0;
-
-    for (size_t i = 0; i < inLength; ++i) {
-        if ((i % 8) == 0) {
-            msbStorage = inData[i];
-            byteIndex  = 6;
-        }
-        else {
-            const unsigned char body     = inData[i];
-            const unsigned char shift    = inFlipHeaderBits ? 6 - byteIndex : byteIndex;
-            const unsigned char msb      = uint8_t(((msbStorage >> shift) & 1) << 7);
-            byteIndex--;
-            outData[count++] = msb | body;
-        }
-    }
-    return count;
-}
-
-const unsigned CHUNK_SIZE = 4096;
-std::vector<unsigned char> compress(const unsigned char* inData, size_t inLength) {
-    std::vector<unsigned char> output;
-
-	z_stream stream;
-	stream.zalloc = 0;
-	stream.zfree = 0;
-	stream.opaque = 0;
-
-	stream.avail_in = inLength - 1;
-    stream.next_in = const_cast<Byte *>(&inData[0]);
-
-    int res = deflateInit(&stream, 9);
-	if (res != Z_OK)
-		return output;
-
-    unsigned char ChunkOut[CHUNK_SIZE];
-	do
-	{
-		stream.avail_out = sizeof(ChunkOut);
-		stream.next_out = ChunkOut;
-		res = deflate(&stream, Z_FINISH);
-		unsigned compressed = sizeof(ChunkOut) - stream.avail_out;
-		unsigned oldsize = output.size();
-		output.resize(oldsize + compressed);
-		memcpy(&output[oldsize], ChunkOut, compressed);
-	}
-	while (stream.avail_out == 0);
-	deflateEnd(&stream);
-
-	return output;
-}
-
-std::vector<unsigned char> decompress(const unsigned char* inData, size_t inLength) {
-    std::vector<unsigned char> output;
-
-    z_stream stream;
-    stream.zalloc = 0;
-    stream.zfree = 0;
-    stream.opaque = 0;
-
-    stream.avail_in = inLength - 1;
-    stream.next_in = const_cast<Byte *>(&inData[0]);
-    
-    int res = inflateInit(&stream);
-    if (res != Z_OK)
-        return output;
-
-    unsigned char ChunkOut[CHUNK_SIZE];
-    do {
-        stream.avail_out = sizeof(ChunkOut);
-        stream.next_out = ChunkOut;
-        res = inflate(&stream, Z_FINISH);
-        unsigned compressed = sizeof(ChunkOut) - stream.avail_out;
-        unsigned oldsize = output.size();
-        output.resize(oldsize + compressed);
-        memcpy(&output[oldsize], ChunkOut, compressed);
-    }
-    while (stream.avail_out == 0);
-    inflateEnd(&stream);
-
-    return output;
-}
-
 const std::vector<unsigned char>* opz_init_msg() { return &initial_message; }
 const std::vector<unsigned char>* opz_heartbeat() { return &master_heartbeat; }
 const std::vector<unsigned char>* opz_config_cmd() { return &config_cmd; };
-std::vector<unsigned char> opz_confirm_package_cmd(uint8_t _cmd, uint8_t _package) { return  { 
-        0x0B, 0x00, _cmd, 0x00, 0x00, 0x00, 0x00, 0x00, _package, 0x00, 0x00 
+std::vector<unsigned char> opz_confirm_package_cmd(uint8_t *_data, size_t _length) { 
+    // std::cout << "       DATA MSG                 | " << T3::printHex(_data, 6) << std::endl; 
+
+    std::vector<unsigned char> msg = {
+        0x09, 0x00, 0x00, _data[1], _data[2], _data[3], _data[4], 0x00
     };
+
+    std::vector<unsigned char> sysex_out = { 
+        T3::SYSEX_HEAD, T3::OPZ_VENDOR_ID[0], T3::OPZ_VENDOR_ID[1], T3::OPZ_VENDOR_ID[2], T3::OPZ_MAX_PROTOCOL_VERSION, 0x0B
+    };
+    sysex_out.resize(100);
+    size_t outdata_length = T3::encode(&msg[0], msg.size(), &sysex_out[6]);
+    sysex_out.resize(6 + outdata_length);
+    sysex_out.push_back( T3::SYSEX_END );
+    // std::cout << "   OUT 7BIT MSG " << T3::printHex(&sysex_out[0], sysex_out.size()) << std::endl; 
+
+    return sysex_out;
 }
 
 std::string& toString( opz_page_id  _id ) { return page_name[_id]; }
@@ -575,53 +448,59 @@ void opz_device::process_sysex(unsigned char *_message, size_t _length){
         } break;
 
         case 0x09: {
-            // Pattern ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#09-pattern )
-            if (verbose)
-                printf("Msg %02X (Pattern)\n", header.parm_id);
-            
             uint8_t pattern_address = data[0];
             uint8_t project = address2project(data[0]);
             uint8_t pattern = address2pattern(data[0]);
             size_t offset = 6;
+
+            // Pattern ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#09-pattern )
+            if (verbose)
+                printf("Msg %02X (Pattern %02X Package %02X)\n", header.parm_id, data[0], data[4]);
             
-            if (verbose > 1 && verbose < 4) 
-                std::cout << "   RAW " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
+            if (verbose > 1 && verbose < 4) {
+                std::cout << "      7BT " << T3::printHex(_message, 15) << " .. " << std::endl; 
+                std::cout << "      RAW F0 00 20 76 01 09 " << T3::printHex(data, 8) << " .. " << std::endl; 
+            }
 
             if (data[4] == 0x00)
                 m_packets.clear();
 
             m_packets.insert(m_packets.end(), &data[offset], &data[data_length-1]);
 
-            //              cmd     0            1  2  3  4 
-            // OPZ_HEADER   09  00 10           00 56 1F 00   00 78
-            // OPZ_HEADER   0B  00 09 00 00     00 56 1F 00   00 00 F7
-
             if (m_packet_recived_enabled)
-                m_packet_recived(header.parm_id, &data[1], 4);
+                m_packet_recived(header.parm_id, data, 6);
 
         } break;
 
         case 0x0a: {
-            if (verbose)
-                printf("Msg %02X (Pattern Last Package)\n", header.parm_id);
 
             uint8_t pattern_address = data[0];
             uint8_t project = address2project(data[0]);
             uint8_t pattern = address2pattern(data[0]);
             size_t offset = 6;
 
-            if (data_length > 6)
-                m_packets.insert(m_packets.end(), &data[offset], &data[data_length-1]);
+            if (verbose)
+                printf("Msg %02X (Pattern %02X Package END)\n", header.parm_id, data[0]);
+
+            // if (data_length > 6)
+            //     m_packets.insert(m_packets.end(), &data[offset], &data[data_length-1]);
 
             std::vector<unsigned char> decompressed = decompress(&m_packets[0], m_packets.size());
 
-            if (verbose > 1 && verbose < 4)
-                std::cout << "   ENC "  << decompressed.size() << " bytes" << std::endl;
-            //     std::cout << "   ENC " << printHex(&decompressed[0], decompressed.size()) << "(" << decompressed.size() << " bytes)" << std::endl;
+            if (verbose > 1 && verbose < 4) {
+                // std::cout << "   RAW " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
+                // std::cout << "   ENC " << printHex(&decompressed[0], decompressed.size()) << "(" << decompressed.size() << " bytes)" << std::endl;
+                std::cout << "      7BT " << T3::printHex(_message, 13) << " .. " << std::endl; 
+                std::cout << "   Downloaded total of "  << m_packets.size() << " bytes" << std::endl;
+                std::cout << "   Decompressed into   "  << decompressed.size() << " bytes" << std::endl;
+            }
 
-            const opz_pattern & pi = (const opz_pattern&)decompressed[0];
-            // memcpy(&m_project.pattern[(size_t)pattern], &pi, sizeof(uint8_t) * decompressed.size() );
-            memcpy(&m_project.pattern[(size_t)pattern], &pi, std::min( sizeof(uint8_t) * decompressed.size(), sizeof(opz_pattern)));
+            // const opz_pattern & pi = (const opz_pattern&)decompressed[0];
+            memcpy(&m_project.pattern[0], &decompressed[0], std::min( sizeof(opz_pattern) * 16, sizeof(uint8_t) * decompressed.size()) );
+
+            // const opz_pattern & pi = (const opz_pattern&)decompressed[0];
+            // memcpy(&m_project.pattern[0], &pi, sizeof(uint8_t) * decompressed.size() );
+            // memcpy(&m_project.pattern[(size_t)pattern], &pi, std::min( sizeof(uint8_t) * decompressed.size(), sizeof(opz_pattern)));
 
             if (verbose > 2) {
                 printf("   address:     0x%02X\n", data[0]);
