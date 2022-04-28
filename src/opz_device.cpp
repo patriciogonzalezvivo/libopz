@@ -497,6 +497,7 @@ void opz_device::process_sysex(unsigned char *_message, size_t _length){
 
             // const opz_pattern & pi = (const opz_pattern&)decompressed[0];
             memcpy(&m_project.pattern[0], &decompressed[0], std::min( sizeof(opz_pattern) * 16, sizeof(uint8_t) * decompressed.size()) );
+            // memcpy(&m_project.pattern[0], &decompressed[0], sizeof(uint8_t) * decompressed.size() );
 
             // const opz_pattern & pi = (const opz_pattern&)decompressed[0];
             // memcpy(&m_project.pattern[0], &pi, sizeof(uint8_t) * decompressed.size() );

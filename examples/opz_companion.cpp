@@ -93,8 +93,8 @@ int main(int argc, char** argv) {
             continue;
 
         T3::opz_project_data project = opz.getProjectData();
-        uint8_t pattern = opz.getActivePattern();
-        T3::opz_track_id track = opz.getActiveTrack();
+        uint8_t pattern = opz.getActivePatternId();
+        T3::opz_track_id track = opz.getActiveTrackId();
 
         std::string title_name =  T3::toString(track);
 
@@ -114,7 +114,7 @@ int main(int argc, char** argv) {
                                 opz.getActiveTrackParameters().step_count, 
                                 opz.getActiveTrackParameters().step_length,
                                 opz.getActiveTrackParameters().step_count * opz.getActiveTrackParameters().step_length);
-        mvprintw(y_max-1, (x_max-x_beg)/2 - 3, "%s %02i", ((opz.isPlaying())? "|> " : "[ ]"), opz.getActiveStep() + 1 );
+        mvprintw(y_max-1, (x_max-x_beg)/2 - 3, "%s %02i", ((opz.isPlaying())? "|> " : "[ ]"), opz.getActiveStepId() + 1 );
         refresh();
 
         if (mic_on) {
@@ -129,7 +129,7 @@ int main(int argc, char** argv) {
         else if (pressing_project) {
             wclear(windows[5]);
             box(windows[5], 0, 0);
-            mvwprintw(windows[5], 0, 2, " PROJECT  %02i ", opz.getActiveProject()+1);
+            mvwprintw(windows[5], 0, 2, " PROJECT  %02i ", opz.getActiveProjectId()+1);
             mvwprintw(windows[5], 0, 20, " PATTERN  %02i ", pattern+1 );
             for (size_t i = 0; i < 16; i++) {
                 int y = 1 + i;
@@ -170,7 +170,7 @@ int main(int argc, char** argv) {
                 wattron(windows[4], COLOR_PAIR(2));
 
             for (size_t i = 0; i < 5; i++) {
-                if (!pressing_track && i == (size_t)opz.getActivePage())
+                if (!pressing_track && i == (size_t)opz.getActivePageId())
                     wattron(windows[i], COLOR_PAIR(2));
                 box(windows[i], 0, 0);
                 wattroff(windows[i], COLOR_PAIR(2));

@@ -118,17 +118,24 @@ public:
     void            setEventCallback(std::function<void(opz_event_id, int)> _callback) { m_event = _callback; m_event_enable = true; }
     void            setMidiCallback(std::function<void(midi_id, size_t, size_t, size_t)> _callback) { m_midi = _callback; m_midi_enable = true; }
 
-    uint8_t         getActiveProject() const { return m_active_project; }
-    uint8_t         getActivePattern() const { return m_active_pattern; }
-    opz_track_id    getActiveTrack() const { return m_active_track; }
-    opz_page_id     getActivePage() const { return m_active_page; }
-    uint8_t         getActiveStep() const { return m_active_step; };
-    int             getActiveOctave() const { return m_octave[(size_t)m_active_track]; }
-
     float           getLevel() const { return m_level; }
     float           getMicLevel() const { return m_mic_level; }
     opz_mic_fx_id   getMicFx() const { return m_mic_fx; }
     uint8_t         getMicMode() const { return m_mic_mode; }
+    bool            isPlaying() const { return m_play; }
+
+    const bool&     isTrackMute(opz_track_id _id) const { return m_mutes[_id]; }
+
+    int             getOctave(size_t _id) const { return m_octave[_id]; }
+    int             getActiveOctave() const { return getOctave(m_active_track); }
+
+    uint8_t         getActiveProjectId() const { return m_active_project; }
+    uint8_t         getActivePatternId() const { return m_active_pattern; }
+    opz_track_id    getActiveTrackId() const { return m_active_track; }
+    opz_page_id     getActivePageId() const { return m_active_page; }
+    uint8_t         getActiveStepId() const { return m_active_step; };
+
+    virtual const opz_pattern& getActivePattern() const { return getPattern(m_active_pattern); }
 
     float           getTrackPageParameter(opz_track_id _track, opz_sound_parameter_id _prop) const {  return opz_project::getSoundParameter(m_active_pattern, _track, _prop); };
     float           getActivePageParameter(opz_sound_parameter_id _prop) const { return getTrackPageParameter(m_active_track, _prop); }
@@ -139,8 +146,7 @@ public:
     const opz_sound_parameter&  getSoundParameters(opz_track_id _track) const { return opz_project::getSoundParameters(m_active_pattern, _track); };
     const opz_sound_parameter&  getActivePageParameters() const { return getSoundParameters(m_active_track); };
     
-    const bool&     isTrackMute(opz_track_id _id) const { return m_mutes[_id]; }
-    bool            isPlaying() const { return m_play; }
+    
 
     size_t          verbose;    // 0 off
                                 // 1 event description

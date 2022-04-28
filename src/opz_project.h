@@ -42,6 +42,8 @@ enum opz_note_style_id {
     SYNTH_POLY,         SYNTH_MONO, SYNTH_LEGATO     
 };
 
+const size_t opz_notes_per_track[] = {    2, 2, 2, 2, 4,  4,  8,  4,  1,  1,  1,  4,  6,  6, 4,   4 };
+const size_t opz_notes_offset_track[] = { 0, 2, 4, 6, 8, 12, 16, 24, 28, 29, 30, 31, 35, 41, 47, 51 };
 
 // https://github.com/lrk/z-po-project/wiki/Project-file-format#track-parameters
 typedef struct {
@@ -80,7 +82,7 @@ typedef struct {
 
 // https://github.com/lrk/z-po-project/wiki/Project-file-format#note-chunk
 typedef struct {
-    int32_t duration[4];
+    int32_t duration;
     uint8_t note;
     uint8_t velocity;
     int8_t  micro_adjustment;
@@ -126,7 +128,7 @@ typedef struct {
     uint8_t             swing;              // Swing level from 0 to 255
     uint8_t             metronome_level;    // Metronome sound level
     uint8_t             metronome_sound;    // Metronome sound selection from 0x00 to 0xFF. Values might be mapped with some linear interpolated indexes 
-    uint8_t             unknown2[4];        // unknown, mostly 0x000000FF
+    uint32_t            unknown2;           // unknown, mostly 0x000000FF
     opz_pattern         pattern[16];
 } opz_project_data, *p_opz_project_data;
 
@@ -139,6 +141,12 @@ class opz_project {
 public:
     opz_project();    
     virtual const opz_project_data&     getProjectData() const { return m_project; }
+
+    virtual const opz_pattern&          getPattern(size_t _id) const { return m_project.pattern[_id]; }
+
+    virtual size_t                      getNoteIdOffset(size_t _track, size_t _step) { return _step * 55 + opz_notes_offset_track[_track]; }
+    virtual size_t                      getNotesPerTrack(size_t _track) { return opz_notes_per_track[_track]; }
+
     virtual const opz_track_parameter&  getTrackParameters(uint8_t patterm, opz_track_id _track) const { return m_project.pattern[patterm].track_param[(size_t)_track]; }
     virtual const opz_sound_parameter&  getSoundParameters(uint8_t patterm, opz_track_id _track) const { return m_project.pattern[patterm].page_param[(size_t)_track]; };
     virtual float                       getSoundParameter(uint8_t patterm, opz_track_id _track, opz_sound_parameter_id _prop) const;
