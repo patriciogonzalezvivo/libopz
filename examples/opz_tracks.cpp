@@ -76,12 +76,12 @@ int main(int argc, char** argv) {
             for (size_t y = 0; y < 16; y++) {
 
                 size_t i = opz.getNoteIdOffset(y, x);
-                // mvprintw(y+2, 10 + x * x_width, "%i", i );
+                mvprintw(y+2, 10 + x * x_width, "%i", i );
                 // mvprintw(y+2, 10 + x * x_width, "%.2f", pattern.note[ i ].duration / 4294967295.0 );
                 // mvprintw(y+2, 10 + x * x_width, "%02X", pattern.note[ i ].note );
                 // mvprintw(y+2, 10 + x * x_width, "%02X", pattern.note[ i ].velocity );
                 // mvprintw(y+2, 10 + x * x_width, "%i", pattern.note[ i ].micro_adjustment );
-                mvprintw(y+2, 10 + x * x_width, "%02X", pattern.note[ i ].age );
+                // mvprintw(y+2, 10 + x * x_width, "%02X", pattern.note[ i ].age );
 
                 // mvprintw(y+2, 10 + x * x_width, "%04X", pattern.step[ x * 16 + y ].components_bitmask );
 
