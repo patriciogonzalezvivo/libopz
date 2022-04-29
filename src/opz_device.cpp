@@ -400,48 +400,26 @@ void opz_device::process_sysex(unsigned char *_message, size_t _length){
             if (verbose > 1 && verbose < 4)
                 std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
 
-            CAST_MESSAGE(opz_sequence_change, si);
-
-            if (m_active_project != si.project)
-                if (m_event_enable)
-                    m_event(PROJECT_CHANGE, (int)m_active_project);
-            
-
-            if (m_active_pattern)
-                if (m_event_enable)
-                    m_event(PATTERN_CHANGE, (int)m_active_pattern); 
-            
-            m_active_project = (si.project)%16;
-            m_active_pattern = (si.pattern)%16;
-            // m_active_address = si.address;  // project + pattern
+            uint8_t pattern = data[0];
+            uint8_t address = data[17];
+            uint8_t project = data[19];
             m_active_step = 0;
 
+            if (m_active_project != project) {
+                m_active_project = project%16;
+                if (m_event_enable)
+                    m_event(PROJECT_CHANGE, (int)m_active_project);
+            }
+            
+            if (m_active_pattern != pattern) {
+                m_active_pattern = pattern%16;
+                if (m_event_enable)
+                    m_event(PATTERN_CHANGE, (int)m_active_pattern); 
+            }
+            
             if (verbose > 2) {
                 printf("    pattern:    %02X (pattern %i)\n", m_active_pattern, m_active_pattern + 1);
-                printf("    unknown:    %02X %02X %02X %02X  %02X %02X %02X %02X  %02X %02X %02X %02X  %02X %02X %02X %02X\n", 
-                                        si.unknown1[0], si.unknown1[1], si.unknown1[2], si.unknown1[3],
-                                        si.unknown1[4], si.unknown1[5], si.unknown1[6], si.unknown1[7],
-                                        si.unknown1[8], si.unknown1[9], si.unknown1[10], si.unknown1[11],
-                                        si.unknown1[12], si.unknown1[13], si.unknown1[14], si.unknown1[15]);
-                // printf("    unknown10:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[0]));
-                // printf("    unknown11:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[1]));
-                // printf("    unknown12:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[2]));
-                // printf("    unknown13:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[3]));
-                // printf("    unknown14:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[4]));
-                // printf("    unknown15:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[5]));
-                // printf("    unknown16:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[6]));
-                // printf("    unknown17:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[7]));
-                // printf("    unknown18:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[8]));
-                // printf("    unknown19:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[9]));
-                // printf("    unknown1A:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[10]));
-                // printf("    unknown1B:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[11]));
-                // printf("    unknown1C:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[12]));
-                // printf("    unknown1D:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[13]));
-                // printf("    unknown1E:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[14]));
-                // printf("    unknown1F:   %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown1[15]));
-                printf("    address:    %02X (offset %i bytes)\n", si.address, si.address);
-                printf("    unknown2:   %02X\n", si.unknown2);
-                // printf("    unknown2:   %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(si.unknown2));
+                printf("    address:    %02X (offset %i bytes)\n", address, address);
                 printf("    project:    %02X (project %i)\n", m_active_project, m_active_project + 1);
             }
 
@@ -482,8 +460,8 @@ void opz_device::process_sysex(unsigned char *_message, size_t _length){
             if (verbose)
                 printf("Msg %02X (Pattern %02X Package END)\n", header.parm_id, data[0]);
 
-            // if (data_length > 6)
-            //     m_packets.insert(m_packets.end(), &data[offset], &data[data_length-1]);
+            if (data_length > 6)
+                m_packets.insert(m_packets.end(), &data[offset], &data[data_length-1]);
 
             std::vector<unsigned char> decompressed = decompress(&m_packets[0], m_packets.size());
 

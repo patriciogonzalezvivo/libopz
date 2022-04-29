@@ -64,24 +64,29 @@ int main(int argc, char** argv) {
         T3::opz_pattern pattern = opz.getActivePattern();
 
         clear();
-        for (size_t y = 0; y < 17; y++) 
-            for (size_t x = 0; x < 17; x++) {
-                if (y == 0 && x > 0)
-                    mvprintw(y, 7 + x * 5, "%02i ", x);
-                else {
-                    if (x == 0 && y < 16)
-                        mvprintw(y+2 , 0, "%7s", T3::toString( T3::opz_track_id(y) ).c_str() );
-                    
-                    if (x > 0) {
-                        size_t i = opz.getNoteIdOffset(y-1, x-1);
-                        // mvprintw(y+1, x * 5 + 7, "%i", i );
-                        mvprintw(y+1, x * 5 + 7, "%i", pattern.note[ i ].duration );
+        int x_width = 6;
+        for (size_t x = 0; x < 16; x++) {
+                mvprintw(0, 10 + x * x_width, "%02i ", x+1);
+                mvprintw(x+2 , 0, "%7s", T3::toString( T3::opz_track_id(x) ).c_str() );
 
-                        size_t track = y;
-                        size_t step = x;
-                    }
-                } 
+                // mvprintw(x+2 , 10 + 16 * x_width, "%i", pattern.track_param[x].step_count );
+                // mvprintw(x+2 , 10 + 16 * x_width + 5, "%i", pattern.track_param[x].step_length );
+                // mvprintw(x+2 , 10 + 16 * x_width + 2, "%i", pattern.track_param[x].note_length );
+
+            for (size_t y = 0; y < 16; y++) {
+
+                size_t i = opz.getNoteIdOffset(y, x);
+                // mvprintw(y+2, 10 + x * x_width, "%i", i );
+                // mvprintw(y+2, 10 + x * x_width, "%.2f", pattern.note[ i ].duration / 4294967295.0 );
+                // mvprintw(y+2, 10 + x * x_width, "%02X", pattern.note[ i ].note );
+                // mvprintw(y+2, 10 + x * x_width, "%02X", pattern.note[ i ].velocity );
+                // mvprintw(y+2, 10 + x * x_width, "%i", pattern.note[ i ].micro_adjustment );
+                mvprintw(y+2, 10 + x * x_width, "%02X", pattern.note[ i ].age );
+
+                // mvprintw(y+2, 10 + x * x_width, "%04X", pattern.step[ x * 16 + y ].components_bitmask );
+
             }
+        }
 
         refresh();
     }

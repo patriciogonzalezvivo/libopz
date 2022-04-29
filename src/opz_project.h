@@ -45,57 +45,56 @@ enum opz_note_style_id {
 const size_t opz_notes_per_track[] = {    2, 2, 2, 2, 4,  4,  8,  4,  1,  1,  1,  4,  6,  6, 4,   4 };
 const size_t opz_notes_offset_track[] = { 0, 2, 4, 6, 8, 12, 16, 24, 28, 29, 30, 31, 35, 41, 47, 51 };
 
-// https://github.com/lrk/z-po-project/wiki/Project-file-format#track-parameters
-typedef struct {
-    uint8_t     param1;
-    uint8_t     param2;
-    uint8_t     attack;
-    uint8_t     decay;
-    uint8_t     sustain;
-    uint8_t     release;
-    uint8_t     fx1;    
-    uint8_t     fx2;
-    uint8_t     filter;
-    uint8_t     resonance;
-    uint8_t     pan;
-    uint8_t     level;
-    uint8_t     portamento;
-    uint8_t     lfo_depth;
-    uint8_t     lfo_speed;
-    uint8_t     lfo_value;
-    uint8_t     lfo_shape;
-    uint8_t     note_style;
-} opz_sound_parameter, *p_opz_sound_parameter;     
-
 // https://github.com/lrk/z-po-project/wiki/Project-file-format#track-chunk
 typedef struct {
-    uint32_t    plug;
-    uint8_t     step_count;
-    uint8_t     unknown1;
-    uint8_t     step_length;
-    uint8_t     quantize;
-    uint8_t     note_style;
-    uint8_t     note_length;
-    uint8_t     unknown2[2];
+    uint32_t        plug;
+    uint8_t         step_count;
+    uint8_t         unknown1;
+    uint8_t         step_length;
+    uint8_t         quantize;
+    uint8_t         note_style;
+    uint8_t         note_length;
+    uint8_t         unknown2[2];
 } opz_track_parameter, *p_opz_track_parameter;
-
 
 // https://github.com/lrk/z-po-project/wiki/Project-file-format#note-chunk
 typedef struct {
-    int32_t duration;
-    uint8_t note;
-    uint8_t velocity;
-    int8_t  micro_adjustment;
-    uint8_t age;
+    int32_t             duration;
+    uint8_t             note;
+    uint8_t             velocity;
+    int8_t              micro_adjustment;
+    uint8_t             age;
 } opz_note, *p_opz_note;
 
 // https://github.com/lrk/z-po-project/wiki/Project-file-format#step-chunk
 typedef struct {
-    uint16_t    components_bitmask;             // Bit mask on 2 bytes to show which step component are enabled. See below for bitmask values
-    uint8_t     components_parameters[16];      // Array of selected parameter value for each step components
-    uint8_t     components_locked_values[18];   // Array of current lock value for each tracks parameters
-    uint8_t     parameter_mask[18];             // Array of actually enabled parameter lock
+    uint16_t            components_bitmask;             // Bit mask on 2 bytes to show which step component are enabled. See below for bitmask values
+    uint8_t             components_parameters[16];      // Array of selected parameter value for each step components
+    uint8_t             components_locked_values[18];   // Array of current lock value for each tracks parameters
+    uint8_t             parameter_mask[18];             // Array of actually enabled parameter lock
 } opz_step, *p_opz_step;
+
+// https://github.com/lrk/z-po-project/wiki/Project-file-format#track-parameters
+typedef struct {
+    uint8_t             param1;
+    uint8_t             param2;
+    uint8_t             attack;
+    uint8_t             decay;
+    uint8_t             sustain;
+    uint8_t             release;
+    uint8_t             fx1;    
+    uint8_t             fx2;
+    uint8_t             filter;
+    uint8_t             resonance;
+    uint8_t             pan;
+    uint8_t             level;
+    uint8_t             portamento;
+    uint8_t             lfo_depth;
+    uint8_t             lfo_speed;
+    uint8_t             lfo_value;
+    uint8_t             lfo_shape;
+    uint8_t             note_style;
+} opz_sound_parameter, *p_opz_sound_parameter;     
 
 // https://github.com/lrk/z-po-project/wiki/Project-file-format#pattern-chunk
 typedef struct {
@@ -112,12 +111,12 @@ typedef struct {
 
 // https://github.com/lrk/z-po-project/wiki/Project-file-format#pattern-chain-chunk
 typedef struct {
-    uint8_t         pattern[32];   // Array of 32 bytes for the patterns id (from 0 to 15).
+    uint8_t             pattern[32];        // Array of 32 bytes for the patterns id (from 0 to 15).
 } opz_pattern_chain, *p_opz_pattern_chain;
 
 // https://github.com/lrk/z-po-project/wiki/Project-file-format#project-file-format
 typedef struct {
-    // uint32_t            file_id;            // seem to be always the same number: 0x00000049
+    // uint32_t            file_id;         // seem to be always the same number: 0x00000049
     opz_pattern_chain   pattern_chain[16];  // Array of saved pattern chains
     uint8_t             drum_level;
     uint8_t             synth_level;
