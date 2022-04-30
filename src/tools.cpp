@@ -1,6 +1,8 @@
 #include "tools.h"
 
 #include <zlib.h>
+#include <stdlib.h>
+#include <cstring>
 
 namespace T3 {
 
