@@ -10,114 +10,41 @@ namespace T3
 {
 
     // Standard MIDI events
-    enum midi_id
-    {
-        NOTE_OFF = 0x80,
-        NOTE_ON = 0x90,
-        KEY_PRESSURE = 0xA0,
-        CONTROLLER_CHANGE = 0xB0,
-        PROGRAM_CHANGE = 0xC0,
-        CHANNEL_PRESSURE = 0xD0,
-        PITCH_BEND = 0xE0,
-        SYSEX_HEAD = 0xF0,
-        SONG_POSITION = 0xF2,
-        SONG_SELECT = 0xF3,
-        TUNE_REQUEST = 0xF6,
-        SYSEX_END = 0xF7,
-        TIMING_TICK = 0xF8,
-        START_SONG = 0xFA,
-        CONTINUE_SONG = 0xFB,
-        STOP_SONG = 0xFC,
-        ACTIVE_SENSING = 0xFE,
-        SYSTEM_RESET = 0xFF
+    enum midi_id {
+        NOTE_OFF = 0x80,    NOTE_ON = 0x90,         KEY_PRESSURE = 0xA0,    CONTROLLER_CHANGE = 0xB0,   PROGRAM_CHANGE = 0xC0,  CHANNEL_PRESSURE = 0xD0,    PITCH_BEND = 0xE0,
+        SYSEX_HEAD = 0xF0,  SONG_POSITION = 0xF2,   SONG_SELECT = 0xF3,     TUNE_REQUEST = 0xF6,        SYSEX_END = 0xF7,
+        TIMING_TICK = 0xF8, START_SONG = 0xFA,      CONTINUE_SONG = 0xFB,   STOP_SONG = 0xFC,
+        ACTIVE_SENSING = 0xFE,  SYSTEM_RESET = 0xFF
     };
 
     const uint8_t OPZ_VENDOR_ID[3] = {0x00, 0x20, 0x76};
     const uint8_t OPZ_MAX_PROTOCOL_VERSION = 0x01;
 
     // Non-musical keyboard events
-    enum opz_event_id
-    {
+    enum opz_event_id {
         VOLUME_CHANGE = 0,
-        KEY_PROJECT,
-        KEY_MIXER,
-        KEY_TEMPO,
-        KEY_SCREEN,
-        KEY_TRACK,
-        KEY_KICK,
-        KEY_SNARE,
-        KEY_PERC,
-        KEY_SAMPLE,
-        KEY_BASS,
-        KEY_LEAD,
-        KEY_ARP,
-        KEY_CHORD,
-        KEY_FX1,
-        KEY_FX2,
-        KEY_TAPE,
-        KEY_MASTER,
-        KEY_PERFORM,
-        KEY_MODULE,
-        KEY_LIGHT,
-        KEY_MOTION,
-        KEY_RECORD,
-        PLAY_CHANGE,
-        KEY_STOP,
-        OCTAVE_CHANGE,
-        KEY_SHIFT,
-        PROJECT_CHANGE,
-        PATTERN_CHANGE,
-        TRACK_CHANGE,
-        PAGE_CHANGE,
-        MICROPHONE_MODE_CHANGE,
-        MICROPHONE_LEVEL_CHANGE,
-        MICROPHONE_FX_CHANGE,
+        KEY_PROJECT, KEY_MIXER, KEY_TEMPO, KEY_SCREEN,
+        KEY_TRACK, KEY_KICK, KEY_SNARE, KEY_PERC, KEY_SAMPLE, KEY_BASS, KEY_LEAD, KEY_ARP, KEY_CHORD, KEY_FX1, KEY_FX2, KEY_TAPE, KEY_MASTER, KEY_PERFORM, KEY_MODULE, KEY_LIGHT, KEY_MOTION,
+        KEY_RECORD, PLAY_CHANGE, KEY_STOP,
+        OCTAVE_CHANGE, KEY_SHIFT,
+        PROJECT_CHANGE, PATTERN_CHANGE, TRACK_CHANGE, PAGE_CHANGE,
+        MICROPHONE_MODE_CHANGE, MICROPHONE_LEVEL_CHANGE, MICROPHONE_FX_CHANGE,
         PARAMETER_CHANGE,
-        PATTERN_PACKAGE_RECIVED,
-        PATTERN_DOWNLOADED,
+        PATTERN_PACKAGE_RECIVED, PATTERN_DOWNLOADED,
         NO_CONNECTION
     };
 
-    enum opz_project_data_parameter_id
-    {
-        DRUM_LEVEL = 0,
-        SYNTH_LEVEL,
-        PUNCH_LEVEL,
-        MASTER_LEVEL,
-        PROJECT_TEMPO,
-        SWING,
-        // 44 unknown
-        METRONOME_LEVEL,
-        METRONOME_SOUND
-        // 4 unknown
-    };
+    enum opz_page_id {      PAGE_ONE = 0,   PAGE_TWO,   PAGE_TREE,  PAGE_FOUR };
+    enum opz_mic_fx_id {    MIC_NO_FX = 0,  MIC_FX_1,   MIC_FX_2,   MIC_FX_1_AND_2   };
 
-    enum opz_page_id
-    {
-        PAGE_ONE = 0,
-        PAGE_TWO,
-        PAGE_TREE,
-        PAGE_FOUR
-    };
-
-    enum opz_mic_fx_id
-    {
-        MIC_NO_FX = 0,
-        MIC_FX_1,
-        MIC_FX_2,
-        MIC_FX_1_AND_2
-    };
-
-    typedef struct
-    {
+    typedef struct {
         uint8_t sysex_id;
         uint8_t vendor_id[3];
         uint8_t protocol_version;
         uint8_t parm_id;
     } opz_sysex_header, *p_opz_sysex_header;
 
-    typedef struct
-    {
+    typedef struct {
         uint8_t bit11 : 1;
         uint8_t bit12 : 1;
         uint8_t bit13 : 1;
@@ -148,7 +75,6 @@ namespace T3
         uint8_t bit46 : 1;
         uint8_t bit47 : 1;
         uint8_t bit48 : 1;
-
     } opz_key_state, *p_key_state;
 
     std::string toString(midi_id _id);
@@ -161,20 +87,17 @@ namespace T3
     const std::vector<unsigned char> *opz_config_cmd();
     std::vector<unsigned char> opz_confirm_package_cmd(uint8_t *_data, size_t _length);
 
-    class opz_device : public opz_project
-    {
+    class opz_device : public opz_project{
     public:
         opz_device();
 
         void process_message(unsigned char *_message, size_t _length);
 
-        void setEventCallback(std::function<void(opz_event_id, int)> _callback)
-        {
+        void setEventCallback(std::function<void(opz_event_id, int)> _callback) {
             m_event = _callback;
             m_event_enable = true;
         }
-        void setMidiCallback(std::function<void(midi_id, size_t, size_t, size_t)> _callback)
-        {
+        void setMidiCallback(std::function<void(midi_id, size_t, size_t, size_t)> _callback) {
             m_midi = _callback;
             m_midi_enable = true;
         }

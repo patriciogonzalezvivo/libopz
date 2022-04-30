@@ -54,27 +54,17 @@ std::string event_name[] = {
 };
 
 // https://teenage.engineering/guides/op-z/parameter-pages
-std::string page_name[] = { 
-    "ONE", "TWO", "THREE", "FOUR" 
-};
-
-std::string mic_fx_name[] = {
-    "NONE", "FX1", "FX2", "FX1 & FX2"
-};
+std::string page_name[] = {     "ONE", "TWO", "THREE", "FOUR" };
+std::string mic_fx_name[] = {   "NONE", "FX1", "FX2", "FX1 & FX2"   };
 
 const std::vector<unsigned char>* opz_init_msg() { return &initial_message; }
 const std::vector<unsigned char>* opz_heartbeat() { return &master_heartbeat; }
 const std::vector<unsigned char>* opz_config_cmd() { return &config_cmd; };
 std::vector<unsigned char> opz_confirm_package_cmd(uint8_t *_data, size_t _length) { 
     // std::cout << "       DATA MSG                 | " << T3::printHex(_data, 6) << std::endl; 
+    std::vector<unsigned char> msg = {  0x09, 0x00, 0x00, _data[1], _data[2], _data[3], _data[4], 0x00  };
+    std::vector<unsigned char> sysex_out = { T3::SYSEX_HEAD, T3::OPZ_VENDOR_ID[0], T3::OPZ_VENDOR_ID[1], T3::OPZ_VENDOR_ID[2], T3::OPZ_MAX_PROTOCOL_VERSION, 0x0B };
 
-    std::vector<unsigned char> msg = {
-        0x09, 0x00, 0x00, _data[1], _data[2], _data[3], _data[4], 0x00
-    };
-
-    std::vector<unsigned char> sysex_out = { 
-        T3::SYSEX_HEAD, T3::OPZ_VENDOR_ID[0], T3::OPZ_VENDOR_ID[1], T3::OPZ_VENDOR_ID[2], T3::OPZ_MAX_PROTOCOL_VERSION, 0x0B
-    };
     sysex_out.resize(100);
     size_t outdata_length = T3::encode(&msg[0], msg.size(), &sysex_out[6]);
     sysex_out.resize(6 + outdata_length);
@@ -112,7 +102,6 @@ std::string toString( midi_id _id ) {
 opz_device::opz_device():
 verbose(0),
 m_level(0.0f), 
-// m_active_address(0),
 m_active_project(0),
 m_active_pattern(0),
 m_active_track(KICK), 
@@ -549,31 +538,31 @@ void opz_device::process_sysex(unsigned char *_message, size_t _length){
             }
 
             const opz_sound_parameter &si = (const opz_sound_parameter &)data[1];
-            memcpy(&m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track], &si, sizeof(opz_sound_parameter));
+            memcpy(&m_project.pattern[m_active_pattern].sound_param[(size_t)m_active_track], &si, sizeof(opz_sound_parameter));
 
             if (m_event_enable)
                 m_event(PARAMETER_CHANGE, 1);
                 
             if (verbose > 2) {
                 printf( " Proj. %i, pattern %i, track %s\n", m_active_project, m_active_pattern, toString(m_active_track).c_str());
-                printf( "   param1:     %i\n", m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track].param1);
-                printf( "   param2:     %i\n", m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track].param2);
-                printf( "   attack:     %i\n", m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track].attack);
-                printf( "   decay:      %i\n", m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track].decay);
-                printf( "   ustain:     %i\n", m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track].sustain);
-                printf( "   release:    %i\n", m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track].release);
-                printf( "   fx1:        %i\n", m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track].fx1);
-                printf( "   fx2:        %i\n", m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track].fx2);
-                printf( "   filter:     %i\n", m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track].filter);
-                printf( "   resonance:  %i\n", m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track].resonance);
-                printf( "   pan:        %i\n", m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track].pan);
-                printf( "   level:      %i\n", m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track].level);
-                printf( "   portamendo: %i\n", m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track].portamento);
-                printf( "   lfo_depth:  %i\n", m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track].lfo_depth);
-                printf( "   lfo_speed:  %i\n", m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track].lfo_speed);
-                printf( "   lfo_value:  %i\n", m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track].lfo_value);
-                printf( "   lfo_shape:  %i\n", m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track].lfo_shape);
-                printf( "   note_style: %i\n", m_project.pattern[m_active_pattern].page_param[(size_t)m_active_track].note_style);
+                printf( "   param1:     %i\n", m_project.pattern[m_active_pattern].sound_param[(size_t)m_active_track].param1);
+                printf( "   param2:     %i\n", m_project.pattern[m_active_pattern].sound_param[(size_t)m_active_track].param2);
+                printf( "   attack:     %i\n", m_project.pattern[m_active_pattern].sound_param[(size_t)m_active_track].attack);
+                printf( "   decay:      %i\n", m_project.pattern[m_active_pattern].sound_param[(size_t)m_active_track].decay);
+                printf( "   ustain:     %i\n", m_project.pattern[m_active_pattern].sound_param[(size_t)m_active_track].sustain);
+                printf( "   release:    %i\n", m_project.pattern[m_active_pattern].sound_param[(size_t)m_active_track].release);
+                printf( "   fx1:        %i\n", m_project.pattern[m_active_pattern].sound_param[(size_t)m_active_track].fx1);
+                printf( "   fx2:        %i\n", m_project.pattern[m_active_pattern].sound_param[(size_t)m_active_track].fx2);
+                printf( "   filter:     %i\n", m_project.pattern[m_active_pattern].sound_param[(size_t)m_active_track].filter);
+                printf( "   resonance:  %i\n", m_project.pattern[m_active_pattern].sound_param[(size_t)m_active_track].resonance);
+                printf( "   pan:        %i\n", m_project.pattern[m_active_pattern].sound_param[(size_t)m_active_track].pan);
+                printf( "   level:      %i\n", m_project.pattern[m_active_pattern].sound_param[(size_t)m_active_track].level);
+                printf( "   portamendo: %i\n", m_project.pattern[m_active_pattern].sound_param[(size_t)m_active_track].portamento);
+                printf( "   lfo_depth:  %i\n", m_project.pattern[m_active_pattern].sound_param[(size_t)m_active_track].lfo_depth);
+                printf( "   lfo_speed:  %i\n", m_project.pattern[m_active_pattern].sound_param[(size_t)m_active_track].lfo_speed);
+                printf( "   lfo_value:  %i\n", m_project.pattern[m_active_pattern].sound_param[(size_t)m_active_track].lfo_value);
+                printf( "   lfo_shape:  %i\n", m_project.pattern[m_active_pattern].sound_param[(size_t)m_active_track].lfo_shape);
+                printf( "   note_style: %i\n", m_project.pattern[m_active_pattern].sound_param[(size_t)m_active_track].note_style);
             }
         } break;
 

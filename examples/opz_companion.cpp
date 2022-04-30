@@ -40,6 +40,7 @@ int main(int argc, char** argv) {
     noecho();
 
     bool change = true;
+    bool change_data = true;
     bool pressing_track = false;
     bool pressing_project = false;
     bool pressing_mixer = false;
@@ -55,13 +56,14 @@ int main(int argc, char** argv) {
         else if (_id == T3::KEY_MIXER)      pressing_mixer = _value;
         else if (_id == T3::KEY_TEMPO)      pressing_tempo = _value;
         else if (_id == T3::MICROPHONE_MODE_CHANGE) mic_on = _value != 0;
+        else if (_id == T3::PATTERN_DOWNLOADED || _id == T3::PATTERN_CHANGE || _id == T3::TRACK_CHANGE || _id == T3::PAGE_CHANGE || _id == T3::PARAMETER_CHANGE ) change_data = true;
     } );
 
-    std::thread waitForKeys([](){
+    std::thread waitForKeys([&](){
         char ch;
         while ( true ) {
             ch = getch();
-            if (ch == 'q') {
+            if (ch == 'x') {
                 keepRunnig = false;
                 keepRunnig.store(false);
                 break;
@@ -87,9 +89,7 @@ int main(int argc, char** argv) {
 
         opz.keepawake();
 
-        if (change)
-            change = false;
-        else
+        if (!change)
             continue;
 
         T3::opz_project_data project = opz.getProjectData();
@@ -169,77 +169,93 @@ int main(int argc, char** argv) {
             if (pressing_track)
                 wattron(windows[4], COLOR_PAIR(2));
 
+            size_t page = (size_t)opz.getActivePageId();
+
             for (size_t i = 0; i < 5; i++) {
-                if (!pressing_track && i == (size_t)opz.getActivePageId())
+                if (!pressing_track && i == page)
                     wattron(windows[i], COLOR_PAIR(2));
                 box(windows[i], 0, 0);
                 wattroff(windows[i], COLOR_PAIR(2));
             }
 
-            // PAGE 1: SOUND        
-            mvwprintw(windows[0], 1, 1, "SOUND  P1      P2      FILTER  RESONA.");
-            mvwprintw(windows[0], 2, 1, "       %s %s %s %s",   hBar(7, (size_t)opz.getActivePageParameters().param1).c_str(),
-                                                    hBar(7, (size_t)opz.getActivePageParameters().param2).c_str(),
-                                                    hBar(7, (size_t)opz.getActivePageParameters().filter).c_str(),
-                                                    hBar(7, (size_t)opz.getActivePageParameters().resonance).c_str() );
-            mvwprintw(windows[0], 3, 1, "       %7i %7i %7i %7i", 
-                                                    (int)((int)opz.getActivePageParameters().param1 / 2.55f), 
-                                                    (int)((int)opz.getActivePageParameters().param2 / 2.55f), 
-                                                    (int)((int)opz.getActivePageParameters().filter / 2.55f), 
-                                                    (int)((int)opz.getActivePageParameters().resonance / 2.55f) );
-
-            // PAGE 2: ENVELOPE
-            mvwprintw(windows[1], 1, 1, "ENV.   ATTACK  DECAY   SUSTAIN RELEASE");
-            mvwprintw(windows[1], 2, 1, "       %7i %7i %7i %7i",
-                                                    (int)((int)opz.getActivePageParameters().attack / 2.55f), 
-                                                    (int)((int)opz.getActivePageParameters().decay / 2.55f), 
-                                                    (int)((int)opz.getActivePageParameters().sustain / 2.55f), 
-                                                    (int)((int)opz.getActivePageParameters().release / 2.55f) );
-
-            // PAGE 3: LFO
-            mvwprintw(windows[2],1, 1, "LFO    DEPTH   RATE    DEST    SHAPE");
-            mvwprintw(windows[2],2, 1, "       %s %s %s %s",  hBar(7, (size_t)opz.getActivePageParameters().lfo_depth).c_str(),
-                                                    hBar(7, (size_t)opz.getActivePageParameters().lfo_speed).c_str(),
-                                                    hBar(7, (size_t)opz.getActivePageParameters().lfo_value).c_str(),
-                                                    hBar(7, (size_t)opz.getActivePageParameters().lfo_shape).c_str() );
-            mvwprintw(windows[2],3, 1, "       %7i %7i %7i %7i", 
-                                                    (int)((int)opz.getActivePageParameters().lfo_depth / 2.55f), 
-                                                    (int)((int)opz.getActivePageParameters().lfo_speed / 2.55f), 
-                                                    (int)((int)opz.getActivePageParameters().lfo_value / 2.55f), 
-                                                    (int)((int)opz.getActivePageParameters().lfo_shape / 2.55f) );
-
-            // PAGE 4: FX / PAN & LEVEL
-            mvwprintw(windows[3], 1, 1, " FX  1       2");
-            mvwprintw(windows[3], 2, 1, "     %s %s", hBar(7, (size_t)opz.getActivePageParameters().fx1).c_str(),
-                                                    hBar(7, (size_t)opz.getActivePageParameters().fx2).c_str());
-            mvwprintw(windows[3], 3, 1, "     %7i %7i", 
-                                                    (int)((int)opz.getActivePageParameters().fx1 / 2.55f),
-                                                    (int)((int)opz.getActivePageParameters().fx2 / 2.55f) );
-
-            mvwprintw(windows[3], 6, 1, " PAN L             R");
-            mvwprintw(windows[3], 7, 1, "     ");
-            for (size_t i = 0; i < 15; i++) {
-                size_t p = opz.getActivePageParameters().pan;
-                p = (p/254.0)*15;
-                if (i + 2 > p  && i < p ) wprintw(windows[3], "|");
-                else wprintw(windows[3],".");
+            if (page == 0 || change_data) {
+                // PAGE 1: SOUND        
+                mvwprintw(windows[0], 1, 1, "SOUND  P1      P2      FILTER  RESONA.");
+                mvwprintw(windows[0], 2, 1, "       %s %s %s %s",   hBar(7, (size_t)opz.getActivePageParameters().param1).c_str(),
+                                                        hBar(7, (size_t)opz.getActivePageParameters().param2).c_str(),
+                                                        hBar(7, (size_t)opz.getActivePageParameters().filter).c_str(),
+                                                        hBar(7, (size_t)opz.getActivePageParameters().resonance).c_str() );
+                mvwprintw(windows[0], 3, 1, "       %7i %7i %7i %7i", 
+                                                        (int)((int)opz.getActivePageParameters().param1 / 2.55f), 
+                                                        (int)((int)opz.getActivePageParameters().param2 / 2.55f), 
+                                                        (int)((int)opz.getActivePageParameters().filter / 2.55f), 
+                                                        (int)((int)opz.getActivePageParameters().resonance / 2.55f) );
             }
-            
-            mvwprintw(windows[3], 10, 1, " LEVEL");
-            mvwprintw(windows[3], 11, 1, "     %s", hBar(15, (size_t)opz.getActivePageParameters().level).c_str() );
-            mvwprintw(windows[3], 12, 1, "           %03i", (int)( (int)opz.getActivePageParameters().level / 2.55f));
 
-            mvwprintw(windows[4], 1,  2, "NOTE LENGTH");
-            mvwprintw(windows[4], 2,  2, "%i", opz.getActiveTrackParameters().note_length);
-            mvwprintw(windows[4], 4,  2, "NOTE STYLE");
-            mvwprintw(windows[4], 5,  2, "%i", opz.getActivePageParameters().note_style );
-            mvwprintw(windows[4], 8,  2, "QUANTIZE");
-            mvwprintw(windows[4], 9,  2, "%i", opz.getActiveTrackParameters().quantize);
-            mvwprintw(windows[4], 11, 2, "PORTAMENTO");
-            mvwprintw(windows[4], 12, 2, "%i", opz.getActivePageParameters().portamento );
+            if (page == 1 || change_data) {
+                // PAGE 2: ENVELOPE
+                mvwprintw(windows[1], 1, 1, "ENV.   ATTACK  DECAY   SUSTAIN RELEASE");
+                mvwprintw(windows[1], 2, 1, "       %7i %7i %7i %7i",
+                                                        (int)((int)opz.getActivePageParameters().attack / 2.55f), 
+                                                        (int)((int)opz.getActivePageParameters().decay / 2.55f), 
+                                                        (int)((int)opz.getActivePageParameters().sustain / 2.55f), 
+                                                        (int)((int)opz.getActivePageParameters().release / 2.55f) );
+            }
+
+
+            if (page == 2 || change_data) {
+                // PAGE 3: LFO
+                mvwprintw(windows[2],1, 1, "LFO    DEPTH   RATE    DEST    SHAPE");
+                mvwprintw(windows[2],2, 1, "       %s %s %s %s",  hBar(7, (size_t)opz.getActivePageParameters().lfo_depth).c_str(),
+                                                        hBar(7, (size_t)opz.getActivePageParameters().lfo_speed).c_str(),
+                                                        hBar(7, (size_t)opz.getActivePageParameters().lfo_value).c_str(),
+                                                        hBar(7, (size_t)opz.getActivePageParameters().lfo_shape).c_str() );
+                mvwprintw(windows[2],3, 1, "       %7i %7i %7i %7i", 
+                                                        (int)((int)opz.getActivePageParameters().lfo_depth / 2.55f), 
+                                                        (int)((int)opz.getActivePageParameters().lfo_speed / 2.55f), 
+                                                        (int)((int)opz.getActivePageParameters().lfo_value / 2.55f), 
+                                                        (int)((int)opz.getActivePageParameters().lfo_shape / 2.55f) );
+            }
+
+            if (page == 3 || change_data) {
+                // PAGE 4: FX / PAN & LEVEL
+                mvwprintw(windows[3], 1, 1, " FX  1       2");
+                mvwprintw(windows[3], 2, 1, "     %s %s", hBar(7, (size_t)opz.getActivePageParameters().fx1).c_str(),
+                                                        hBar(7, (size_t)opz.getActivePageParameters().fx2).c_str());
+                mvwprintw(windows[3], 3, 1, "     %7i %7i", 
+                                                        (int)((int)opz.getActivePageParameters().fx1 / 2.55f),
+                                                        (int)((int)opz.getActivePageParameters().fx2 / 2.55f) );
+
+                mvwprintw(windows[3], 6, 1, " PAN L             R");
+                mvwprintw(windows[3], 7, 1, "     ");
+                for (size_t i = 0; i < 15; i++) {
+                    size_t p = opz.getActivePageParameters().pan;
+                    p = (p/254.0)*15;
+                    if (i + 2 > p  && i < p ) wprintw(windows[3], "|");
+                    else wprintw(windows[3],".");
+                }
+                
+                mvwprintw(windows[3], 10, 1, " LEVEL");
+                mvwprintw(windows[3], 11, 1, "     %s", hBar(15, (size_t)opz.getActivePageParameters().level).c_str() );
+                mvwprintw(windows[3], 12, 1, "           %03i", (int)( (int)opz.getActivePageParameters().level / 2.55f));
+            }
+
+            if (pressing_track || change_data) {
+                mvwprintw(windows[4], 1,  2, "NOTE LENGTH");
+                mvwprintw(windows[4], 2,  2, "%i", opz.getActiveTrackParameters().note_length);
+                mvwprintw(windows[4], 4,  2, "NOTE STYLE");
+                mvwprintw(windows[4], 5,  2, "%i", opz.getActivePageParameters().note_style );
+                mvwprintw(windows[4], 8,  2, "QUANTIZE");
+                mvwprintw(windows[4], 9,  2, "%i", opz.getActiveTrackParameters().quantize);
+                mvwprintw(windows[4], 11, 2, "PORTAMENTO");
+                mvwprintw(windows[4], 12, 2, "%i", opz.getActivePageParameters().portamento );
+            }
 
             for (size_t i = 0; i < 5; i++)
                 wrefresh(windows[i]);
+
+            change = false;
+            change_data = false;
         }
 
     }

@@ -47,14 +47,14 @@ const size_t opz_notes_offset_track[] = { 0, 2, 4, 6, 8, 12, 16, 24, 28, 29, 30,
 
 // https://github.com/lrk/z-po-project/wiki/Project-file-format#track-chunk
 typedef struct {
-    uint32_t        plug;
-    uint8_t         step_count;
-    uint8_t         unknown1;
-    uint8_t         step_length;
-    uint8_t         quantize;
-    uint8_t         note_style;
-    uint8_t         note_length;
-    uint8_t         unknown2[2];
+    uint32_t            plug;
+    uint8_t             step_count;
+    uint8_t             unknown1;
+    uint8_t             step_length;
+    uint8_t             quantize;
+    uint8_t             note_style;
+    uint8_t             note_length;
+    uint8_t             unknown2[2];
 } opz_track_parameter, *p_opz_track_parameter;
 
 // https://github.com/lrk/z-po-project/wiki/Project-file-format#note-chunk
@@ -101,7 +101,7 @@ typedef struct {
     opz_track_parameter track_param[16];
     opz_note            note[880];
     opz_step            step[256];
-    opz_sound_parameter page_param[16];
+    opz_sound_parameter sound_param[16];
     uint8_t             mute[40];          // mute config, tracks are mapped with bitmask
     uint16_t            send_tape;          // Send mapping for Tape track using bitmask
     uint16_t            send_master;        // SendMaster  Send mapping for Master track using bitmask
@@ -138,7 +138,10 @@ std::string& toString( opz_pattern_parameter_id _id );
 
 class opz_project {
 public:
-    opz_project();    
+    opz_project();
+
+    virtual bool saveAsTxt(const std::string& _filename);
+
     virtual const opz_project_data&     getProjectData() const { return m_project; }
 
     virtual const opz_pattern&          getPattern(size_t _id) const { return m_project.pattern[_id]; }
@@ -147,7 +150,7 @@ public:
     virtual size_t                      getNotesPerTrack(size_t _track) { return opz_notes_per_track[_track]; }
 
     virtual const opz_track_parameter&  getTrackParameters(uint8_t patterm, opz_track_id _track) const { return m_project.pattern[patterm].track_param[(size_t)_track]; }
-    virtual const opz_sound_parameter&  getSoundParameters(uint8_t patterm, opz_track_id _track) const { return m_project.pattern[patterm].page_param[(size_t)_track]; };
+    virtual const opz_sound_parameter&  getSoundParameters(uint8_t patterm, opz_track_id _track) const { return m_project.pattern[patterm].sound_param[(size_t)_track]; };
     virtual float                       getSoundParameter(uint8_t patterm, opz_track_id _track, opz_sound_parameter_id _prop) const;
 
 protected:

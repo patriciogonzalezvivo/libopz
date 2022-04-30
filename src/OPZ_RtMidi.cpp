@@ -129,7 +129,9 @@ void opz_rtmidi::sendCmd(unsigned char _cmd) {
     std::vector<unsigned char> cmd = {
         SYSEX_HEAD, OPZ_VENDOR_ID[0], OPZ_VENDOR_ID[1], OPZ_VENDOR_ID[2], OPZ_MAX_PROTOCOL_VERSION, _cmd, SYSEX_END
     };
-    m_out->sendMessage( &cmd );
+
+    if (m_connected)
+        m_out->sendMessage( &cmd );
 }
 
 void opz_rtmidi::sendCmd(unsigned char* _cmd, size_t _length) {
@@ -140,7 +142,9 @@ void opz_rtmidi::sendCmd(unsigned char* _cmd, size_t _length) {
     for (size_t i = 0; i < _length; i++)
         cmd.push_back(_cmd[i]);
     cmd.push_back(SYSEX_END);
-    m_out->sendMessage( &cmd );
+
+    if (m_connected)
+        m_out->sendMessage( &cmd );
 }
 
 void opz_rtmidi::process_message(double _deltatime, std::vector<unsigned char>* _message, void* _userData) {
