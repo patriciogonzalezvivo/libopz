@@ -90,7 +90,7 @@ int main(int argc, char** argv) {
                 size_t i = opz.getNoteIdOffset(y, x);
                 // mvprintw(y+4, 12 + x * x_width, "%i", i );
                 if ( pattern.note[ i ].note == 0xFF)
-                    mvprintw(y+4, 12 + x * x_width, "  ");
+                    mvprintw(y+4, 12 + x * x_width, " .");
                 else
                     mvprintw(y+4, 12 + x * x_width, "%02X", pattern.note[ i ].note );
                 // mvprintw(y+4, 12 + x * x_width, "%.2f", pattern.note[ i ].duration / 4294967295.0 );

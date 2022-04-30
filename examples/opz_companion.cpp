@@ -92,11 +92,14 @@ int main(int argc, char** argv) {
         if (!change)
             continue;
 
+        size_t project_id = opz.getActiveProjectId();
+        uint8_t pattern_id = opz.getActivePatternId();
+        T3::opz_track_id track_id = opz.getActiveTrackId();
         T3::opz_project_data project = opz.getProjectData();
-        uint8_t pattern = opz.getActivePatternId();
-        T3::opz_track_id track = opz.getActiveTrackId();
+        T3::opz_pattern pattern = opz.getActivePattern();
+        int x_width = 4;
 
-        std::string title_name =  T3::toString(track);
+        std::string title_name =  T3::toString(track_id);
 
         if (mic_on) title_name = "MICROPHONE";
         else if (pressing_project) title_name = "PROJECTS";
@@ -105,11 +108,21 @@ int main(int argc, char** argv) {
 
         clear();
         mvprintw(0, (x_max-x_beg)/2 - title_name.size()/2, "%s", title_name.c_str() );
+
         for (size_t i = 0; i < 16; i++) {
-            int x = i * 5 + (i / 4) - ((i > 10)? 1 : 0);
-            mvprintw(y_max-4, x, "%i", i+1);
-            mvprintw(y_max-3, x, "*");
+            size_t x = 3 + i * x_width + ( (i/4) * x_width);
+            mvprintw(y_max-4, x, "%02i", i + 1 );
+            size_t note = opz.getNoteIdOffset(track_id, i);
+
+            if ( pattern.note[ note ].note == 0xFF)
+                mvprintw(y_max-3, x, ".");
+            else {
+                attron(COLOR_PAIR(2));
+                mvprintw(y_max-3, x, "*");
+                attroff(COLOR_PAIR(2));
+            }
         }
+        
         mvprintw(y_max-2, 0, "STEP COUNT %2i      STEP LENGHT %2i                                        SUM %2i", 
                                 opz.getActiveTrackParameters().step_count, 
                                 opz.getActiveTrackParameters().step_length,
@@ -129,13 +142,32 @@ int main(int argc, char** argv) {
         else if (pressing_project) {
             wclear(windows[5]);
             box(windows[5], 0, 0);
-            mvwprintw(windows[5], 0, 2, " PROJECT  %02i ", opz.getActiveProjectId()+1);
-            mvwprintw(windows[5], 0, 20, " PATTERN  %02i ", pattern+1 );
-            for (size_t i = 0; i < 16; i++) {
-                int y = 1 + i;
-                mvwprintw(windows[5], y, 1, "  %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X    %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X %02X%02X%02X%02X",
-                project.pattern_chain[i].pattern[0], project.pattern_chain[i].pattern[1], project.pattern_chain[i].pattern[2], project.pattern_chain[i].pattern[3], project.pattern_chain[i].pattern[4], project.pattern_chain[i].pattern[5], project.pattern_chain[i].pattern[6], project.pattern_chain[i].pattern[7], project.pattern_chain[i].pattern[8], project.pattern_chain[i].pattern[9], project.pattern_chain[i].pattern[10], project.pattern_chain[i].pattern[11], project.pattern_chain[i].pattern[12], project.pattern_chain[i].pattern[13], project.pattern_chain[i].pattern[14], project.pattern_chain[i].pattern[15],
-                project.pattern_chain[i].pattern[16], project.pattern_chain[i].pattern[17], project.pattern_chain[i].pattern[18], project.pattern_chain[i].pattern[19], project.pattern_chain[i].pattern[20], project.pattern_chain[i].pattern[21], project.pattern_chain[i].pattern[22], project.pattern_chain[i].pattern[23], project.pattern_chain[i].pattern[24], project.pattern_chain[i].pattern[25], project.pattern_chain[i].pattern[26], project.pattern_chain[i].pattern[27], project.pattern_chain[i].pattern[28], project.pattern_chain[i].pattern[29], project.pattern_chain[i].pattern[30],  project.pattern_chain[i].pattern[31]);
+
+            mvwprintw(windows[5], 0, 2, " PROJECT  %02i ", project_id);
+            mvwprintw(windows[5], 0, 20, " PATTERN  %02i ", pattern_id );
+            
+            for (size_t y = 0; y < 16; y++) {
+                // mvwprintw(windows[5], 1, 12 + y * x_width, "%02i ", y+1);
+
+                if (y == track_id)
+                    wattron(windows[5], COLOR_PAIR(2));
+
+                mvwprintw(windows[5], y+1, 2, "%7s", T3::toString( T3::opz_track_id(y) ).c_str() );
+
+                // mvwprintw(windows[5], x+2 , 10 + 16 * x_width, "%i", pattern.track_param[x].step_count );
+                // mvwprintw(windows[5], x+2 , 10 + 16 * x_width + 5, "%i", pattern.track_param[x].step_length );
+                // mvwprintw(windows[5], x+2 , 10 + 16 * x_width + 2, "%i", pattern.track_param[x].note_length );
+
+                for (size_t x = 0; x < 16; x++) {
+
+                    size_t i = opz.getNoteIdOffset(y, x);
+                    // mvwprintw(windows[5], y+4, 12 + x * x_width, "%i", i );
+                    if ( pattern.note[ i ].note == 0xFF)
+                        mvwprintw(windows[5], y+1, 12 + x * x_width, " .");
+                    else
+                        mvwprintw(windows[5], y+1, 12 + x * x_width, "%02X", pattern.note[ i ].note );
+                }
+                wattroff(windows[5], COLOR_PAIR(2));
             }
             wrefresh(windows[5]);
         }
