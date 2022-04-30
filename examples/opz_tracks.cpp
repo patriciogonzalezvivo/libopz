@@ -48,7 +48,7 @@ int main(int argc, char** argv) {
             ch = getch();
             if (ch == 'q') {
                 opz.saveAsTxt("project.txt");
-                
+
                 keepRunnig = false;
                 keepRunnig.store(false);
                 break;
@@ -64,20 +64,25 @@ int main(int argc, char** argv) {
         opz.keepawake();
 
         T3::opz_pattern pattern = opz.getActivePattern();
+        size_t track = opz.getActiveTrackId();
 
         clear();
         mvprintw(0, (x_max-x_beg)/2 - 6, "PATTERN %02i", opz.getActivePatternId() );
 
         int x_width = 6;
-        for (size_t x = 0; x < 16; x++) {
-                mvprintw(2, 12 + x * x_width, "%02i ", x+1);
-                mvprintw(x+4 , 2, "%7s", T3::toString( T3::opz_track_id(x) ).c_str() );
+        for (size_t y = 0; y < 16; y++) {
+                mvprintw(2, 12 + y * x_width, "%02i ", y+1);
+
+                if (y == track)
+                    attron(COLOR_PAIR(2));
+
+                mvprintw(y+4 , 2, "%7s", T3::toString( T3::opz_track_id(y) ).c_str() );
 
                 // mvprintw(x+2 , 10 + 16 * x_width, "%i", pattern.track_param[x].step_count );
                 // mvprintw(x+2 , 10 + 16 * x_width + 5, "%i", pattern.track_param[x].step_length );
                 // mvprintw(x+2 , 10 + 16 * x_width + 2, "%i", pattern.track_param[x].note_length );
 
-            for (size_t y = 0; y < 16; y++) {
+            for (size_t x = 0; x < 16; x++) {
 
                 size_t i = opz.getNoteIdOffset(y, x);
                 // mvprintw(y+2, 10 + x * x_width, "%i", i );
@@ -90,6 +95,8 @@ int main(int argc, char** argv) {
                 // mvprintw(y+2, 10 + x * x_width, "%04X", pattern.step[ x * 16 + y ].components_bitmask );
 
             }
+
+            attroff(COLOR_PAIR(2));
         }
 
         refresh();

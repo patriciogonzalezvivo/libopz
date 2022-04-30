@@ -183,17 +183,18 @@ bool opz_project::saveAsTxt(const std::string& _filename) {
                     myfile << "\tstep[" << std::dec << j <<"]; = { ";
 
                     // myfile << "\t\tuint16_t components_bitmask;\n\t\t";
-                    myfile << std::setfill('0') << std::setw(4) << std::uppercase << std::hex << (0xFFFF & m_project.pattern[i].step[j].components_bitmask ) << "  ";
+                    myfile << std::setfill('0') << std::setw(4) << std::uppercase << std::hex << (0xFFFF & m_project.pattern[i].step[j].components_bitmask ) << " ";
+                    myfile << "  ";
 
                     // myfile << "\t\tuint8_t components_parameters[18]\n\t\t";
                     for (size_t k = 0; k < 18; k++)
                         myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].step[j].components_parameters[k] ) << " ";
-                    // myfile << "\n\n";
+                    myfile << " ";
 
                     // myfile << "\t\tuint8_t components_locked_values[18]\n\t\t";
                     for (size_t k = 0; k < 18; k++)
                         myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].step[j].components_locked_values[k] ) << " ";
-                    // myfile << "\n\n";
+                    myfile << "  ";
 
                     // myfile << "\t\tuint8_t parameter_mask[18]\n\t\t";
                     for (size_t k = 0; k < 18; k++)
