@@ -111,14 +111,14 @@ int main(int argc, char** argv) {
 
         for (size_t i = 0; i < 16; i++) {
             size_t x = 3 + i * x_width + ( (i/4) * x_width);
-            mvprintw(y_max-4, x, "%02i", i + 1 );
+            mvprintw(y_max-5, x, "%02i", i + 1 );
             size_t note = opz.getNoteIdOffset(track_id, i);
 
             if ( pattern.note[ note ].note == 0xFF)
-                mvprintw(y_max-3, x, ".");
+                mvprintw(y_max-4, x, "-");
             else {
                 attron(COLOR_PAIR(2));
-                mvprintw(y_max-3, x, "*");
+                mvprintw(y_max-4, x, "o");
                 attroff(COLOR_PAIR(2));
             }
         }
