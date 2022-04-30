@@ -46,7 +46,7 @@ std::string event_name[] = {
     "KEY_TRACK", "KEY_KICK", "KEY_SNARE", "KEY_PERC", "KEY_SAMPLE", "KEY_BASS", "KEY_LEAD", "KEY_ARP", "KEY_CHORD", "KEY_FX1", "KEY_FX2", "KEY_TAPE", "KEY_MASTER", "KEY_PERFORM", "KEY_MODULE", "KEY_LIGHT", "KEY_MOTION",
     "KEY_RECORD", "PLAY_CHANGE", "KEY_STOP", 
     "OCTAVE_CHANGE", "KEY_SHIFT",
-    "PROJECT_CHANGE", "PATTERN_CHANGE", "TRACK_CHANGE", "PAGE_CHANGE",
+    "PROJECT_CHANGE", "PATTERN_CHANGE", "TRACK_CHANGE", "PAGE_CHANGE", "SEQUENCE_CHANGE", "MUTE_CHANGE"
     "MICROPHONE_MODE_CHANGE", "MICROPHONE_LEVEL_CHANGE", "MICROPHONE_FX_CHANGE",
     "PARAMETER_CHANGE",
     "PATTERN_PACKAGE_RECIVED", "PATTERN_DOWNLOADED"
@@ -163,7 +163,57 @@ void opz_device::process_sysex(unsigned char *_message, size_t _length){
             if (verbose > 1 && verbose < 4)
                 std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
 
-            if (length == 11 && data[2] == 0x60) {
+            if (data[2] == 0x00) {
+                uint8_t project_id = address2project(data[4]);
+                uint8_t pattern_id = address2pattern(data[4]);
+                uint8_t track_id = data[7];
+                uint8_t step_id = data[8];
+                size_t note_id = getNoteIdOffset(track_id, step_id);
+
+                if (length == 25) { 
+                    // counter  ??  type ??  address ?? ?? ?? key ?? note 
+                    // 0        1   2    3   4       5  6  7  8   9  10   11 12 13 14 15 16 17 18 19 20 21 22 23 24   
+                    // 3B       00  00   00  50      03 05 00 01  00 3C   00 78 02 50 08 00 00 0A 00 00 36 64 00 00 
+                    // 5C       00  00   00  50      03 05 02 01  00 5D   00 98 02 50 08 00 00 0A 00 00 3C 64 00 00
+
+                    // TODO:
+                    //      - properly cast a note and overide the place on the patterns note
+
+                    if (verbose > 2) {
+                        printf("    NOTE ON\n");
+                        printf("    project: %i\n", project_id );
+                        printf("    pattern: %i\n", pattern_id );
+                        printf("    track:   %i\n", track_id );
+                        printf("    step:    %i\n", step_id );
+                        printf("    note:    %i\n", data[10] );
+                    }
+
+                    m_project.pattern[pattern_id].note[note_id].note = data[10];
+
+                    if (m_event_enable)
+                        m_event(SEQUENCE_CHANGE, data[4]);
+
+                } else if (length == 10) {
+                
+                    // counter  ??  type ??  address  ??   ?? ?? key ??
+                    // 0        1   2    3   4        5    6  7  8   9
+                    // 3A       00  00   00  50       03   05 00 01  01 
+                    if (verbose > 2) {
+                        printf("    NOTE OFF\n");
+                        printf("    project: %i\n", project_id );
+                        printf("    pattern: %i\n", pattern_id );
+                        printf("    track:   %i\n", track_id );
+                        printf("    step:    %i\n", step_id );
+                    }
+
+                    m_project.pattern[pattern_id].note[note_id].note = 0xFF;
+
+                    if (m_event_enable)
+                        m_event(SEQUENCE_CHANGE, data[4]);
+
+                }
+            }
+            else if (length == 11 && data[2] == 0x60) {
                 // counter  ??  type    ??  address ?? ?? ?? ?? ?? ??
                 // BA       10  60      53  11      04 00 80 00 00 00 
                 // A3       14  60      53  20      04 00 08 00 00 00
@@ -184,8 +234,11 @@ void opz_device::process_sysex(unsigned char *_message, size_t _length){
                     for (size_t i = 0; i < 16; i++)
                         printf( "%c ", m_mutes[i] ? '1' : '0' );
                     printf("\n");
-                    
                 }
+
+                if (m_event_enable)
+                    m_event(MUTE_CHANGE, 1);
+
             } else if (length == 8) {
                 // counter  ??  type ??  address  ?? ?? value  
                 // F1       0F  09   00  10       01 00 47
@@ -197,6 +250,10 @@ void opz_device::process_sysex(unsigned char *_message, size_t _length){
                     printf("    type:    %s\n", toString((opz_sound_parameter_id)data[2]).c_str() );
                     printf("    value:   %03i\n", data[7] );
                 }
+
+                if (m_event_enable)
+                    m_event(PARAMETER_CHANGE, 1);
+
             }
             
 
@@ -298,7 +355,7 @@ void opz_device::process_sysex(unsigned char *_message, size_t _length){
                 // printf("    1:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(data[1]));
                 // printf("    2:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(data[2]));
                 // printf("    3:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(data[3]));
-                // printf("    4:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(data[4]));
+                printf("    4:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(data[4]));
                 // printf("    5:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(data[5]));
                 // printf("    6:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(data[6]));
                 // printf("    7:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(data[7]));
@@ -308,7 +365,7 @@ void opz_device::process_sysex(unsigned char *_message, size_t _length){
                 // printf("    B:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(data[11]));
                 // printf("    C:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(data[12]));
                 // printf("    D:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(data[13]));
-                // printf("    E:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(data[14]));
+                printf("    E:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(data[14]));
                 // printf("    F:  %c %c %c %c  %c %c %c %c\n", BYTE_TO_BINARY(data[15]));
             }
 
@@ -433,17 +490,17 @@ void opz_device::process_sysex(unsigned char *_message, size_t _length){
                 // std::cout << "      7BT " << T3::printHex(_message, 15) << " .. F7" << std::endl; 
                 // std::cout << "      RAW F0 00 20 76 01 09 " << T3::printHex(data, length) << "F7" << std::endl;
 
-                if (data[encoded_data_start] == 0x78) {
-                    std::cout << "      ENCODED DATA                            " << T3::printHex(&data[encoded_data_start], encoded_data_length) << "(" << encoded_data_length << " bytes)" << std::endl;
-                    std::vector<unsigned char> data_decompressed = decompress(&data[encoded_data_start], encoded_data_length);
-                    std::cout << "      DECODED DATA                            " << printHex(&data_decompressed[0], data_decompressed.size()) << "(" << data_decompressed.size() << " bytes)" << std::endl;
-                    std::cout << std::endl;
-                }
+                // if (data[encoded_data_start] == 0x78) {
+                //     std::cout << "      ENCODED DATA                            " << T3::printHex(&data[encoded_data_start], encoded_data_length) << "(" << encoded_data_length << " bytes)" << std::endl;
+                //     std::vector<unsigned char> data_decompressed = decompress(&data[encoded_data_start], encoded_data_length);
+                //     std::cout << "      DECODED DATA                            " << printHex(&data_decompressed[0], data_decompressed.size()) << "(" << data_decompressed.size() << " bytes)" << std::endl;
+                //     std::cout << std::endl;
+                // }
 
-                std::vector<unsigned char> buffer_decompressed = decompress(&m_packets[0], m_packets.size());
-                std::cout << std::endl;                // std::vector<unsigned char> buffer_decompressed = decompress(&m_packets[0], m_packets.size());
-                std::cout << std::endl;
-                std::cout << "   BUFFER     " << printHex(&buffer_decompressed[0], buffer_decompressed.size()) << "(" << buffer_decompressed.size() << " bytes)" << std::endl;
+                // std::vector<unsigned char> buffer_decompressed = decompress(&m_packets[0], m_packets.size());
+                // std::cout << std::endl;                // std::vector<unsigned char> buffer_decompressed = decompress(&m_packets[0], m_packets.size());
+                // std::cout << std::endl;
+                // std::cout << "   BUFFER     " << printHex(&buffer_decompressed[0], buffer_decompressed.size()) << "(" << buffer_decompressed.size() << " bytes)" << std::endl;
             }
 
             if (m_packet_recived_enabled)
