@@ -47,6 +47,7 @@ m_connected(false) {
             if (m_connected)
                 m_out->sendMessage( &cmd );
     };
+
 }
 
 bool opz_rtmidi::connect() {

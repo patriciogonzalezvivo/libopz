@@ -11,8 +11,8 @@ int main(int argc, char** argv) {
     T3::opz_rtmidi  opz;
     opz.connect();
     // opz.verbose = 1; // message type
-    // opz.verbose = 2; // hex values
-    opz.verbose = 3; // interpreted message
+    opz.verbose = 2; // hex values
+    // opz.verbose = 3; // interpreted message
     // opz.verbose = 4; // interpreted message w no hex values
 
     // // Listen to key events (no cc, neighter notes)

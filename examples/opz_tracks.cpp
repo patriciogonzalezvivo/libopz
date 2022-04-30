@@ -8,6 +8,7 @@
 
 #include <ncurses.h>
 #include "opz_rtmidi.h"
+#include "tools.h"
 
 std::string version = "0.1";
 std::string name = "opz_tracks";
@@ -47,7 +48,7 @@ int main(int argc, char** argv) {
         while ( true ) {
             ch = getch();
             if (ch == 'q') {
-                opz.saveAsTxt("project.txt");
+                opz.saveAsTxt("project" + std::to_string( opz.getActiveProjectId() + 1) + ".txt");
 
                 keepRunnig = false;
                 keepRunnig.store(false);
@@ -63,17 +64,19 @@ int main(int argc, char** argv) {
 
         opz.keepawake();
 
+        size_t project_id = opz.getActiveProjectId();
         T3::opz_pattern pattern = opz.getActivePattern();
-        size_t track = opz.getActiveTrackId();
+        size_t pattern_id = opz.getActivePatternId();
+        size_t track_id = opz.getActiveTrackId();
 
-        clear();
-        mvprintw(0, (x_max-x_beg)/2 - 6, "PATTERN %02i", opz.getActivePatternId() );
+        // clear();
+        mvprintw(0, (x_max-x_beg)/2 - 12, "PROJECT %02i | PATTERN %02i", project_id, pattern_id );
 
         int x_width = 6;
         for (size_t y = 0; y < 16; y++) {
                 mvprintw(2, 12 + y * x_width, "%02i ", y+1);
 
-                if (y == track)
+                if (y == track_id)
                     attron(COLOR_PAIR(2));
 
                 mvprintw(y+4 , 2, "%7s", T3::toString( T3::opz_track_id(y) ).c_str() );
@@ -85,14 +88,17 @@ int main(int argc, char** argv) {
             for (size_t x = 0; x < 16; x++) {
 
                 size_t i = opz.getNoteIdOffset(y, x);
-                // mvprintw(y+2, 10 + x * x_width, "%i", i );
-                mvprintw(y+4, 12 + x * x_width, "%.2f", pattern.note[ i ].duration / 4294967295.0 );
-                // mvprintw(y+2, 10 + x * x_width, "%02X", pattern.note[ i ].note );
-                // mvprintw(y+2, 10 + x * x_width, "%02X", pattern.note[ i ].velocity );
-                // mvprintw(y+2, 10 + x * x_width, "%i", pattern.note[ i ].micro_adjustment );
-                // mvprintw(y+2, 10 + x * x_width, "%02X", pattern.note[ i ].age );
+                // mvprintw(y+4, 12 + x * x_width, "%i", i );
+                if ( pattern.note[ i ].note == 0xFF)
+                    mvprintw(y+4, 12 + x * x_width, "  ");
+                else
+                    mvprintw(y+4, 12 + x * x_width, "%02X", pattern.note[ i ].note );
+                // mvprintw(y+4, 12 + x * x_width, "%.2f", pattern.note[ i ].duration / 4294967295.0 );
+                // mvprintw(y+4, 12 + x * x_width, "%02X", pattern.note[ i ].velocity );
+                // mvprintw(y+4, 12 + x * x_width, "%i", pattern.note[ i ].micro_adjustment );
+                // mvprintw(y+4, 12 + x * x_width, "%02X", pattern.note[ i ].age );
 
-                // mvprintw(y+2, 10 + x * x_width, "%04X", pattern.step[ x * 16 + y ].components_bitmask );
+                // mvprintw(y+4, 12 + x * x_width, "%04X", pattern.step[ x * 16 + y ].components_bitmask );
 
             }
 

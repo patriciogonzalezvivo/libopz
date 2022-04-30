@@ -116,7 +116,6 @@ typedef struct {
 
 // https://github.com/lrk/z-po-project/wiki/Project-file-format#project-file-format
 typedef struct {
-    // uint32_t            file_id;         // seem to be always the same number: 0x00000049
     opz_pattern_chain   pattern_chain[16];  // Array of saved pattern chains
     uint8_t             drum_level;
     uint8_t             synth_level;
@@ -130,6 +129,11 @@ typedef struct {
     uint32_t            unknown2;           // unknown, mostly 0x000000FF
     opz_pattern         pattern[16];
 } opz_project_data, *p_opz_project_data;
+
+typedef struct {
+    uint32_t            file_id;         // seem to be always the same number: 0x00000049
+    opz_project_data    data;
+} opz_project_file, *p_opz_project_file;
 
 std::string& toString( opz_track_id  _id );
 std::string& toString( opz_note_style_id  _id );

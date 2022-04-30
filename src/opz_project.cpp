@@ -3,6 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
+#include "tools.h"
 
 namespace T3 {
 
@@ -119,27 +120,27 @@ bool opz_project::saveAsTxt(const std::string& _filename) {
         myfile << "opz_pattern_chain pattern_chain[16]\n";
         for (size_t i = 0; i < 16; i++) {
             for (size_t t = 0; t < 32; t++)
-                myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern_chain[i].pattern[t] ) << " ";
+                myfile << toStringHex( m_project.pattern_chain[i].pattern[t] ) << " ";
             myfile << "\n";
         }
         myfile << "\n";
 
         myfile << "uint8_t drum_level, synth_level, punch_level, master_level, tempo;\n";
-        myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.drum_level ) << " ";
-        myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.synth_level ) << " ";
-        myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.punch_level ) << " ";
-        myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.master_level ) << " ";
-        myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.tempo ) << "\n\n";
+        myfile <<   toStringHex( m_project.drum_level ) << " " << 
+                    toStringHex( m_project.synth_level ) << " " << 
+                    toStringHex( m_project.punch_level ) << " " << 
+                    toStringHex( m_project.master_level ) << " " << 
+                    toStringHex( m_project.tempo ) << "\n\n";
 
         myfile << "uint8_t unknown1[44]\n";
         for (size_t i = 0; i < 44; i++)
-            myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.unknown1[i] ) << " ";
+            myfile << toStringHex( m_project.unknown1[i] ) << " ";
         myfile << "\n\n";
 
         myfile << "uint8_t swing, metronome_level, metronome_sound;\n";
-        myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.swing ) << " ";
-        myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.metronome_level ) << " ";
-        myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.metronome_sound ) << "\n\n";
+        myfile <<   toStringHex( m_project.swing ) << " " << 
+                    toStringHex( m_project.metronome_level ) << " " << 
+                    toStringHex( m_project.metronome_sound ) << "\n\n";
 
         myfile << "uint32_t unknown2;\n";
         myfile << std::setfill('0') << std::setw(8) << std::uppercase << std::hex << (0xFFFFFFFF & m_project.unknown2 ) << "\n\n";
@@ -155,16 +156,16 @@ bool opz_project::saveAsTxt(const std::string& _filename) {
                     myfile << std::setfill('0') << std::setw(8) << std::uppercase << std::hex << (0xFFFFFFFF & m_project.pattern[i].track_param[j].plug ) << "\n\n";
 
                     myfile << "\t\tuint8_t step_count, unknown1, step_length, quantize, note_style, note_length;\n\t\t";
-                    myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].track_param[j].step_count ) << " ";
-                    myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].track_param[j].unknown1 ) << " ";
-                    myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].track_param[j].step_length ) << " ";
-                    myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].track_param[j].quantize ) << " ";
-                    myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].track_param[j].note_style ) << " ";
-                    myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].track_param[j].note_length ) << "\n\n";
+                    myfile <<   toStringHex( m_project.pattern[i].track_param[j].step_count ) << " " << 
+                                toStringHex( m_project.pattern[i].track_param[j].unknown1 ) << " " << 
+                                toStringHex( m_project.pattern[i].track_param[j].step_length ) << " " << 
+                                toStringHex( m_project.pattern[i].track_param[j].quantize ) << " " << 
+                                toStringHex( m_project.pattern[i].track_param[j].note_style ) << " " << 
+                                toStringHex( m_project.pattern[i].track_param[j].note_length ) << "\n\n";
 
                     myfile << "\t\tuint8_t unknown2[2]\n\t\t";
                     for (size_t k = 0; k < 2; k++)
-                        myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].track_param[j].unknown2[k] ) << " ";
+                        myfile << toStringHex( m_project.pattern[i].track_param[j].unknown2[k] ) << " ";
                     myfile << "\n\n";
                 }
 
@@ -173,10 +174,10 @@ bool opz_project::saveAsTxt(const std::string& _filename) {
                     myfile << "\tnote[" << std::setfill('0') << std::setw(3) << std::dec << j <<"] = { ";
                     myfile << std::setfill('0') << std::setw(8) << std::uppercase << std::hex << (0xFFFFFFFF & m_project.pattern[i].note[j].duration ) << " ";
 
-                    myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].note[j].note ) << " ";
-                    myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].note[j].velocity ) << " ";
-                    myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].note[j].micro_adjustment ) << " ";
-                    myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].note[j].age ) << " } \n";
+                    myfile <<   toStringHex( m_project.pattern[i].note[j].note ) << " " << 
+                                toStringHex( m_project.pattern[i].note[j].velocity ) << " " << 
+                                toStringHex( (uint8_t)m_project.pattern[i].note[j].micro_adjustment ) << " " << 
+                                toStringHex( m_project.pattern[i].note[j].age ) << " } \n";
                 }
 
                 myfile << "\topz_step step[256];\n";
@@ -184,22 +185,22 @@ bool opz_project::saveAsTxt(const std::string& _filename) {
                     myfile << "\tstep[" << std::dec << j <<"]; = { ";
 
                     // myfile << "\t\tuint16_t components_bitmask;\n\t\t";
-                    myfile << std::setfill('0') << std::setw(4) << std::uppercase << std::hex << (0xFFFF & m_project.pattern[i].step[j].components_bitmask ) << " ";
+                    myfile << toStringHex( m_project.pattern[i].step[j].components_bitmask ) << " ";
                     myfile << "  ";
 
                     // myfile << "\t\tuint8_t components_parameters[18]\n\t\t";
                     for (size_t k = 0; k < 18; k++)
-                        myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].step[j].components_parameters[k] ) << " ";
+                        myfile << toStringHex( m_project.pattern[i].step[j].components_parameters[k] ) << " ";
                     myfile << " ";
 
                     // myfile << "\t\tuint8_t components_locked_values[18]\n\t\t";
                     for (size_t k = 0; k < 18; k++)
-                        myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].step[j].components_locked_values[k] ) << " ";
+                        myfile << toStringHex( m_project.pattern[i].step[j].components_locked_values[k] ) << " ";
                     myfile << "  ";
 
                     // myfile << "\t\tuint8_t parameter_mask[18]\n\t\t";
                     for (size_t k = 0; k < 18; k++)
-                        myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].step[j].parameter_mask[k] ) << " ";
+                        myfile << toStringHex( m_project.pattern[i].step[j].parameter_mask[k] ) << " ";
                     myfile << "}\n";
                 }
 
@@ -207,44 +208,44 @@ bool opz_project::saveAsTxt(const std::string& _filename) {
                 for (size_t j = 0; j < 16; j++) {
                     myfile << "\tsound_param[" << std::dec << j <<"];\n";
                     myfile << "\t\tuint8_t param1, param2, attack, decay, sustain, release, fx1, fx2, filter, resonance, pan, level, filter, resonance, pan, level, portamento, lfo_depth, lfo_speed, lfo_value, lfo_shape, note_style;\n\t\t";
-                    myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].sound_param[j].param1 ) << " ";
-                    myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].sound_param[j].param2 ) << " ";
-                    myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].sound_param[j].attack ) << " ";
-                    myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].sound_param[j].decay ) << " ";
-                    myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].sound_param[j].sustain ) << " ";
-                    myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].sound_param[j].release ) << " ";
-                    myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].sound_param[j].fx1) << " ";
-                    myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].sound_param[j].fx2) << " ";
-                    myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].sound_param[j].filter) << " ";
-                    myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].sound_param[j].resonance) << " ";
-                    myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].sound_param[j].pan) << " ";
-                    myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].sound_param[j].level) << " ";
-                    myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].sound_param[j].portamento) << " ";
-                    myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].sound_param[j].lfo_depth) << " ";
-                    myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].sound_param[j].lfo_speed) << " ";
-                    myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].sound_param[j].lfo_value) << " ";
-                    myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].sound_param[j].lfo_shape) << " ";
-                    myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].sound_param[j].note_style ) << "\n\n";
+                    myfile <<   toStringHex( m_project.pattern[i].sound_param[j].param1 ) << " " << 
+                                toStringHex( m_project.pattern[i].sound_param[j].param2 ) << " " << 
+                                toStringHex( m_project.pattern[i].sound_param[j].attack ) << " " << 
+                                toStringHex( m_project.pattern[i].sound_param[j].decay ) << " " << 
+                                toStringHex( m_project.pattern[i].sound_param[j].sustain ) << " " << 
+                                toStringHex( m_project.pattern[i].sound_param[j].release ) << " " << 
+                                toStringHex( m_project.pattern[i].sound_param[j].fx1) << " " << 
+                                toStringHex( m_project.pattern[i].sound_param[j].fx2) << " " << 
+                                toStringHex( m_project.pattern[i].sound_param[j].filter) << " " << 
+                                toStringHex( m_project.pattern[i].sound_param[j].resonance) << " " << 
+                                toStringHex( m_project.pattern[i].sound_param[j].pan) << " " << 
+                                toStringHex( m_project.pattern[i].sound_param[j].level) << " " << 
+                                toStringHex( m_project.pattern[i].sound_param[j].portamento) << " " << 
+                                toStringHex( m_project.pattern[i].sound_param[j].lfo_depth) << " " << 
+                                toStringHex( m_project.pattern[i].sound_param[j].lfo_speed) << " " << 
+                                toStringHex( m_project.pattern[i].sound_param[j].lfo_value) << " " << 
+                                toStringHex( m_project.pattern[i].sound_param[j].lfo_shape) << " " << 
+                                toStringHex( m_project.pattern[i].sound_param[j].note_style ) << "\n\n";
 
                 }
 
                 myfile << "\tuint8_t mute[40]; \n\t";
                 for (size_t j = 0; j < 44; j++)
-                    myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].mute[j] ) << " ";
+                    myfile << toStringHex( m_project.pattern[i].mute[j] ) << " ";
                 myfile << "\n\n";
 
                 myfile << "\tuint16_t send_tape;\n\t";
-                myfile << std::setfill('0') << std::setw(4) << std::uppercase << std::hex << (0xFFFF & m_project.pattern[i].send_tape ) << "\n\n";
+                myfile << toStringHex( m_project.pattern[i].send_tape ) << "\n\n";
 
                 myfile << "\tuint16_t send_master;\n\t";
-                myfile << std::setfill('0') << std::setw(4) << std::uppercase << std::hex << (0xFFFF & m_project.pattern[i].send_master ) << "\n\n";
+                myfile << toStringHex( m_project.pattern[i].send_master ) << "\n\n";
 
                 myfile << "\tuint8_t active_mute_group;\n\t";
-                myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].active_mute_group ) << "\n\n";
+                myfile << toStringHex( m_project.pattern[i].active_mute_group ) << "\n\n";
 
                 myfile << "\tuint8_t unknown[3]\n\t";
                 for (size_t j = 0; j < 3; j++)
-                    myfile << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & m_project.pattern[i].unknown[j]  ) << " ";
+                    myfile << toStringHex( m_project.pattern[i].unknown[j]  ) << " ";
                 myfile << "\n\n";
 
             myfile << "\n\n";

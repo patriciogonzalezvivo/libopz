@@ -64,13 +64,11 @@ std::vector<unsigned char> opz_confirm_package_cmd(uint8_t *_data, size_t _lengt
     // std::cout << "       DATA MSG                 | " << T3::printHex(_data, 6) << std::endl; 
     std::vector<unsigned char> msg = {  0x09, 0x00, 0x00, _data[1], _data[2], _data[3], _data[4], 0x00  };
     std::vector<unsigned char> sysex_out = { T3::SYSEX_HEAD, T3::OPZ_VENDOR_ID[0], T3::OPZ_VENDOR_ID[1], T3::OPZ_VENDOR_ID[2], T3::OPZ_MAX_PROTOCOL_VERSION, 0x0B };
-
     sysex_out.resize(100);
     size_t outdata_length = T3::encode(&msg[0], msg.size(), &sysex_out[6]);
     sysex_out.resize(6 + outdata_length);
     sysex_out.push_back( T3::SYSEX_END );
     // std::cout << "   OUT 7BIT MSG " << T3::printHex(&sysex_out[0], sysex_out.size()) << std::endl; 
-
     return sysex_out;
 }
 
@@ -418,21 +416,35 @@ void opz_device::process_sysex(unsigned char *_message, size_t _length){
             uint8_t pattern_address = data[0];
             uint8_t project = address2project(data[0]);
             uint8_t pattern = address2pattern(data[0]);
-            size_t offset = 6;
+            size_t encoded_data_start = 6;
+            size_t encoded_data_length = length - encoded_data_start;
 
             // Pattern ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#09-pattern )
             if (verbose)
                 printf("Msg %02X (Pattern %02X Package %02X)\n", header.parm_id, data[0], data[4]);
-            
-            if (verbose > 1 && verbose < 4) {
-                std::cout << "      7BT " << T3::printHex(_message, 15) << " .. " << std::endl; 
-                std::cout << "      RAW F0 00 20 76 01 09 " << T3::printHex(data, 8) << " .. " << std::endl; 
-            }
 
             if (data[4] == 0x00)
                 m_packets.clear();
 
-            m_packets.insert(m_packets.end(), &data[offset], &data[data_length-1]);
+            m_packets.insert(m_packets.end(), &data[encoded_data_start], &data[encoded_data_start] + encoded_data_length);
+
+            // Global data is compressed using zlib
+            if (verbose > 1 && verbose < 4) {
+                // std::cout << "      7BT " << T3::printHex(_message, 15) << " .. F7" << std::endl; 
+                // std::cout << "      RAW F0 00 20 76 01 09 " << T3::printHex(data, length) << "F7" << std::endl;
+
+                if (data[encoded_data_start] == 0x78) {
+                    std::cout << "      ENCODED DATA                            " << T3::printHex(&data[encoded_data_start], encoded_data_length) << "(" << encoded_data_length << " bytes)" << std::endl;
+                    std::vector<unsigned char> data_decompressed = decompress(&data[encoded_data_start], encoded_data_length);
+                    std::cout << "      DECODED DATA                            " << printHex(&data_decompressed[0], data_decompressed.size()) << "(" << data_decompressed.size() << " bytes)" << std::endl;
+                    std::cout << std::endl;
+                }
+
+                std::vector<unsigned char> buffer_decompressed = decompress(&m_packets[0], m_packets.size());
+                std::cout << std::endl;                // std::vector<unsigned char> buffer_decompressed = decompress(&m_packets[0], m_packets.size());
+                std::cout << std::endl;
+                std::cout << "   BUFFER     " << printHex(&buffer_decompressed[0], buffer_decompressed.size()) << "(" << buffer_decompressed.size() << " bytes)" << std::endl;
+            }
 
             if (m_packet_recived_enabled)
                 m_packet_recived(header.parm_id, data, 6);
@@ -444,20 +456,21 @@ void opz_device::process_sysex(unsigned char *_message, size_t _length){
             uint8_t pattern_address = data[0];
             uint8_t project = address2project(data[0]);
             uint8_t pattern = address2pattern(data[0]);
-            size_t offset = 6;
+            size_t encoded_data_start = 6;
+            size_t encoded_data_length = length - encoded_data_start;
 
             if (verbose)
                 printf("Msg %02X (Pattern %02X Package END)\n", header.parm_id, data[0]);
 
-            if (data_length > 6)
-                m_packets.insert(m_packets.end(), &data[offset], &data[data_length-1]);
+            // if (data_length > 7)
+            //     m_packets.insert(m_packets.end(), &data[encoded_data_start], &data[encoded_data_start] + encoded_data_length);
 
             std::vector<unsigned char> decompressed = decompress(&m_packets[0], m_packets.size());
 
             if (verbose > 1 && verbose < 4) {
                 // std::cout << "   RAW " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
                 // std::cout << "   ENC " << printHex(&decompressed[0], decompressed.size()) << "(" << decompressed.size() << " bytes)" << std::endl;
-                std::cout << "      7BT " << T3::printHex(_message, 13) << " .. " << std::endl; 
+                // std::cout << "      7BT " << T3::printHex(_message, 13) << " .. " << std::endl; 
                 std::cout << "   Downloaded total of "  << m_packets.size() << " bytes" << std::endl;
                 std::cout << "   Decompressed into   "  << decompressed.size() << " bytes" << std::endl;
             }
@@ -502,7 +515,7 @@ void opz_device::process_sysex(unsigned char *_message, size_t _length){
             std::vector<unsigned char> decompressed = decompress(data, length);
 
             if (verbose > 1 && verbose < 4) {
-                // std::cout << "   RAW " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
+                std::cout << "   RAW " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
                 std::cout << "   ENC " << printHex(&decompressed[0], decompressed.size()) << "(" << decompressed.size() << " bytes)" << std::endl;
             }
             

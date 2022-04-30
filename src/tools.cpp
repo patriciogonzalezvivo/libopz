@@ -3,6 +3,8 @@
 #include <zlib.h>
 #include <stdlib.h>
 #include <cstring>
+#include <sstream>
+#include <iomanip>
 
 namespace T3 {
 
@@ -31,6 +33,24 @@ char *printAscii(unsigned char *cp, size_t n) {
 
     s[n] = '\0';
     return s;
+}
+
+std::string toStringHex(uint8_t _v) {
+    std::ostringstream strStream;
+    strStream << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & _v);
+    return strStream.str();
+}
+
+std::string toStringHex(uint16_t _v) {
+    std::ostringstream strStream;
+    strStream << std::setfill('0') << std::setw(4) << std::uppercase << std::hex << (0xFFFF & _v);
+    return strStream.str();
+}
+
+std::string toStringHex(uint32_t _v) {
+    std::ostringstream strStream;
+    strStream << std::setfill('0') << std::setw(8) << std::uppercase << std::hex << (0xFFFFFFFF & _v);
+    return strStream.str();
 }
 
 uint8_t address2project(uint8_t _address) { return _address / 16; }
