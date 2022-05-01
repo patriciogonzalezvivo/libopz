@@ -28,7 +28,7 @@ namespace T3
         KEY_TRACK, KEY_KICK, KEY_SNARE, KEY_PERC, KEY_SAMPLE, KEY_BASS, KEY_LEAD, KEY_ARP, KEY_CHORD, KEY_FX1, KEY_FX2, KEY_TAPE, KEY_MASTER, KEY_PERFORM, KEY_MODULE, KEY_LIGHT, KEY_MOTION,
         KEY_RECORD, PLAY_CHANGE, KEY_STOP,
         OCTAVE_CHANGE, KEY_SHIFT,
-        PROJECT_CHANGE, PATTERN_CHANGE, TRACK_CHANGE, PAGE_CHANGE, SEQUENCE_CHANGE, MUTE_CHANGE,
+        PROJECT_CHANGE, PATTERN_CHANGE, TRACK_CHANGE, PAGE_CHANGE, SEQUENCE_CHANGE, MUTE_CHANGE, STEP_CHANGE,
         MICROPHONE_MODE_CHANGE, MICROPHONE_LEVEL_CHANGE, MICROPHONE_FX_CHANGE,
         PARAMETER_CHANGE,
         PATTERN_PACKAGE_RECIVED, PATTERN_DOWNLOADED,
@@ -103,33 +103,34 @@ namespace T3
             m_midi_enable = true;
         }
 
-        float getLevel() const { return m_level; }
-        float getMicLevel() const { return m_mic_level; }
-        opz_mic_fx_id getMicFx() const { return m_mic_fx; }
-        uint8_t getMicMode() const { return m_mic_mode; }
-        bool isPlaying() const { return m_play; }
+        virtual bool                isPlaying() const { return m_play; }
 
-        const bool &isTrackMute(opz_track_id _id) const { return m_mutes[_id]; }
+        virtual float               getLevel() const { return m_level; }
+        virtual float               getMicLevel() const { return m_mic_level; }
+        virtual opz_mic_fx_id       getMicFx() const { return m_mic_fx; }
+        virtual uint8_t             getMicMode() const { return m_mic_mode; }
 
-        int getOctave(size_t _id) const { return m_octave[_id]; }
-        int getActiveOctave() const { return getOctave(m_active_track); }
+        virtual bool                isTrackMute(opz_track_id _id) const { return m_mutes[_id]; }
 
-        uint8_t getActiveProjectId() const { return m_active_project; }
-        uint8_t getActivePatternId() const { return m_active_pattern; }
-        opz_track_id getActiveTrackId() const { return m_active_track; }
-        opz_page_id getActivePageId() const { return m_active_page; }
-        uint8_t getActiveStepId() const { return m_active_step; };
+        virtual int                 getOctave(size_t _id) const { return m_octave[_id]; }
+        virtual int                 getActiveOctave() const { return getOctave(m_active_track); }
 
-        virtual const opz_pattern &getActivePattern() const { return getPattern(m_active_pattern); }
+        virtual uint8_t             getActiveProjectId() const { return m_active_project; }
+        virtual uint8_t             getActivePatternId() const { return m_active_pattern; }
+        virtual opz_track_id        getActiveTrackId() const { return m_active_track; }
+        virtual opz_page_id         getActivePageId() const { return m_active_page; }
+        size_t                      getActiveStepId() const { return m_active_step; };
 
-        float getTrackPageParameter(opz_track_id _track, opz_sound_parameter_id _prop) const { return opz_project::getSoundParameter(m_active_pattern, _track, _prop); };
-        float getActivePageParameter(opz_sound_parameter_id _prop) const { return getTrackPageParameter(m_active_track, _prop); }
+        virtual const opz_pattern&  getActivePattern() const { return getPattern(m_active_pattern); }
 
-        const opz_track_parameter &getTrackParameters(opz_track_id _track) const { return opz_project::getTrackParameters(m_active_pattern, _track); }
-        const opz_track_parameter &getActiveTrackParameters() const { return getTrackParameters(m_active_track); }
+        virtual float               getTrackPageParameter(opz_track_id _track, opz_sound_parameter_id _prop) const { return opz_project::getSoundParameter(m_active_pattern, _track, _prop); };
+        virtual float               getActivePageParameter(opz_sound_parameter_id _prop) const { return getTrackPageParameter(m_active_track, _prop); }
 
-        const opz_sound_parameter &getSoundParameters(opz_track_id _track) const { return opz_project::getSoundParameters(m_active_pattern, _track); };
-        const opz_sound_parameter &getActivePageParameters() const { return getSoundParameters(m_active_track); };
+        const opz_track_parameter&  getTrackParameters(opz_track_id _track) const { return opz_project::getTrackParameters(m_active_pattern, _track); }
+        const opz_track_parameter&  getActiveTrackParameters() const { return getTrackParameters(m_active_track); }
+
+        const opz_sound_parameter&  getSoundParameters(opz_track_id _track) const { return opz_project::getSoundParameters(m_active_pattern, _track); };
+        const opz_sound_parameter&  getActivePageParameters() const { return getSoundParameters(m_active_track); };
 
         size_t verbose; // 0 off
                         // 1 event description
@@ -140,30 +141,29 @@ namespace T3
     protected:
         void process_sysex(unsigned char *_message, size_t _length);
         void process_event(unsigned char *_message, size_t _length);
-
         std::vector<unsigned char> m_packets;
 
         // Project Data
-        int8_t m_octave[16];
-        bool m_mutes[16];
+        int8_t          m_octave[16];
+        bool            m_mutes[16];
 
         // Active states
-        uint8_t m_active_project;
-        uint8_t m_active_pattern;
-        opz_track_id m_active_track;
-        opz_page_id m_active_page;
-        uint8_t m_active_step;
+        uint8_t         m_active_project;
+        uint8_t         m_active_pattern;
+        opz_track_id    m_active_track;
+        opz_page_id     m_active_page;
+        size_t          m_active_step;
 
         // Non-musical key states
-        opz_key_state m_key_state;
-        opz_key_state m_key_prev_state;
+        opz_key_state   m_key_state;
+        opz_key_state   m_key_prev_state;
 
         // non-project or pattern related states
-        float m_level;
-        float m_mic_level;
-        uint8_t m_mic_mode;
-        opz_mic_fx_id m_mic_fx;
-        bool m_play;
+        float           m_level;
+        float           m_mic_level;
+        uint8_t         m_mic_mode;
+        opz_mic_fx_id   m_mic_fx;
+        bool            m_play;
 
         // CALLBACKS
         bool m_packet_recived_enabled;

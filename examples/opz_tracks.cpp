@@ -62,7 +62,7 @@ int main(int argc, char** argv) {
         getbegyx(stdscr, y_beg, x_beg);
         getmaxyx(stdscr, y_max, x_max);
 
-        opz.keepawake();
+        opz.update();
 
         size_t project_id = opz.getActiveProjectId();
         T3::opz_pattern pattern = opz.getActivePattern();

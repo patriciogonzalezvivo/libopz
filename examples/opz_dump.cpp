@@ -31,7 +31,7 @@ int main(int argc, char** argv) {
     // } );
 
     while (true)
-        opz.keepawake();
+        opz.update();
     
     opz.disconnect();
 

@@ -39,7 +39,7 @@ double getTimeSec(const timespec &time_start) {
 
 opz_rtmidi::opz_rtmidi() : 
 m_in(NULL), m_out(NULL),
-m_last_heartbeat(0.0), m_last_time(0.0),
+m_last_heartbeat(0.0), m_last_time(0.0), m_last_beat(0.0),
 m_connected(false) {
     m_packet_recived_enabled = true;
     m_packet_recived = [&](uint8_t _cmd, uint8_t *_data, size_t _lenght) {
@@ -98,54 +98,34 @@ bool opz_rtmidi::connect() {
     return false;
 }
 
-void opz_rtmidi::keepawake(){
+void opz_rtmidi::update(){
+    if (!m_connected)
+        return;
+
     double now = getTimeSec(time_start);; 
     double delta = now - m_last_time;
     m_last_time = now;
 
+    // Keep the connecting with the opz alive
     m_last_heartbeat += delta;
-
     if (m_last_heartbeat > 1.0) {
-
-        if (m_connected)
-            m_out->sendMessage( opz_heartbeat() );
-        else
-            m_event(NO_CONNECTION, 0);
-
+        m_out->sendMessage( opz_heartbeat() );
         m_last_heartbeat = 0.0;
     }
 
+    if (m_play) {
+        m_last_beat += delta;
+        double sec = 15.0 / (double)(m_project.tempo);
+        size_t total_steps = getActiveTrackParameters().step_count * getActiveTrackParameters().step_length;
+        if ( m_last_beat >= sec ) {
+            m_last_beat = 0.0;
+            m_active_step = (m_active_step + 1) % total_steps;
+            if (m_event_enable)
+                m_event(STEP_CHANGE, m_active_step);
+        }
+    }
+
     usleep( 16700 );
-}
-
-void opz_rtmidi::midiConfigCmd() {
-    if (m_connected)
-        m_out->sendMessage( opz_config_cmd() );
-}
-
-void opz_rtmidi::sendCmd(unsigned char _cmd) {
-    if (!m_connected)
-        return;
-
-    std::vector<unsigned char> cmd = {
-        SYSEX_HEAD, OPZ_VENDOR_ID[0], OPZ_VENDOR_ID[1], OPZ_VENDOR_ID[2], OPZ_MAX_PROTOCOL_VERSION, _cmd, SYSEX_END
-    };
-
-    if (m_connected)
-        m_out->sendMessage( &cmd );
-}
-
-void opz_rtmidi::sendCmd(unsigned char* _cmd, size_t _length) {
-    if (!m_connected)
-        return;
-
-    std::vector<unsigned char> cmd = { SYSEX_HEAD, OPZ_VENDOR_ID[0], OPZ_VENDOR_ID[1], OPZ_VENDOR_ID[2], OPZ_MAX_PROTOCOL_VERSION };
-    for (size_t i = 0; i < _length; i++)
-        cmd.push_back(_cmd[i]);
-    cmd.push_back(SYSEX_END);
-
-    if (m_connected)
-        m_out->sendMessage( &cmd );
 }
 
 void opz_rtmidi::process_message(double _deltatime, std::vector<unsigned char>* _message, void* _userData) {

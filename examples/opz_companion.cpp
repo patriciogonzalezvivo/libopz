@@ -56,6 +56,7 @@ int main(int argc, char** argv) {
     bool pressing_mixer = false;
     bool pressing_tempo = false;
     bool mic_on = false;
+    bool large_screen = false;
 
     // Listen to key events (no cc, neighter notes)
     opz.setEventCallback( [&](T3::opz_event_id _id, int _value) {
@@ -82,6 +83,10 @@ int main(int argc, char** argv) {
     });
 
     int y_beg, x_beg, y_max, x_max;
+    getbegyx(stdscr, y_beg, x_beg);
+    getmaxyx(stdscr, y_max, x_max);
+
+    large_screen = ((x_max/80) >= 2); 
 
     std::vector<WINDOW*> windows = {
         newwin(5, 41, 1, 0),    //  PAGE ONE
@@ -89,23 +94,19 @@ int main(int argc, char** argv) {
         newwin(5, 41, 14, 0),   //  PAGE THREE
         newwin(18, 25, 1, 41),  //  PAGE FOUR
         newwin(18, 15, 1, 66),  //  STEP / NOTE
-        newwin(18, 80, 1, 0),   //  PROJECT
+        newwin(18, 80, 1, (large_screen ? 81 : 0)), // Extra
     };
     refresh();
 
     while (keepRunnig.load()) {
-        getbegyx(stdscr, y_beg, x_beg);
-        getmaxyx(stdscr, y_max, x_max);
+        
 
-        opz.keepawake();
+        opz.update();
 
         if (!change)
             continue;
 
-        // size_t project_id = opz.getActiveProjectId();
-        // uint8_t pattern_id = opz.getActivePatternId();
         T3::opz_track_id track_id = opz.getActiveTrackId();
-        // T3::opz_project_data project = opz.getProjectData();
         T3::opz_pattern pattern = opz.getActivePattern();
 
         std::string title_name = T3::toString(track_id);
@@ -118,6 +119,11 @@ int main(int argc, char** argv) {
         clear();
         mvprintw(0, (x_max-x_beg)/2 - title_name.size()/2, "%s", title_name.c_str() );
 
+        if (opz.isPlaying()) {
+            size_t step = opz.getActiveStepId();
+            mvprintw(y_max-4, 2 + step * 4 + ( (step/4) * 4 ) , "[ ]");
+        }
+            
         for (size_t i = 0; i < 16; i++) {
             size_t x = 3 + i * 4 + ( (i/4) * 4 );
             mvprintw(y_max-5, x, "%02i", i + 1 );
@@ -131,6 +137,7 @@ int main(int argc, char** argv) {
                 attroff(COLOR_PAIR(2));
             }
         }
+
         
         mvprintw(y_max-2, 0, "STEP COUNT %2i      STEP LENGHT %2i                                        SUM %2i", 
                                 opz.getActiveTrackParameters().step_count, 
@@ -139,11 +146,12 @@ int main(int argc, char** argv) {
         mvprintw(y_max-1, (x_max-x_beg)/2 - 3, "%s %02i", ((opz.isPlaying())? "|> " : "[ ]"), opz.getActiveStepId() + 1 );
         refresh();
 
-        if (mic_on) draw_mic(windows[5]);
-        else if (pressing_project)  draw_project(windows[5]);
+        if (large_screen || pressing_project)  draw_project(windows[5]);
         else if (pressing_mixer)    draw_mixer(windows[5]);
         else if (pressing_tempo)    draw_tempo(windows[5]);
-        else {
+        else if (mic_on) draw_mic(windows[5]);
+
+        if (large_screen || (!mic_on && !pressing_project && !pressing_mixer && !pressing_tempo)){
             // wclear(windows[5]);
 
             if (pressing_track)
@@ -171,7 +179,6 @@ int main(int argc, char** argv) {
             change = false;
             change_data = false;
         }
-
     }
     
     waitForKeys.join();
