@@ -266,30 +266,29 @@ void opz_device::process_sysex(unsigned char *_message, size_t _length){
 
             if (verbose > 1 && verbose < 4)
                 std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
- 
-            if (data[1] > 15) {
-                if (!m_play && m_event_enable) 
-                    m_event(PLAY_CHANGE, 1);
-                m_play = true;
-                data[1] -= 16;
-            }
-            else {
-                if (m_play && m_event_enable)
-                    m_event(PLAY_CHANGE, 0);
-                m_play = false;
-            }
 
-            opz_track_id t =  (opz_track_id)data[1];
-            if (m_active_track != t)
-                if (m_event_enable)
-                    m_event(TRACK_CHANGE, (int)m_active_track);
-
-            m_active_track = t;
-
+            //  Octave
             m_octave[(size_t)m_active_track] = (int8_t)data[0];
             if (m_event_enable)
                 m_event(OCTAVE_CHANGE, m_octave[(size_t)m_active_track]);
-            
+
+            //  Active Track
+            opz_track_id track = (opz_track_id)(data[1]%16);
+            if (m_active_track != track)
+                if (m_event_enable)
+                    m_event(TRACK_CHANGE, (int)m_active_track);
+            m_active_track = track;
+
+            //  Play
+            size_t play = data[1]/16;
+            if (play)
+                if (!m_play && m_event_enable) 
+                    m_event(PLAY_CHANGE, 1);
+            else 
+                if (m_play && m_event_enable)
+                    m_event(PLAY_CHANGE, 0);
+            m_play = play;
+
         } break;
 
         case 0x04: {

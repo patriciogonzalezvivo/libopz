@@ -9,6 +9,8 @@
 #include <ncurses.h>
 #include "opz_rtmidi.h"
 
+#define sign(_x) (_x<0?-1:1)
+
 std::string version = "0.1";
 std::string name = "opz_companion";
 std::string header = name + " " + version + " by Patricio Gonzalez Vivo ( patriciogonzalezvivo.com )"; 
@@ -187,6 +189,71 @@ std::string hBar(size_t _width, size_t _value) {
     return rta;
 }
 
+void vBar(WINDOW* _win, int y, int x, size_t _height, size_t _value) {
+    std::string rta = "";
+    size_t l = (_value/254.0) * _height;
+    for (size_t i = 0; i < _height; i++)
+        mvwprintw(_win, y - i, x, "%s", (i < l ) ? "#" : ".");
+}
+
+/* Plot a point */
+void plot(WINDOW* _win, int x, int y, int col) {
+    mvwaddch(_win, y, x, (chtype) col);
+}
+
+/* Draw a diagonal(arbitrary) line using Bresenham's alogrithm. */
+void dline(WINDOW* _win, int from_x, int from_y, int x2, int y2, int ch) {
+    int dx, dy;
+    int ax, ay;
+    int sx, sy;
+    int x, y;
+    int d;
+
+    dx = x2 - from_x;
+    dy = y2 - from_y;
+
+    ax = abs(dx * 2);
+    ay = abs(dy * 2);
+
+    sx = sign(dx);
+    sy = sign(dy);
+
+    x = from_x;
+    y = from_y;
+
+    if (ax > ay) {
+        d = ay - (ax / 2);
+
+        while (1) {
+            plot(_win, x, y, ch);
+            if (x == x2)
+                return;
+
+            if (d >= 0) {
+                y += sy;
+                d -= ax;
+            }
+            x += sx;
+            d += ay;
+        }
+    } else {
+        d = ax - (ay / 2);
+
+        while (1) {
+            plot(_win, x, y, ch);
+            if (y == y2)
+                return;
+
+            if (d >= 0) {
+                x += sx;
+                d -= ay;
+            }
+            y += sy;
+            d += ax;
+        }
+    }
+}
+
 void draw_mic(WINDOW* _win) {
     wclear(_win);
     box(_win, 0, 0);
@@ -272,15 +339,85 @@ void draw_page_one(WINDOW* _win) {
 
 // PAGE 2: ENVELOPE
 void draw_page_two(WINDOW* _win) {
+    size_t track_id = opz.getActiveTrackId();
+    size_t page_id = opz.getActivePageId();
+
+    wclear(_win);
+
+    if (page_id == 1)
+        wattron(_win, COLOR_PAIR(2));
+    box(_win, 0, 0);
+    wattroff(_win, COLOR_PAIR(2));
+
     mvwprintw(_win, 1, 1, "ENVEL.");
 
-    // TODO:
-    //  - draw envelope
+    float attack = (int)opz.getActivePageParameters().attack / 255.0f;
+    float decay = (int)opz.getActivePageParameters().decay / 255.0f;
+    float sustain = (int)opz.getActivePageParameters().sustain / 255.0f;
+    float release = (int)opz.getActivePageParameters().release / 255.0f;
+    size_t x = 8;
+    size_t w = 30;
 
-    mvwprintw(_win, 6, 8, "S %i ", (int)((int)opz.getActivePageParameters().attack / 2.55f));
-    mvwprintw(_win, 6,16, "A %i", (int)((int)opz.getActivePageParameters().decay / 2.55f));
-    mvwprintw(_win, 6,24, "H %i", (int)((int)opz.getActivePageParameters().sustain / 2.55f));
-    mvwprintw(_win, 6,32, "D %i", (int)((int)opz.getActivePageParameters().release / 2.55f));
+    if (track_id < 4) {
+        // TODO:
+        //  - draw envelope
+        // ┌───────────────────────────────────────┐
+        // │ENVEL.                                 │
+        // │                                       │
+        // │                                       │
+        // │                                       │
+        // │                                       │
+        // │       S 0     A 0     H 0     D 0     │
+        // └───────────────────────────────────────┘
+        size_t s = attack * w;
+        size_t a = s + ( (w-s)/2 ) * decay;
+        size_t h = a + ( (w-a) * sustain);
+        size_t d = h + ( (w-h) * release);
+
+        s += x;
+        a += x;
+        h += x;
+        d += x;
+
+        dline(_win, s, 5, a, 1, '.');
+        dline(_win, a, 1, h, 1, '.');
+        dline(_win, h, 1, d, 5, '.');
+        mvwprintw(_win, 5, s, "+");
+        mvwprintw(_win, 1, a, "+");
+        mvwprintw(_win, 1, h, "+");
+        mvwprintw(_win, 5, d, "+");
+
+        mvwprintw(_win, 6,  8, "S %i", (int)(100*attack));
+        mvwprintw(_win, 6, 17, "A %i", (int)(100*decay));
+        mvwprintw(_win, 6, 25, "H %i", (int)(100*sustain));
+        mvwprintw(_win, 6, 34, "D %i", (int)(100*release));
+    }
+    else {
+
+        size_t a = attack * (w/4);
+        size_t d = a + (w/4-a) * decay;
+        size_t h = 5 - 4 * sustain;
+        size_t r = d + ( (w-d) * release);
+
+        a += x;
+        d += x;
+        r += x;
+
+        dline(_win, x, 5, a, 1, '.');
+        dline(_win, a, 1, d, h, '.');
+        dline(_win, d, h, r, h, '.');
+        dline(_win, r, h, x+w, 5, '.');
+
+        mvwprintw(_win, 1, a, "+");
+        mvwprintw(_win, h, d, "+");
+        mvwprintw(_win, h, r, "+");
+
+        mvwprintw(_win, 6,  8, "A %i", (int)(100*attack));
+        mvwprintw(_win, 6, 17, "D %i", (int)(100*decay));
+        mvwprintw(_win, 6, 25, "H %i", (int)(100*sustain));
+        mvwprintw(_win, 6, 34, "R %i", (int)(100*release));
+    }
+
 }
 
 // PAGE 3: LFO
@@ -316,8 +453,9 @@ void draw_page_four(WINDOW* _win) {
     }
     
     mvwprintw(_win, 10, 1, " LEVEL");
-    mvwprintw(_win, 11, 1, "     %s", hBar(15, (size_t)opz.getActivePageParameters().level).c_str() );
-    mvwprintw(_win, 12, 1, "           %03i", (int)( (int)opz.getActivePageParameters().level / 2.55f));
+
+    vBar(_win, 15, 13, 7, (size_t)opz.getActivePageParameters().level );
+    mvwprintw(_win, 16, 12, "%03i", (int)( (int)opz.getActivePageParameters().level / 2.55f));
 }
 
 void draw_track_params(WINDOW* _win) {
