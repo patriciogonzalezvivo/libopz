@@ -130,11 +130,6 @@ typedef struct {
     opz_pattern         pattern[16];
 } opz_project_data, *p_opz_project_data;
 
-typedef struct {
-    uint32_t            file_id;         // seem to be always the same number: 0x00000049
-    opz_project_data    data;
-} opz_project_file, *p_opz_project_file;
-
 std::string& toString( opz_track_id  _id );
 std::string& toString( opz_note_style_id  _id );
 std::string& toString( opz_sound_parameter_id _id);
@@ -144,7 +139,10 @@ class opz_project {
 public:
     opz_project();
 
+    virtual bool loadOpz(const std::string& _filename);
+
     virtual bool saveAsTxt(const std::string& _filename);
+    virtual bool saveAsOpz(const std::string& _filename);
 
     virtual const opz_project_data&     getProjectData() const { return m_project; }
 

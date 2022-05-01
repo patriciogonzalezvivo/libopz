@@ -1,6 +1,10 @@
-# LibOPZ: The non official OP-Z API library
+# LibOPZ: The non official API library for the OP-Z
+(Tested on firmware version 1.2.39)
 
-## This project is in it's very early stages. All tested on firmware version 1.2.39
+First you need to clone and compile the examples. It requires the following dev libraries installed on your system:
+
+- `libz`
+- `ncurses` (only for the examples) 
 
 ```
 mkdir build
@@ -8,34 +12,13 @@ cd build
 cmake ..
 make
 ```
-After running these commands you can run any of the example programs.
 
-## Programs:
-### opz_dump
-
-Prints out everything it recives and process from the OP-Z
-
-```
-examples/./opz_dump
-```
-
-### opz_memory
-
-A way of exploring OP-Z project memory
-
-```
-examples/./opz_memory
-```
-
-### opz_companion
-
-Trying to replicate the OP-Z companion app in the terminal
+After running these commands you can run any of the programs inside the `build/example` folder. 
+Highly recomend trying the terminal base companion app 
 
 ```
 examples/./opz_companion
 ```
-
-
 
 ## Acknowledgment
 

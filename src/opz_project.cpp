@@ -3,6 +3,8 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
+#include <string.h>
+
 #include "tools.h"
 
 namespace T3 {
@@ -114,101 +116,130 @@ float opz_project::getSoundParameter(uint8_t _pattern, opz_track_id _track, opz_
     return 0.0f;
 }
 
+bool opz_project::loadOpz(const std::string& _filename) {
+    std::ifstream in_file (_filename, std::ifstream::binary);
+
+    in_file.seekg (0,in_file.end);
+    long size = in_file.tellg();
+    in_file.seekg(0);
+
+    char* buffer = new char[size];
+    in_file.read(buffer,size);
+
+    memcpy( (char*)&m_project, buffer, sizeof(char) * size );
+
+    delete[] buffer;
+    in_file.close();
+
+    return true;
+}
+
+bool opz_project::saveAsOpz(const std::string& _filename){
+    std::ofstream out_file(_filename,std::ofstream::binary);
+
+    char header[] = {0x00, 0x00, 0x00, 0x00};
+    out_file.write(header, 4);
+    out_file.write((char*)&m_project, sizeof(opz_project));
+    out_file.close();
+
+    return true;
+}
+
 bool opz_project::saveAsTxt(const std::string& _filename) {
-    std::ofstream myfile (_filename);
-    if (myfile.is_open()) {
-        myfile << "opz_pattern_chain pattern_chain[16]\n";
+    std::ofstream out_file (_filename);
+    if (out_file.is_open()) {
+        out_file << "opz_pattern_chain pattern_chain[16]\n";
         for (size_t i = 0; i < 16; i++) {
             for (size_t t = 0; t < 32; t++)
-                myfile << toStringHex( m_project.pattern_chain[i].pattern[t] ) << " ";
-            myfile << "\n";
+                out_file << toStringHex( m_project.pattern_chain[i].pattern[t] ) << " ";
+            out_file << "\n";
         }
-        myfile << "\n";
+        out_file << "\n";
 
-        myfile << "uint8_t drum_level, synth_level, punch_level, master_level, tempo;\n";
-        myfile <<   toStringHex( m_project.drum_level ) << " " << 
+        out_file << "uint8_t drum_level, synth_level, punch_level, master_level, tempo;\n";
+        out_file <<   toStringHex( m_project.drum_level ) << " " << 
                     toStringHex( m_project.synth_level ) << " " << 
                     toStringHex( m_project.punch_level ) << " " << 
                     toStringHex( m_project.master_level ) << " " << 
                     toStringHex( m_project.tempo ) << "\n\n";
 
-        myfile << "uint8_t unknown1[44]\n";
+        out_file << "uint8_t unknown1[44]\n";
         for (size_t i = 0; i < 44; i++)
-            myfile << toStringHex( m_project.unknown1[i] ) << " ";
-        myfile << "\n\n";
+            out_file << toStringHex( m_project.unknown1[i] ) << " ";
+        out_file << "\n\n";
 
-        myfile << "uint8_t swing, metronome_level, metronome_sound;\n";
-        myfile <<   toStringHex( m_project.swing ) << " " << 
+        out_file << "uint8_t swing, metronome_level, metronome_sound;\n";
+        out_file <<   toStringHex( m_project.swing ) << " " << 
                     toStringHex( m_project.metronome_level ) << " " << 
                     toStringHex( m_project.metronome_sound ) << "\n\n";
 
-        myfile << "uint32_t unknown2;\n";
-        myfile << std::setfill('0') << std::setw(8) << std::uppercase << std::hex << (0xFFFFFFFF & m_project.unknown2 ) << "\n\n";
+        out_file << "uint32_t unknown2;\n";
+        out_file << std::setfill('0') << std::setw(8) << std::uppercase << std::hex << (0xFFFFFFFF & m_project.unknown2 ) << "\n\n";
 
         for (size_t i = 0; i < 16; i++) {
-            myfile << "opz_pattern pattern[16]\n";
-            myfile << "pattern[" << std::dec << i <<"]\n";
+            out_file << "opz_pattern pattern[16]\n";
+            out_file << "pattern[" << std::dec << i <<"]\n";
 
-                myfile << "\topz_track_parameter track_param[16];\n";
+                out_file << "\topz_track_parameter track_param[16];\n";
                 for (size_t j = 0; j < 16; j++) {
-                    myfile << "\ttrack_param[" << std::dec << j <<"];\n";
-                    myfile << "\t\tuint32_t plug;\n\t\t";
-                    myfile << std::setfill('0') << std::setw(8) << std::uppercase << std::hex << (0xFFFFFFFF & m_project.pattern[i].track_param[j].plug ) << "\n\n";
+                    out_file << "\ttrack_param[" << std::dec << j <<"];\n";
+                    out_file << "\t\tuint32_t plug;\n\t\t";
+                    out_file << std::setfill('0') << std::setw(8) << std::uppercase << std::hex << (0xFFFFFFFF & m_project.pattern[i].track_param[j].plug ) << "\n\n";
 
-                    myfile << "\t\tuint8_t step_count, unknown1, step_length, quantize, note_style, note_length;\n\t\t";
-                    myfile <<   toStringHex( m_project.pattern[i].track_param[j].step_count ) << " " << 
+                    out_file << "\t\tuint8_t step_count, unknown1, step_length, quantize, note_style, note_length;\n\t\t";
+                    out_file <<   toStringHex( m_project.pattern[i].track_param[j].step_count ) << " " << 
                                 toStringHex( m_project.pattern[i].track_param[j].unknown1 ) << " " << 
                                 toStringHex( m_project.pattern[i].track_param[j].step_length ) << " " << 
                                 toStringHex( m_project.pattern[i].track_param[j].quantize ) << " " << 
                                 toStringHex( m_project.pattern[i].track_param[j].note_style ) << " " << 
                                 toStringHex( m_project.pattern[i].track_param[j].note_length ) << "\n\n";
 
-                    myfile << "\t\tuint8_t unknown2[2]\n\t\t";
+                    out_file << "\t\tuint8_t unknown2[2]\n\t\t";
                     for (size_t k = 0; k < 2; k++)
-                        myfile << toStringHex( m_project.pattern[i].track_param[j].unknown2[k] ) << " ";
-                    myfile << "\n\n";
+                        out_file << toStringHex( m_project.pattern[i].track_param[j].unknown2[k] ) << " ";
+                    out_file << "\n\n";
                 }
 
-                myfile << "\topz_note note[880];\n";
+                out_file << "\topz_note note[880];\n";
                 for (size_t j = 0; j < 880; j++) {
-                    myfile << "\tnote[" << std::setfill('0') << std::setw(3) << std::dec << j <<"] = { ";
-                    myfile << std::setfill('0') << std::setw(8) << std::uppercase << std::hex << (0xFFFFFFFF & m_project.pattern[i].note[j].duration ) << " ";
+                    out_file << "\tnote[" << std::setfill('0') << std::setw(3) << std::dec << j <<"] = { ";
+                    out_file << std::setfill('0') << std::setw(8) << std::uppercase << std::hex << (0xFFFFFFFF & m_project.pattern[i].note[j].duration ) << " ";
 
-                    myfile <<   toStringHex( m_project.pattern[i].note[j].note ) << " " << 
+                    out_file <<   toStringHex( m_project.pattern[i].note[j].note ) << " " << 
                                 toStringHex( m_project.pattern[i].note[j].velocity ) << " " << 
                                 toStringHex( (uint8_t)m_project.pattern[i].note[j].micro_adjustment ) << " " << 
                                 toStringHex( m_project.pattern[i].note[j].age ) << " } \n";
                 }
 
-                myfile << "\topz_step step[256];\n";
+                out_file << "\topz_step step[256];\n";
                 for (size_t j = 0; j < 256; j++) {
-                    myfile << "\tstep[" << std::dec << j <<"]; = { ";
+                    out_file << "\tstep[" << std::dec << j <<"]; = { ";
 
-                    // myfile << "\t\tuint16_t components_bitmask;\n\t\t";
-                    myfile << toStringHex( m_project.pattern[i].step[j].components_bitmask ) << " ";
-                    myfile << "  ";
+                    // out_file << "\t\tuint16_t components_bitmask;\n\t\t";
+                    out_file << toStringHex( m_project.pattern[i].step[j].components_bitmask ) << " ";
+                    out_file << "  ";
 
-                    // myfile << "\t\tuint8_t components_parameters[18]\n\t\t";
+                    // out_file << "\t\tuint8_t components_parameters[18]\n\t\t";
                     for (size_t k = 0; k < 18; k++)
-                        myfile << toStringHex( m_project.pattern[i].step[j].components_parameters[k] ) << " ";
-                    myfile << " ";
+                        out_file << toStringHex( m_project.pattern[i].step[j].components_parameters[k] ) << " ";
+                    out_file << " ";
 
-                    // myfile << "\t\tuint8_t components_locked_values[18]\n\t\t";
+                    // out_file << "\t\tuint8_t components_locked_values[18]\n\t\t";
                     for (size_t k = 0; k < 18; k++)
-                        myfile << toStringHex( m_project.pattern[i].step[j].components_locked_values[k] ) << " ";
-                    myfile << "  ";
+                        out_file << toStringHex( m_project.pattern[i].step[j].components_locked_values[k] ) << " ";
+                    out_file << "  ";
 
-                    // myfile << "\t\tuint8_t parameter_mask[18]\n\t\t";
+                    // out_file << "\t\tuint8_t parameter_mask[18]\n\t\t";
                     for (size_t k = 0; k < 18; k++)
-                        myfile << toStringHex( m_project.pattern[i].step[j].parameter_mask[k] ) << " ";
-                    myfile << "}\n";
+                        out_file << toStringHex( m_project.pattern[i].step[j].parameter_mask[k] ) << " ";
+                    out_file << "}\n";
                 }
 
-                myfile << "\topz_sound_parameter sound_param[16];\n";
+                out_file << "\topz_sound_parameter sound_param[16];\n";
                 for (size_t j = 0; j < 16; j++) {
-                    myfile << "\tsound_param[" << std::dec << j <<"];\n";
-                    myfile << "\t\tuint8_t param1, param2, attack, decay, sustain, release, fx1, fx2, filter, resonance, pan, level, filter, resonance, pan, level, portamento, lfo_depth, lfo_speed, lfo_value, lfo_shape, note_style;\n\t\t";
-                    myfile <<   toStringHex( m_project.pattern[i].sound_param[j].param1 ) << " " << 
+                    out_file << "\tsound_param[" << std::dec << j <<"];\n";
+                    out_file << "\t\tuint8_t param1, param2, attack, decay, sustain, release, fx1, fx2, filter, resonance, pan, level, filter, resonance, pan, level, portamento, lfo_depth, lfo_speed, lfo_value, lfo_shape, note_style;\n\t\t";
+                    out_file <<   toStringHex( m_project.pattern[i].sound_param[j].param1 ) << " " << 
                                 toStringHex( m_project.pattern[i].sound_param[j].param2 ) << " " << 
                                 toStringHex( m_project.pattern[i].sound_param[j].attack ) << " " << 
                                 toStringHex( m_project.pattern[i].sound_param[j].decay ) << " " << 
@@ -229,29 +260,29 @@ bool opz_project::saveAsTxt(const std::string& _filename) {
 
                 }
 
-                myfile << "\tuint8_t mute[40]; \n\t";
+                out_file << "\tuint8_t mute[40]; \n\t";
                 for (size_t j = 0; j < 44; j++)
-                    myfile << toStringHex( m_project.pattern[i].mute[j] ) << " ";
-                myfile << "\n\n";
+                    out_file << toStringHex( m_project.pattern[i].mute[j] ) << " ";
+                out_file << "\n\n";
 
-                myfile << "\tuint16_t send_tape;\n\t";
-                myfile << toStringHex( m_project.pattern[i].send_tape ) << "\n\n";
+                out_file << "\tuint16_t send_tape;\n\t";
+                out_file << toStringHex( m_project.pattern[i].send_tape ) << "\n\n";
 
-                myfile << "\tuint16_t send_master;\n\t";
-                myfile << toStringHex( m_project.pattern[i].send_master ) << "\n\n";
+                out_file << "\tuint16_t send_master;\n\t";
+                out_file << toStringHex( m_project.pattern[i].send_master ) << "\n\n";
 
-                myfile << "\tuint8_t active_mute_group;\n\t";
-                myfile << toStringHex( m_project.pattern[i].active_mute_group ) << "\n\n";
+                out_file << "\tuint8_t active_mute_group;\n\t";
+                out_file << toStringHex( m_project.pattern[i].active_mute_group ) << "\n\n";
 
-                myfile << "\tuint8_t unknown[3]\n\t";
+                out_file << "\tuint8_t unknown[3]\n\t";
                 for (size_t j = 0; j < 3; j++)
-                    myfile << toStringHex( m_project.pattern[i].unknown[j]  ) << " ";
-                myfile << "\n\n";
+                    out_file << toStringHex( m_project.pattern[i].unknown[j]  ) << " ";
+                out_file << "\n\n";
 
-            myfile << "\n\n";
+            out_file << "\n\n";
         }
 
-        myfile.close();
+        out_file.close();
     }
 
     return true;
