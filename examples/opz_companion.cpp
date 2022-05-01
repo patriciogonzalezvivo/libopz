@@ -86,7 +86,7 @@ int main(int argc, char** argv) {
     getbegyx(stdscr, y_beg, x_beg);
     getmaxyx(stdscr, y_max, x_max);
 
-    large_screen = ((x_max/80) >= 2); 
+    large_screen = (x_max >= 159); 
 
     std::vector<WINDOW*> windows = {
         newwin(5, 41, 1, 0),    //  PAGE ONE
@@ -94,7 +94,7 @@ int main(int argc, char** argv) {
         newwin(5, 41, 14, 0),   //  PAGE THREE
         newwin(18, 25, 1, 41),  //  PAGE FOUR
         newwin(18, 15, 1, 66),  //  STEP / NOTE
-        newwin(18, 80, 1, (large_screen ? 81 : 0)), // Extra
+        newwin(18, 80, 1, (large_screen ? x_max-80 : 0)), // Extra
     };
     refresh();
 
