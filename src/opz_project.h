@@ -37,11 +37,6 @@ enum opz_sound_parameter_id {
     STEP_COUNT,         STEP_LENGTH
 };
 
-enum opz_note_style_id {
-    DRUM_RETRIG = 0,    DRUM_MONO,  DRUM_GATE,      DRUM_LOOP,
-    SYNTH_POLY,         SYNTH_MONO, SYNTH_LEGATO     
-};
-
 const size_t opz_notes_per_track[] = {    2, 2, 2, 2, 4,  4,  8,  4,  1,  1,  1,  4,  6,  6, 4,   4 };
 const size_t opz_notes_offset_track[] = { 0, 2, 4, 6, 8, 12, 16, 24, 28, 29, 30, 31, 35, 41, 47, 51 };
 
@@ -131,9 +126,11 @@ typedef struct {
 } opz_project_data, *p_opz_project_data;
 
 std::string& toString( opz_track_id  _id );
-std::string& toString( opz_note_style_id  _id );
 std::string& toString( opz_sound_parameter_id _id);
 std::string& toString( opz_pattern_parameter_id _id );
+
+std::string noteLengthString( uint8_t _value );
+std::string noteStyleString( opz_track_id _track, uint8_t _value );
 
 class opz_project {
 public:

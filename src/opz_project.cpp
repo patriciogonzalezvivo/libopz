@@ -42,19 +42,29 @@ std::string sound_parameter_name[] = {
     "STEP_COUNT",       "STEP_LENGTH"
 };
 
-std::string  note_style_name[] = {
-    "DRUM_RETRIG",    "DRUM_MONO",  "DRUM_GATE",      "DRUM_LOOP",
-    "SYNTH_POLY",     "SYNTH_MONO", "SYNTH_LEGATO"     
-};
+std::string& toString( opz_track_id _id ) { return track_name[_id]; }
+std::string& toString( opz_sound_parameter_id _id ) { return sound_parameter_name[_id]; }
+std::string& toString( opz_pattern_parameter_id _id ) { return pattern_parameter_name[_id]; } 
 
+
+std::string note_lengths_name[] = { "DRONE", "1", "1/2", "1/4", "1/8", "1/16", "1/32", "1/64" };
+std::string note_style_drums_name[] = { "RETRIG",  "MONO", "GATE",     "LOOP"  };
+std::string note_style_synth_name[] = { "POLY",    "MONO", "LEGATO" };
+
+std::string mapList( const std::string* _list, uint8_t _value ) {
+    float value = (float)_value / 255.0f;
+    size_t size = sizeof(_list);
+    return _list[ (size_t)(value * size) ];
+}
+
+std::string noteLengthString( uint8_t _value ) { return mapList( note_lengths_name, _value ); };
+std::string noteStyleString( opz_track_id _track, uint8_t _value ) {
+    if (_track < 4) return mapList( note_style_drums_name, _value );
+    else return mapList( note_style_synth_name, _value );
+}
 
 opz_project::opz_project() {
 }
-
-std::string& toString( opz_track_id _id ) { return track_name[_id]; }
-std::string& toString( opz_note_style_id  _id ) { return note_style_name[_id]; }
-std::string& toString( opz_sound_parameter_id _id ) { return sound_parameter_name[_id]; }
-std::string& toString( opz_pattern_parameter_id _id ) { return pattern_parameter_name[_id]; } 
 
 float opz_project::getSoundParameter(uint8_t _pattern, opz_track_id _track, opz_sound_parameter_id _prop) const {
     if (_prop == SOUND_PARAM1)

@@ -163,9 +163,10 @@ void opz_device::process_sysex(unsigned char *_message, size_t _length){
             if (verbose > 1 && verbose < 4)
                 std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
 
+            uint8_t project_id = address2project(data[4]);
+            uint8_t pattern_id = address2pattern(data[4]);
+
             if (data[2] == 0x00) {
-                uint8_t project_id = address2project(data[4]);
-                uint8_t pattern_id = address2pattern(data[4]);
                 uint8_t track_id = data[7];
                 uint8_t step_id = data[8];
                 size_t note_id = getNoteIdOffset(track_id, step_id);
@@ -227,8 +228,8 @@ void opz_device::process_sysex(unsigned char *_message, size_t _length){
                 memcpy(&m_mutes, &mutes, sizeof(bool) * 16);
 
                 if (verbose > 2) {
-                    printf("    project: %i\n", address2project(data[4]) );
-                    printf("    pattern: %i\n", address2pattern(data[4]) );
+                    printf("    project: %i\n", project_id );
+                    printf("    pattern: %i\n", pattern_id );
                     printf("    type:    0x%02X\n", data[2]);
                     printf("    mutes:   ");
                     for (size_t i = 0; i < 16; i++)
@@ -240,16 +241,22 @@ void opz_device::process_sysex(unsigned char *_message, size_t _length){
                     m_event(MUTE_CHANGE, 1);
 
             } else if (length == 8) {
+                // Parametter
+
                 // counter  ??  type ??  address  ?? ?? value  
                 // F1       0F  09   00  10       01 00 47
                 // B8       10  09   00  11       01 00 3C
 
+                uint8_t* head = ( (uint8_t*)&m_project.pattern[pattern_id].track_param[0] ) + sizeof(uint8_t) * data[2];
                 if (verbose > 2) {
-                    printf("    project: %i\n", address2project(data[4]) );
-                    printf("    pattern: %i\n", address2pattern(data[4]) );
-                    printf("    type:    %s\n", toString((opz_sound_parameter_id)data[2]).c_str() );
-                    printf("    value:   %03i\n", data[7] );
+                    printf("    project: %i\n", project_id );
+                    printf("    pattern: %i\n", pattern_id );
+
+                    printf("    type:    %s\n", toString((opz_pattern_parameter_id)data[2]).c_str() );
+                    printf("    old value:  %03i\n", *head);
+                    printf("    new value:  %03i\n", data[7] );
                 }
+                *head = data[7];
 
                 if (m_event_enable)
                     m_event(PARAMETER_CHANGE, 1);
@@ -281,9 +288,10 @@ void opz_device::process_sysex(unsigned char *_message, size_t _length){
 
             //  Play
             size_t play = data[1]/16;
-            if (play)
+            if (play) {
                 if (!m_play && m_event_enable) 
                     m_event(PLAY_CHANGE, 1);
+            }
             else 
                 if (m_play && m_event_enable)
                     m_event(PLAY_CHANGE, 0);

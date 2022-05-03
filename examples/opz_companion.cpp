@@ -93,8 +93,8 @@ int main(int argc, char** argv) {
         newwin(8, 41, 6, 0),    //  PAGE TWO
         newwin(5, 41, 14, 0),   //  PAGE THREE
         newwin(18, 25, 1, 41),  //  PAGE FOUR
-        newwin(18, 15, 1, 66),  //  STEP / NOTE
-        newwin(18, 80, 1, (large_screen ? x_max-80 : 0)), // Extra
+        newwin(18, 14, 1, 66),  //  STEP / NOTE
+        newwin((large_screen ? y_max-2 : 0), (large_screen ? x_max-80 : 0) , 1, (large_screen ? 80 : 0) ), // Extra
     };
     refresh();
 
@@ -466,12 +466,13 @@ void draw_page_four(WINDOW* _win) {
 }
 
 void draw_track_params(WINDOW* _win) {
-    mvwprintw(_win, 1,  2, "NOTE LENGTH");
-    mvwprintw(_win, 2,  2, "%i", opz.getActiveTrackParameters().note_length);
-    mvwprintw(_win, 4,  2, "NOTE STYLE");
-    mvwprintw(_win, 5,  2, "%i", opz.getActivePageParameters().note_style );
-    mvwprintw(_win, 8,  2, "QUANTIZE");
-    mvwprintw(_win, 9,  2, "%i", opz.getActiveTrackParameters().quantize);
-    mvwprintw(_win, 11, 2, "PORTAMENTO");
-    mvwprintw(_win, 12, 2, "%i", opz.getActivePageParameters().portamento );
+    mvwprintw(_win, 1,  2, "NOTE");
+    mvwprintw(_win, 3,  2, "    LENGTH");
+    mvwprintw(_win, 4,  2, "%10s", T3::noteLengthString( opz.getActiveTrackParameters().note_length ).c_str() );
+    mvwprintw(_win, 6,  2, "     STYLE");
+    mvwprintw(_win, 7,  2, "%10s", T3::noteStyleString( opz.getActiveTrackId(), opz.getActivePageParameters().note_style ).c_str() );
+    mvwprintw(_win, 10, 2, "  QUANTIZE");
+    mvwprintw(_win, 11, 2, "%9i%%", (int)((int)opz.getActiveTrackParameters().quantize / 2.55f));
+    mvwprintw(_win, 13, 2, "PORTAMENTO");
+    mvwprintw(_win, 14, 2, "%9i%%", (int)((int)opz.getActivePageParameters().portamento / 2.55f) );
 }
