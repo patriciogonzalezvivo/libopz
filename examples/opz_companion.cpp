@@ -5,6 +5,7 @@
 #include <thread>
 #include <atomic>
 #include <mutex>
+#include <math.h>
 
 #include <ncurses.h>
 #include "opz_rtmidi.h"
@@ -101,8 +102,6 @@ int main(int argc, char** argv) {
     refresh();
 
     while (keepRunnig.load()) {
-        
-
         opz.update();
 
         if (!change)
@@ -140,7 +139,6 @@ int main(int argc, char** argv) {
             }
         }
 
-        
         mvprintw(y_max-2, 0, "STEP COUNT %2i      STEP LENGHT %2i                                        SUM %2i", 
                                 opz.getActiveTrackParameters().step_count, 
                                 opz.getActiveTrackParameters().step_length,
@@ -152,8 +150,9 @@ int main(int argc, char** argv) {
         else if (pressing_mixer)    draw_mixer(windows[5]);
         else if (pressing_tempo)    draw_tempo(windows[5]);
         else if (mic_on) draw_mic(windows[5]);
+        else if (large_screen)  draw_project(windows[5]);
 
-        if (large_screen || (!mic_on && !pressing_project && !pressing_mixer && !pressing_tempo)){
+        if ( large_screen || (!mic_on && !pressing_project && !pressing_mixer && !pressing_tempo)){
             // wclear(windows[5]);
 
             if (pressing_track)
@@ -324,7 +323,8 @@ void draw_tempo(WINDOW* _win) {
     getmaxyx(_win, y_max, x_max);
 
     T3::opz_project_data project = opz.getProjectData();
-
+    double pct = opz.getActiveStepPct();
+    
     wclear(_win);
     box(_win, 0, 0);
     mvwprintw(_win, 1, 2, "TEMPO               SWING");
@@ -337,24 +337,30 @@ void draw_tempo(WINDOW* _win) {
                             (int)((int)project.metronome_sound / 2.55f) , 
                             (int)((int)project.metronome_level / 2.55f) );
 
-    size_t w = 10;
-    mvwprintw(_win, 2, x_max/2 - w, "        ####|####");
+    size_t w = 12;
     mvwprintw(_win, 3, x_max/2 - w, "        ####|####");
-    mvwprintw(_win, 4, x_max/2 - w, "       #####|#####");
+    mvwprintw(_win, 4, x_max/2 - w, "        ####|####");
     mvwprintw(_win, 5, x_max/2 - w, "       #####|#####");
-    mvwprintw(_win, 6, x_max/2 - w, "      ######|######");
+    mvwprintw(_win, 6, x_max/2 - w, "       #####|#####");
     mvwprintw(_win, 7, x_max/2 - w, "      ######|######");
-    mvwprintw(_win, 8, x_max/2 - w, "     #######|#######");
+    mvwprintw(_win, 8, x_max/2 - w, "      ######|######");
     mvwprintw(_win, 9, x_max/2 - w, "     #######|#######");
-    mvwprintw(_win,10, x_max/2 - w, "    ########|########");
+    mvwprintw(_win,10, x_max/2 - w, "     #######|#######");
     mvwprintw(_win,11, x_max/2 - w, "    ########|########");
-    mvwprintw(_win,12, x_max/2 - w, "   #########|#########");
+    mvwprintw(_win,12, x_max/2 - w, "    ########|########");
     mvwprintw(_win,13, x_max/2 - w, "   #########|#########");
-    mvwprintw(_win,14, x_max/2 - w, "  ##########|##########");
-    mvwprintw(_win,15, x_max/2 - w, "  ---------------------");
-    mvwprintw(_win,16, x_max/2 - w, " #######################");
-    mvwprintw(_win,17, x_max/2 - w, " ######### %03i #########");
-    mvwprintw(_win,18, x_max/2 - w, "#########################"); 
+    mvwprintw(_win,14, x_max/2 - w, "   #########|#########");
+    mvwprintw(_win,15, x_max/2 - w, "  ##########|##########");
+    mvwprintw(_win,16, x_max/2 - w, "  ---------------------");
+    mvwprintw(_win,17, x_max/2 - w, " #######################");
+    mvwprintw(_win,18, x_max/2 - w, " ######### %03i #########");
+    mvwprintw(_win,19, x_max/2 - w, "#########################"); 
+
+    attron(COLOR_PAIR(2));
+    int x = cos( pct * 3.1415 * 2.0);
+    int y = 3;
+    dline(_win, x_max/2, 16, x_max/2 - x * w, y,  '.');
+    attroff(COLOR_PAIR(2));
 
     wrefresh(_win);
 }

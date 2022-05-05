@@ -115,9 +115,8 @@ void opz_rtmidi::update(){
 
     if (m_play) {
         m_last_beat += delta;
-        double sec = 15.0 / (double)(m_project.tempo);
         size_t total_steps = getActiveTrackParameters().step_count * getActiveTrackParameters().step_length;
-        if ( m_last_beat >= sec ) {
+        if ( m_last_beat >= getSecPerStep() ) {
             m_last_beat = 0.0;
             m_active_step = (m_active_step + 1) % total_steps;
             if (m_event_enable)

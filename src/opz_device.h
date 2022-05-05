@@ -119,7 +119,7 @@ namespace T3
         virtual uint8_t             getActivePatternId() const { return m_active_pattern; }
         virtual opz_track_id        getActiveTrackId() const { return m_active_track; }
         virtual opz_page_id         getActivePageId() const { return m_active_page; }
-        size_t                      getActiveStepId() const { return m_active_step; };
+        size_t                      getActiveStepId() const { return m_active_step; }
 
         virtual const opz_pattern&  getActivePattern() const { return getPattern(m_active_pattern); }
 

@@ -13,6 +13,10 @@ public:
     void disconnect();
     bool isConnected() const { return m_connected; }
 
+
+    double          getSecPerStep() const { return 15.0 / (double)(m_project.tempo); }
+    double          getActiveStepPct() const { return m_last_beat / getSecPerStep(); }
+
     void update();
 
 private:
