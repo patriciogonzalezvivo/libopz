@@ -70,6 +70,8 @@ int main(int argc, char** argv) {
         else if (_id == T3::PATTERN_DOWNLOADED || _id == T3::PATTERN_CHANGE || _id == T3::TRACK_CHANGE || _id == T3::SEQUENCE_CHANGE || _id == T3::PAGE_CHANGE || _id == T3::PARAMETER_CHANGE ) change_data = true;
     } );
 
+    pressing_tempo = true;
+
     std::thread waitForKeys([&](){
         char ch;
         while ( true ) {
@@ -146,7 +148,7 @@ int main(int argc, char** argv) {
         mvprintw(y_max-1, (x_max-x_beg)/2 - 3, "%s %02i", ((opz.isPlaying())? "|> " : "[ ]"), opz.getActiveStepId() + 1 );
         refresh();
 
-        if (large_screen || pressing_project)  draw_project(windows[5]);
+        if (pressing_project)  draw_project(windows[5]);
         else if (pressing_mixer)    draw_mixer(windows[5]);
         else if (pressing_tempo)    draw_tempo(windows[5]);
         else if (mic_on) draw_mic(windows[5]);
@@ -317,16 +319,43 @@ void draw_mixer(WINDOW* _win) {
 }
 
 void draw_tempo(WINDOW* _win) {
+    int y_beg, x_beg, y_max, x_max;
+    getbegyx(_win, y_beg, x_beg);
+    getmaxyx(_win, y_max, x_max);
+
     T3::opz_project_data project = opz.getProjectData();
 
     wclear(_win);
     box(_win, 0, 0);
-    mvwprintw(_win, 1, 2, "TEMPO               SWING                SOUND                LEVEL");
-    mvwprintw(_win, 2, 2, "%03i                 %03i                  %03i                  %03i", 
+    mvwprintw(_win, 1, 2, "TEMPO               SWING");
+    mvwprintw(_win, 2, 2, "%03i                 %03i", 
                             project.tempo, 
-                            (int)((int)project.swing / 2.55f) - 50, 
+                            (int)((int)project.swing / 2.55f) - 50);
+
+    mvwprintw(_win, 1, x_max - 28, "SOUND                LEVEL");
+    mvwprintw(_win, 2, x_max - 27, "%03i                 %03i", 
                             (int)((int)project.metronome_sound / 2.55f) , 
                             (int)((int)project.metronome_level / 2.55f) );
+
+    size_t w = 10;
+    mvwprintw(_win, 2, x_max/2 - w, "        ####|####");
+    mvwprintw(_win, 3, x_max/2 - w, "        ####|####");
+    mvwprintw(_win, 4, x_max/2 - w, "       #####|#####");
+    mvwprintw(_win, 5, x_max/2 - w, "       #####|#####");
+    mvwprintw(_win, 6, x_max/2 - w, "      ######|######");
+    mvwprintw(_win, 7, x_max/2 - w, "      ######|######");
+    mvwprintw(_win, 8, x_max/2 - w, "     #######|#######");
+    mvwprintw(_win, 9, x_max/2 - w, "     #######|#######");
+    mvwprintw(_win,10, x_max/2 - w, "    ########|########");
+    mvwprintw(_win,11, x_max/2 - w, "    ########|########");
+    mvwprintw(_win,12, x_max/2 - w, "   #########|#########");
+    mvwprintw(_win,13, x_max/2 - w, "   #########|#########");
+    mvwprintw(_win,14, x_max/2 - w, "  ##########|##########");
+    mvwprintw(_win,15, x_max/2 - w, "  ---------------------");
+    mvwprintw(_win,16, x_max/2 - w, " #######################");
+    mvwprintw(_win,17, x_max/2 - w, " ######### %03i #########");
+    mvwprintw(_win,18, x_max/2 - w, "#########################"); 
+
     wrefresh(_win);
 }
 
