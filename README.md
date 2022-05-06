@@ -14,7 +14,8 @@ make
 ```
 
 After running these commands you can run any of the programs inside the `build/example` folder. 
-Highly recomend trying the terminal base companion app 
+Highly recomend trying the terminal base companion app. 
+**Note** you need to have the OP-Z connected and turned on before running the app 
 
 ```
 examples/./opz_companion
