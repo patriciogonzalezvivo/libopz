@@ -137,7 +137,7 @@ int main(int argc, char** argv) {
             }
         }
 
-        mvprintw(y_max-2, 0, "STEP COUNT %2i      STEP LENGHT %2i                                        SUM %2i", 
+        mvprintw(y_max-2, 0, "STEP COUNT %2i      STEP LENGTH %2i                                        SUM %2i", 
                                 opz.getActiveTrackParameters().step_count, 
                                 opz.getActiveTrackParameters().step_length,
                                 opz.getActiveTrackParameters().step_count * opz.getActiveTrackParameters().step_length);
