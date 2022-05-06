@@ -37,6 +37,15 @@ enum opz_sound_parameter_id {
     STEP_COUNT,         STEP_LENGTH
 };
 
+enum opz_note_style_id {
+    DRUM_RETRIG = 0,    DRUM_MONO, DRUM_GATE, DRUM_LOOP,
+    SYNTH_POLY,         SYNTH_MONO, SYNTH_LEGATO 
+};
+
+enum opz_metronome_sound_id {
+    CLICK = 0,          SWEDISH, ENGLISH, GERMAN, JAPANISE, ITALIAN 
+};
+
 const size_t opz_notes_per_track[] = {    2, 2, 2, 2, 4,  4,  8,  4,  1,  1,  1,  4,  6,  6, 4,   4 };
 const size_t opz_notes_offset_track[] = { 0, 2, 4, 6, 8, 12, 16, 24, 28, 29, 30, 31, 35, 41, 47, 51 };
 
@@ -126,11 +135,14 @@ typedef struct {
 } opz_project_data, *p_opz_project_data;
 
 std::string& toString( opz_track_id  _id );
+// std::string& toString( opz_note_style_id _id );
+// std::string& toString( opz_metronome_sound_id _id );
 std::string& toString( opz_sound_parameter_id _id);
 std::string& toString( opz_pattern_parameter_id _id );
 
 std::string noteLengthString( uint8_t _value );
 std::string noteStyleString( opz_track_id _track, uint8_t _value );
+std::string metronomeSoundString( uint8_t _value );
 
 class opz_project {
 public:
@@ -142,6 +154,9 @@ public:
     virtual bool saveAsOpz(const std::string& _filename);
 
     virtual const opz_project_data&     getProjectData() const { return m_project; }
+
+    double                              getBeatPerSec() const { return 60.0 / (double)(m_project.tempo); }
+    double                              getBeatPerStep() const { return 15.0 / (double)(m_project.tempo); }
 
     virtual const opz_pattern&          getPattern(size_t _id) const { return m_project.pattern[_id]; }
 

@@ -329,7 +329,7 @@ void draw_tempo(WINDOW* _win) {
     mvwprintw(_win, 2, 2,           "%03i                 %03i", project.tempo, (int)((int)project.swing / 2.55f) - 50);
 
     mvwprintw(_win, 1, x_max - 28, "SOUND                LEVEL");
-    mvwprintw(_win, 2, x_max - 27, "%03i                 %03i", (int)((int)project.metronome_sound / 2.55f), (int)((int)project.metronome_level / 2.55f) );
+    mvwprintw(_win, 2, x_max - 31, "%8s                  %03i", T3::metronomeSoundString(project.metronome_sound).c_str(), (int)((int)project.metronome_level / 2.55f) );
 
     size_t w = 12;
     mvwprintw(_win, 3, x_max/2 - w, "        ####|####");

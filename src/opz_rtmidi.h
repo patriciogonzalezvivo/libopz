@@ -13,9 +13,6 @@ public:
     void            disconnect();
     bool            isConnected() const { return m_connected; }
 
-    double          getBeatPerSec() const { return 60.0 / (double)(m_project.tempo); }
-    double          getBeatPct() const { return m_last_beat / getBeatPerSec(); }
-
     void            update();
 
 private:
@@ -26,7 +23,6 @@ private:
 
     double          m_last_heartbeat;
     double          m_last_time;
-    double          m_last_beat;
     double          m_last_step;
 
     bool            m_connected;
