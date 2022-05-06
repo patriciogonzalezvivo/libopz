@@ -25,11 +25,8 @@ examples/./opz_companion
 
 ## Acknowledgment
 
-This work is based on:
+The effords to reverse engineer the MIDI SYSEX messages from/to the OP-Z are based on:
 
-- [z-po project](https://github.com/lrk/z-po-project)
-- [opz docs wiki](https://github.com/hyphz/opzdoc/wiki/)
-- [opz.js](https://github.com/nbw/opz)
-- [OPZ WebApp](https://github.com/Karmagrinder/OPZ_MIDI)
-- [MidiJack](https://github.com/teenageengineering/MidiJack)
+- [Cengis's](https://github.com/lrk) [z-po project](https://github.com/lrk/z-po-project)
+- [Mark Green's](https://github.com/hyphz) [opz docs wiki](https://github.com/hyphz/opzdoc/wiki/)
 - [TE's OP-Z guide](https://teenage.engineering/guides/op-z)
