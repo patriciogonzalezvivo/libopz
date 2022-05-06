@@ -25,8 +25,8 @@ examples/./opz_companion
 
 # Roadmap
 
-- [ ] Finish reverse engineering all the telemetry data
-- [ ] Finish the terminal clone of the companion app
+- [ ] Finish reverse engineering all the telemetry data. For it I'm going through the process of cloning all the functionality of the official companion app into a terminal only version.
+- [ ] Finish the terminal clone of the companion app (Linux/MacOS/Windows)
     - [x] Main screen
     - [x] Pages
     - [x] Tempo
@@ -40,8 +40,8 @@ examples/./opz_companion
     - [ ] Lights
     - [ ] Motion
     - [ ] Step Components
-- [ ] Create a Midi driver agnostic version of the `libopz`
-- [ ] Clean CMake rutines to allow the compilation of `libopz` as a static/dynamic library (with and without RtMidi support)
+- [ ] Create a MIDI agnostic version of the `libopz` (an extension of the `src/opz_device.h` abstraction). In case someone want to use something else that RtMidi or manually handle all MIDI events
+- [ ] Clean CMake rutines to allow the compilation of `libopz` as a static/dynamic library (with & without RtMidi support)
 - [ ] Add the hability to make changes on the OP-Z 
 - [ ] Compile a **Python3** module using SWIG (with no RtMidi support, raw midi messages will needs to be handled by a Python library)
 - [ ] Compile a **JavaScript** module using WASM (width no RtMidi support, raw midi messages will need to be handled by a JS library)
