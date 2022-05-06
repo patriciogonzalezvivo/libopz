@@ -39,7 +39,8 @@ double getTimeSec(const timespec &time_start) {
 
 opz_rtmidi::opz_rtmidi() : 
 m_in(NULL), m_out(NULL),
-m_last_heartbeat(0.0), m_last_time(0.0), m_last_beat(0.0),
+m_last_heartbeat(0.0), m_last_time(0.0), 
+m_last_beat(0.0), m_last_step(0.0),
 m_connected(false) {
     m_packet_recived_enabled = true;
     m_packet_recived = [&](uint8_t _cmd, uint8_t *_data, size_t _lenght) {
@@ -114,14 +115,24 @@ void opz_rtmidi::update(){
     }
 
     if (m_play) {
+        m_last_step += delta;
         m_last_beat += delta;
-        size_t total_steps = getActiveTrackParameters().step_count * getActiveTrackParameters().step_length;
-        if ( m_last_beat >= getSecPerStep() ) {
+
+        double bps = getBeatPerSec();
+
+        if ( m_last_beat >= bps)
             m_last_beat = 0.0;
+
+        if ( m_last_step >= bps * 0.25 ) {
+            m_last_step = 0.0;
+
+            size_t total_steps = getActiveTrackParameters().step_count * getActiveTrackParameters().step_length;
             m_active_step = (m_active_step + 1) % total_steps;
             if (m_event_enable)
                 m_event(STEP_CHANGE, m_active_step);
         }
+
+
     }
 
     usleep( 16700 );

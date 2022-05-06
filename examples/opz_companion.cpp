@@ -71,8 +71,6 @@ int main(int argc, char** argv) {
         else if (_id == T3::PATTERN_DOWNLOADED || _id == T3::PATTERN_CHANGE || _id == T3::TRACK_CHANGE || _id == T3::SEQUENCE_CHANGE || _id == T3::PAGE_CHANGE || _id == T3::PARAMETER_CHANGE ) change_data = true;
     } );
 
-    pressing_tempo = true;
-
     std::thread waitForKeys([&](){
         char ch;
         while ( true ) {
@@ -323,19 +321,15 @@ void draw_tempo(WINDOW* _win) {
     getmaxyx(_win, y_max, x_max);
 
     T3::opz_project_data project = opz.getProjectData();
-    double pct = opz.getActiveStepPct();
+    double pct = (opz.getActiveStepId() % 8) / 8.0;
     
     wclear(_win);
     box(_win, 0, 0);
-    mvwprintw(_win, 1, 2, "TEMPO               SWING");
-    mvwprintw(_win, 2, 2, "%03i                 %03i", 
-                            project.tempo, 
-                            (int)((int)project.swing / 2.55f) - 50);
+    mvwprintw(_win, 1, 2,           "TEMPO               SWING");
+    mvwprintw(_win, 2, 2,           "%03i                 %03i", project.tempo, (int)((int)project.swing / 2.55f) - 50);
 
     mvwprintw(_win, 1, x_max - 28, "SOUND                LEVEL");
-    mvwprintw(_win, 2, x_max - 27, "%03i                 %03i", 
-                            (int)((int)project.metronome_sound / 2.55f) , 
-                            (int)((int)project.metronome_level / 2.55f) );
+    mvwprintw(_win, 2, x_max - 27, "%03i                 %03i", (int)((int)project.metronome_sound / 2.55f), (int)((int)project.metronome_level / 2.55f) );
 
     size_t w = 12;
     mvwprintw(_win, 3, x_max/2 - w, "        ####|####");
@@ -353,14 +347,15 @@ void draw_tempo(WINDOW* _win) {
     mvwprintw(_win,15, x_max/2 - w, "  ##########|##########");
     mvwprintw(_win,16, x_max/2 - w, "  ---------------------");
     mvwprintw(_win,17, x_max/2 - w, " #######################");
-    mvwprintw(_win,18, x_max/2 - w, " ######### %03i #########");
+    mvwprintw(_win,18, x_max/2 - w, " ######### %03i #########", project.tempo);
     mvwprintw(_win,19, x_max/2 - w, "#########################"); 
 
-    attron(COLOR_PAIR(2));
-    int x = cos( pct * 3.1415 * 2.0);
-    int y = 3;
-    dline(_win, x_max/2, 16, x_max/2 - x * w, y,  '.');
-    attroff(COLOR_PAIR(2));
+    wattron(_win, COLOR_PAIR(2));
+    float x = w * sin( pct * 6.2831 );
+    float y = 2 * abs( cos( pct * 6.2831 ) );
+    dline(_win, x_max/2,    16, 
+                x_max/2 + x, 5 - y,  '|');
+    wattroff(_win, COLOR_PAIR(2));
 
     wrefresh(_win);
 }
