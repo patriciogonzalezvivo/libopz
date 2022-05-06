@@ -20,6 +20,8 @@ Highly recomend trying the terminal base companion app
 examples/./opz_companion
 ```
 
+![gif](.github/000.gif)
+
 ## Acknowledgment
 
 This work is based on:
