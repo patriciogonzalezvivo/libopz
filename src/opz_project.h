@@ -106,7 +106,7 @@ typedef struct {
     opz_note            note[880];
     opz_step            step[256];
     opz_sound_parameter sound_param[16];
-    uint8_t             mute[40];          // mute config, tracks are mapped with bitmask
+    uint8_t             mute[40];           // mute config, tracks are mapped with bitmask
     uint16_t            send_tape;          // Send mapping for Tape track using bitmask
     uint16_t            send_master;        // SendMaster  Send mapping for Master track using bitmask
     uint8_t             active_mute_group;  // Active mute group

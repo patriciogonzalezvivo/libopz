@@ -19,6 +19,10 @@ std::string header = name + " " + version + " by Patricio Gonzalez Vivo ( patric
 T3::opz_rtmidi opz;
 std::atomic<bool> keepRunnig(true);
 
+std::vector<WINDOW*> windows;
+bool large_screen = false;
+bool change = true;
+
 // global
 void draw_mic(WINDOW* _window);
 void draw_project(WINDOW* _window);
@@ -35,6 +39,7 @@ void draw_page_one(WINDOW* _window);
 void draw_page_two(WINDOW* _window);
 void draw_page_three(WINDOW* _window);
 void draw_page_four(WINDOW* _window);
+void handle_winch(int sig);
 
 int main(int argc, char** argv) {
     opz.connect();
@@ -50,15 +55,27 @@ int main(int argc, char** argv) {
     keypad(stdscr, TRUE);
     noecho();
 
-    bool change = true;
+    large_screen = (COLS >= 159); 
+
+    windows.push_back( newwin(5, 41, 1, 0) );    //  PAGE ONE
+    windows.push_back( newwin(8, 41, 6, 0) );    //  PAGE TWO
+    windows.push_back( newwin(5, 66, 14, 0) );   //  PAGE THREE
+    windows.push_back( newwin(13, 25, 1, 41) );  //  PAGE FOUR
+
+    windows.push_back( newwin(18, 14, 1, 66) );  //  STEP / NOTE
+    
+    // Extra window that can be display on the side or on top of the pages depending of the size of the terminal
+    windows.push_back( newwin((large_screen ? LINES-2 : 0), (large_screen ? COLS-80 : 0) , 1, (large_screen ? 80 : 0) ) );
+
+    signal(SIGWINCH, handle_winch);
+
     bool change_data = true;
     bool pressing_track = false;
     bool pressing_project = false;
     bool pressing_mixer = false;
     bool pressing_tempo = false;
     bool mic_on = false;
-    bool large_screen = false;
-
+    
     // Listen to key events (no cc, neighter notes)
     opz.setEventCallback( [&](T3::opz_event_id _id, int _value) {
         change = true;
@@ -75,6 +92,7 @@ int main(int argc, char** argv) {
         char ch;
         while ( true ) {
             ch = getch();
+            
             if (ch == 'x') {
                 keepRunnig = false;
                 keepRunnig.store(false);
@@ -83,20 +101,6 @@ int main(int argc, char** argv) {
         }
     });
 
-    int y_beg, x_beg, y_max, x_max;
-    getbegyx(stdscr, y_beg, x_beg);
-    getmaxyx(stdscr, y_max, x_max);
-
-    large_screen = (x_max >= 159); 
-
-    std::vector<WINDOW*> windows = {
-        newwin(5, 41, 1, 0),    //  PAGE ONE
-        newwin(8, 41, 6, 0),    //  PAGE TWO
-        newwin(5, 41, 14, 0),   //  PAGE THREE
-        newwin(18, 25, 1, 41),  //  PAGE FOUR
-        newwin(18, 14, 1, 66),  //  STEP / NOTE
-        newwin((large_screen ? y_max-2 : 0), (large_screen ? x_max-80 : 0) , 1, (large_screen ? 80 : 0) ), // Extra
-    };
     refresh();
 
     while (keepRunnig.load()) {
@@ -116,32 +120,31 @@ int main(int argc, char** argv) {
         else if (pressing_tempo)   title_name = "TEMPO";
 
         clear();
-        mvprintw(0, (x_max-x_beg)/2 - title_name.size()/2, "%s", title_name.c_str() );
+        mvprintw(0, COLS/2 - title_name.size()/2, "%s", title_name.c_str() );
 
         if (opz.isPlaying()) {
             size_t step = opz.getActiveStepId();
-            mvprintw(y_max-4, 2 + step * 4 + ( (step/4) * 4 ) , "[ ]");
+            mvprintw(LINES-4, 2 + step * 4 + ( (step/4) * 4 ) , "[ ]");
         }
-            
-        for (size_t i = 0; i < 16; i++) {
+        
+        size_t step_count = opz.getActiveTrackParameters().step_count;
+        size_t step_length = opz.getActiveTrackParameters().step_length;
+        for (size_t i = 0; i < step_count; i++) {
             size_t x = 3 + i * 4 + ( (i/4) * 4 );
-            mvprintw(y_max-5, x, "%02i", i + 1 );
+            mvprintw(LINES-5, x, "%02i", i + 1 );
             size_t note = opz.getNoteIdOffset(track_id, i);
-
             if ( pattern.note[ note ].note == 0xFF)
-                mvprintw(y_max-4, x, "-");
+                mvprintw(LINES-4, x, "-");
             else {
                 attron(COLOR_PAIR(2));
-                mvprintw(y_max-4, x, "o");
+                mvprintw(LINES-4, x, "o");
                 attroff(COLOR_PAIR(2));
             }
         }
 
-        mvprintw(y_max-2, 0, "STEP COUNT %2i      STEP LENGTH %2i                                        SUM %2i", 
-                                opz.getActiveTrackParameters().step_count, 
-                                opz.getActiveTrackParameters().step_length,
-                                opz.getActiveTrackParameters().step_count * opz.getActiveTrackParameters().step_length);
-        mvprintw(y_max-1, (x_max-x_beg)/2 - 3, "%s %02i", ((opz.isPlaying())? "|> " : "[ ]"), opz.getActiveStepId() + 1 );
+        mvprintw(LINES-2, 0, "STEP COUNT %2i      STEP LENGTH %2i                                        SUM %2i", 
+                                step_count, step_length, step_count * step_length);
+        mvprintw(LINES-1, COLS/2 - 3, "%s %02i", ((opz.isPlaying())? "|> " : "[ ]"), opz.getActiveStepId() + 1 );
         refresh();
 
         if (pressing_project)  draw_project(windows[5]);
@@ -260,6 +263,16 @@ void dline(WINDOW* _win, int from_x, int from_y, int x2, int y2, int ch) {
     }
 }
 
+void handle_winch(int sig) {
+    endwin();
+
+    refresh();
+    for (size_t i = 0; i < windows.size(); i++)
+        wrefresh(windows[i]);
+
+    wresize( windows[5], LINES-2, COLS-80 );
+}
+
 void draw_mic(WINDOW* _win) {
     wclear(_win);
     box(_win, 0, 0);
@@ -274,27 +287,48 @@ void draw_project(WINDOW* _win) {
     size_t project_id = opz.getActiveProjectId();
     uint8_t pattern_id = opz.getActivePatternId();
     T3::opz_pattern pattern = opz.getActivePattern();
-    T3::opz_track_id track_id = opz.getActiveTrackId();
+    T3::opz_track_id track_active = opz.getActiveTrackId();
+
+    int lines, cols;
+    getmaxyx(_win, lines, cols);
 
     wclear(_win);
     box(_win, 0, 0);
 
     mvwprintw(_win, 0, 2, " PROJECT  %02i ", project_id);
     mvwprintw(_win, 0, 20, " PATTERN  %02i ", pattern_id );
-    
-    for (size_t y = 0; y < 16; y++) {
-        if (y == track_id)
+
+    int song_width = 4;
+    int x_margin = (cols - song_width * 16) / 2;
+    for (size_t i = 0; i < 16; i++) {
+        int y = 2;
+        int x = x_margin + i * song_width;
+        mvwprintw(_win, y, x, "%02X", opz.getProjectData().pattern_chain[pattern_id].pattern[i]);
+        mvwprintw(_win, y+1, x, "%02X", opz.getProjectData().pattern_chain[pattern_id].pattern[i+16]);
+    }
+
+    int name_width = 10;
+    int step_width = (cols - name_width) / 16;
+    x_margin = (cols - step_width * 16 - name_width) / 2;
+
+    size_t tracks = 8;
+    for (size_t t = 0; t < tracks; t++) {
+        int y = 5 + t;
+
+        if (t == track_active)
             wattron(_win, COLOR_PAIR(2));
 
-        mvwprintw(_win, y+1, 2, "%7s", T3::toString( T3::opz_track_id(y) ).c_str() );
+        mvwprintw(_win, y, x_margin, "%7s", T3::toString( T3::opz_track_id(t) ).c_str() );
 
-        for (size_t x = 0; x < 16; x++) {
-            size_t i = opz.getNoteIdOffset(y, x);
+        size_t step_count = opz.getTrackParameters(T3::opz_track_id(t) ).step_count;
+        for (size_t s = 0; s < step_count; s++) {
+            int x = x_margin + name_width + s * step_width;
+            size_t i = opz.getNoteIdOffset(t, s);
 
             if ( pattern.note[ i ].note == 0xFF)
-                mvwprintw(_win, y+1, 12 + x * 4, " .");
+                mvwprintw(_win, y, x, " .");
             else
-                mvwprintw(_win, y+1, 12 + x * 4, "%02X", pattern.note[ i ].note );
+                mvwprintw(_win, y, x, "%02X", pattern.note[ i ].note );
         }
         wattroff(_win, COLOR_PAIR(2));
     }
@@ -316,9 +350,8 @@ void draw_mixer(WINDOW* _win) {
 }
 
 void draw_tempo(WINDOW* _win) {
-    int y_beg, x_beg, y_max, x_max;
-    getbegyx(_win, y_beg, x_beg);
-    getmaxyx(_win, y_max, x_max);
+    int lines, cols;
+    getmaxyx(_win, lines, cols);
 
     T3::opz_project_data project = opz.getProjectData();
     double pct = (opz.getActiveStepId() % 8) / 8.0;
@@ -328,33 +361,33 @@ void draw_tempo(WINDOW* _win) {
     mvwprintw(_win, 1, 2,           "TEMPO               SWING");
     mvwprintw(_win, 2, 2,           "%03i                 %03i", project.tempo, (int)((int)project.swing / 2.55f) - 50);
 
-    mvwprintw(_win, 1, x_max - 28, "SOUND                LEVEL");
-    mvwprintw(_win, 2, x_max - 31, "%8s                  %03i", T3::metronomeSoundString(project.metronome_sound).c_str(), (int)((int)project.metronome_level / 2.55f) );
+    mvwprintw(_win, 1, cols - 28, "SOUND                LEVEL");
+    mvwprintw(_win, 2, cols - 31, "%8s                  %03i", T3::metronomeSoundString(project.metronome_sound).c_str(), (int)((int)project.metronome_level / 2.55f) );
 
     size_t w = 12;
-    mvwprintw(_win, 3, x_max/2 - w, "        ####|####");
-    mvwprintw(_win, 4, x_max/2 - w, "        ####|####");
-    mvwprintw(_win, 5, x_max/2 - w, "       #####|#####");
-    mvwprintw(_win, 6, x_max/2 - w, "       #####|#####");
-    mvwprintw(_win, 7, x_max/2 - w, "      ######|######");
-    mvwprintw(_win, 8, x_max/2 - w, "      ######|######");
-    mvwprintw(_win, 9, x_max/2 - w, "     #######|#######");
-    mvwprintw(_win,10, x_max/2 - w, "     #######|#######");
-    mvwprintw(_win,11, x_max/2 - w, "    ########|########");
-    mvwprintw(_win,12, x_max/2 - w, "    ########|########");
-    mvwprintw(_win,13, x_max/2 - w, "   #########|#########");
-    mvwprintw(_win,14, x_max/2 - w, "   #########|#########");
-    mvwprintw(_win,15, x_max/2 - w, "  ##########|##########");
-    mvwprintw(_win,16, x_max/2 - w, "  ---------------------");
-    mvwprintw(_win,17, x_max/2 - w, " #######################");
-    mvwprintw(_win,18, x_max/2 - w, " ######### %03i #########", project.tempo);
-    mvwprintw(_win,19, x_max/2 - w, "#########################"); 
+    mvwprintw(_win, 3, cols/2 - w, "        ####|####");
+    mvwprintw(_win, 4, cols/2 - w, "        ####|####");
+    mvwprintw(_win, 5, cols/2 - w, "       #####|#####");
+    mvwprintw(_win, 6, cols/2 - w, "       #####|#####");
+    mvwprintw(_win, 7, cols/2 - w, "      ######|######");
+    mvwprintw(_win, 8, cols/2 - w, "      ######|######");
+    mvwprintw(_win, 9, cols/2 - w, "     #######|#######");
+    mvwprintw(_win,10, cols/2 - w, "     #######|#######");
+    mvwprintw(_win,11, cols/2 - w, "    ########|########");
+    mvwprintw(_win,12, cols/2 - w, "    ########|########");
+    mvwprintw(_win,13, cols/2 - w, "   #########|#########");
+    mvwprintw(_win,14, cols/2 - w, "   #########|#########");
+    mvwprintw(_win,15, cols/2 - w, "  ##########|##########");
+    mvwprintw(_win,16, cols/2 - w, "  ---------------------");
+    mvwprintw(_win,17, cols/2 - w, " #######################");
+    mvwprintw(_win,18, cols/2 - w, " ######### %03i #########", project.tempo);
+    mvwprintw(_win,19, cols/2 - w, "#########################"); 
 
     wattron(_win, COLOR_PAIR(2));
     float x = w * sin( pct * 6.2831 );
     float y = 2 * abs( cos( pct * 6.2831 ) );
-    dline(_win, x_max/2,    16, 
-                x_max/2 + x, 5 - y,  '|');
+    dline(_win, cols/2,    16, 
+                cols/2 + x, 5 - y,  '|');
     wattroff(_win, COLOR_PAIR(2));
 
     wrefresh(_win);
@@ -480,8 +513,8 @@ void draw_page_four(WINDOW* _win) {
                                             (int)((int)opz.getActivePageParameters().fx1 / 2.55f),
                                             (int)((int)opz.getActivePageParameters().fx2 / 2.55f) );
 
-    mvwprintw(_win, 6, 1, " PAN L             R");
-    mvwprintw(_win, 7, 1, "     ");
+    mvwprintw(_win, 5, 1, " PAN L             R");
+    mvwprintw(_win, 6, 1, "     ");
     for (size_t i = 0; i < 15; i++) {
         size_t p = opz.getActivePageParameters().pan;
         p = (p/254.0)*15;
@@ -489,10 +522,11 @@ void draw_page_four(WINDOW* _win) {
         else wprintw(_win,".");
     }
     
-    mvwprintw(_win, 10, 1, " LEVEL");
+    mvwprintw(_win, 9, 1, " LEVEL     %03i", (int)( (int)opz.getActivePageParameters().level / 2.55f));
+    mvwprintw(_win, 10, 1, "     %s", hBar(15, (size_t)opz.getActivePageParameters().level).c_str());
 
-    vBar(_win, 15, 13, 7, (size_t)opz.getActivePageParameters().level );
-    mvwprintw(_win, 16, 12, "%03i", (int)( (int)opz.getActivePageParameters().level / 2.55f));
+    // vBar(_win, 15, 13, 7, (size_t)opz.getActivePageParameters().level );
+    // mvwprintw(_win, 16, 12, "%03i", (int)( (int)opz.getActivePageParameters().level / 2.55f));
 }
 
 void draw_track_params(WINDOW* _win) {
