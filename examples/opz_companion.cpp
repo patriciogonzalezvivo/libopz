@@ -6,6 +6,7 @@
 #include <atomic>
 #include <mutex>
 #include <math.h>
+#include <signal.h>
 
 #include <ncurses.h>
 #include "opz_rtmidi.h"
