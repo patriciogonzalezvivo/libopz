@@ -143,6 +143,11 @@ std::string& toString( opz_pattern_parameter_id _id );
 std::string noteLengthString( uint8_t _value );
 std::string noteStyleString( opz_track_id _track, uint8_t _value );
 std::string metronomeSoundString( uint8_t _value );
+std::string lfoShapeString( uint8_t _value );
+std::string lfoShapeShortString( uint8_t _value );
+std::string lfoShapeShapeString( uint8_t _value );
+std::string lfoDestinationString( uint8_t _value );
+std::string lfoDestinationShortString( uint8_t _value );
 
 class opz_project {
 public:

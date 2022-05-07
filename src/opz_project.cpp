@@ -57,10 +57,18 @@ std::string& toString( opz_pattern_parameter_id _id ) { return pattern_parameter
 std::vector<std::string> note_lengths_name = { "DRONE", "1", "1/2", "1/4", "1/8", "1/16", "1/32", "1/64" };
 std::vector<std::string> note_style_drums_name = { "RETRIG",  "MONO", "GATE",     "LOOP"  };
 std::vector<std::string> note_style_synth_name = { "POLY",    "MONO", "LEGATO" };
+std::vector<std::string> lfo_destination_name = { "PARAMETER 1", "PARAMETER 2", "FILTER CUTOFF", "FILTER RESONANCE", "ATTACK", "PITCH", "PAN", "VOLUME" };
+std::vector<std::string> lfo_destination_short_name = { "P1", "P2", "FIL", "RES", "ATT", "VIB", "PAN", "VOL" };
+std::vector<std::string> lfo_shape_name = { "SINE", "TRIANGLE", "SQUARE", "SAW", "RANDOM", "GYRO", "BELL", "TRIANGLE", "SQUARE", "SAW", "RANDOM", "SAW (SINGLE)" };
+std::vector<std::string> lfo_shape_short_name = { "SIN", "TRI", "SSQR", "SAW", "RND", "G", "SIN*", "TRI*", "SSQR*", "SAW*", "RND*", "ONCE*" };
+std::vector<std::string> lfo_shape = { ",-._", "/\\/\\", "_|-|", "/|/|", ".-_", "   ", ",-._", "/\\/\\", "_|-|", "/|/|", ".-_", "__/|" };
 
 std::string mapList( const std::vector<std::string>& _list, uint8_t _value ) {
     float value = (float)_value / 255.0f;
-    return _list[ (size_t)(value * (_list.size())) ];
+    size_t i = value * _list.size();
+    if (i >= _list.size())
+        i = _list.size()-1;
+    return _list[i];
 }
 
 std::string noteLengthString( uint8_t _value ) { return mapList( note_lengths_name, _value ); };
@@ -69,6 +77,13 @@ std::string noteStyleString( opz_track_id _track, uint8_t _value ) {
     else return mapList( note_style_synth_name, _value );
 }
 std::string metronomeSoundString( uint8_t _value ) { return mapList(opz_metronome_sound_name, _value); }
+
+std::string lfoShapeString( uint8_t _value ) { return mapList(lfo_shape_name, _value); }
+std::string lfoShapeShortString( uint8_t _value ) { return mapList(lfo_shape_short_name, _value); }
+std::string lfoShapeShapeString( uint8_t _value ) { return mapList(lfo_shape, _value); }
+
+std::string lfoDestinationString( uint8_t _value ) { return mapList(lfo_destination_name, _value); }
+std::string lfoDestinationShortString( uint8_t _value ) { return mapList(lfo_destination_short_name, _value); }
 
 opz_project::opz_project() {
 }

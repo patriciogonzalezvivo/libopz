@@ -315,6 +315,9 @@ void draw_project(WINDOW* _win) {
     for (size_t t = 0; t < tracks; t++) {
         int y = 5 + t;
 
+        if (t > 7)
+            y += 1;
+
         if (t == track_active)
             wattron(_win, COLOR_PAIR(2));
 
@@ -493,15 +496,14 @@ void draw_page_two(WINDOW* _win) {
 // PAGE 3: LFO
 void draw_page_three(WINDOW* _win) {
     mvwprintw(_win,1, 1, "LFO    DEPTH   RATE    DEST    SHAPE");
-    mvwprintw(_win,2, 1, "       %s %s %s %s",  hBar(7, (size_t)opz.getActivePageParameters().lfo_depth).c_str(),
+    mvwprintw(_win,2, 1, "       %s %s         %s",   hBar(7, (size_t)opz.getActivePageParameters().lfo_depth).c_str(),
                                             hBar(7, (size_t)opz.getActivePageParameters().lfo_speed).c_str(),
-                                            hBar(7, (size_t)opz.getActivePageParameters().lfo_value).c_str(),
-                                            hBar(7, (size_t)opz.getActivePageParameters().lfo_shape).c_str() );
-    mvwprintw(_win,3, 1, "       %7i %7i %7i %7i", 
+                                            T3::lfoShapeShapeString( opz.getActivePageParameters().lfo_shape ).c_str());
+    mvwprintw(_win,3, 1, "       %3i     %3i     %3s    %5s", 
                                             (int)((int)opz.getActivePageParameters().lfo_depth / 2.55f), 
-                                            (int)((int)opz.getActivePageParameters().lfo_speed / 2.55f), 
-                                            (int)((int)opz.getActivePageParameters().lfo_value / 2.55f), 
-                                            (int)((int)opz.getActivePageParameters().lfo_shape / 2.55f) );
+                                            (int)((int)opz.getActivePageParameters().lfo_speed / 2.55f),
+                                            T3::lfoDestinationShortString( opz.getActivePageParameters().lfo_value ).c_str(),
+                                            T3::lfoShapeShortString( opz.getActivePageParameters().lfo_shape ).c_str() );
 }
 
 void draw_page_four(WINDOW* _win) {
