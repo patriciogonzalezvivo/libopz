@@ -47,10 +47,18 @@ int main(int argc, char** argv) {
     
     initscr();
     start_color();
+    use_default_colors();
 
-    init_color(COLOR_BLACK, 0, 0, 0);
-    init_pair(1, COLOR_WHITE, COLOR_BLACK);
-    init_pair(2, COLOR_RED, COLOR_BLACK);
+    init_color(COLOR_MAGENTA, 1000, 100, 100);
+    init_color(COLOR_YELLOW, 800, 800, 800);
+    init_color(COLOR_GREEN, 600, 600, 600);
+    init_color(COLOR_BLUE, 300, 300, 300);
+
+    init_pair(1, COLOR_MAGENTA, -1);
+    init_pair(2, COLOR_RED, -1);
+    init_pair(3, COLOR_YELLOW, -1);
+    init_pair(4, COLOR_GREEN, -1);
+    init_pair(5, COLOR_BLUE, -1);
 
     cbreak();
     keypad(stdscr, TRUE);
@@ -123,13 +131,15 @@ int main(int argc, char** argv) {
         clear();
         mvprintw(0, COLS/2 - title_name.size()/2, "%s", title_name.c_str() );
 
+        size_t step_count = opz.getActiveTrackParameters().step_count;
+        size_t step_length = opz.getActiveTrackParameters().step_length;
+
         if (opz.isPlaying()) {
-            size_t step = opz.getActiveStepId();
+            size_t step = (opz.getActiveStepId() / step_length) % step_count;
             mvprintw(LINES-4, 2 + step * 4 + ( (step/4) * 4 ) , "[ ]");
         }
         
-        size_t step_count = opz.getActiveTrackParameters().step_count;
-        size_t step_length = opz.getActiveTrackParameters().step_length;
+        
         for (size_t i = 0; i < step_count; i++) {
             size_t x = 3 + i * 4 + ( (i/4) * 4 );
             mvprintw(LINES-5, x, "%02i", i + 1 );
@@ -299,6 +309,7 @@ void draw_project(WINDOW* _win) {
     mvwprintw(_win, 0, 2, " PROJECT  %02i ", project_id);
     mvwprintw(_win, 0, 20, " PATTERN  %02i ", pattern_id );
 
+    // CHAINED PATTERNS (TODO)
     int song_width = 4;
     int x_margin = (cols - song_width * 16) / 2;
     for (size_t i = 0; i < 16; i++) {
@@ -308,33 +319,42 @@ void draw_project(WINDOW* _win) {
         mvwprintw(_win, y+1, x, "%02X", opz.getProjectData().pattern_chain[pattern_id].pattern[i+16]);
     }
 
+    // PATTERN TRACK
     int name_width = 10;
     int step_width = (cols - name_width) / 16;
-    x_margin = (cols - step_width * 16 - name_width) / 2;
-
-    size_t tracks = 8;
+    x_margin = 2 + (cols - step_width * 16 - name_width) / 2;
+    size_t step_current = opz.getActiveStepId();
+    
+    size_t tracks = 16;
     for (size_t t = 0; t < tracks; t++) {
         int y = 5 + t;
-
-        if (t > 7)
-            y += 1;
-
-        if (t == track_active)
-            wattron(_win, COLOR_PAIR(2));
-
+        if (t == track_active) wattron(_win, COLOR_PAIR(2));
+        else if (t > 7) wattron(_win, COLOR_PAIR(4));
         mvwprintw(_win, y, x_margin, "%7s", T3::toString( T3::opz_track_id(t) ).c_str() );
+        if (t == track_active) wattroff(_win, COLOR_PAIR(2));
+        else if (t > 7) wattroff(_win, COLOR_PAIR(4));
 
         size_t step_count = opz.getTrackParameters(T3::opz_track_id(t) ).step_count;
+        size_t step_length = opz.getTrackParameters(T3::opz_track_id(t) ).step_length;
+        size_t step = (step_current / step_length) % step_count;
+        mvwprintw(_win,y, x_margin + name_width + step * step_width - 1, "[  ]");
         for (size_t s = 0; s < step_count; s++) {
             int x = x_margin + name_width + s * step_width;
             size_t i = opz.getNoteIdOffset(t, s);
 
-            if ( pattern.note[ i ].note == 0xFF)
-                mvwprintw(_win, y, x, " .");
-            else
+            if ( pattern.note[ i ].note == 0xFF) {
+                if (t > 7) wattron(_win, COLOR_PAIR(4));
+                mvwprintw(_win, y, x, "--");
+                if (t > 7) wattroff(_win, COLOR_PAIR(4));
+            }
+            else {
+                if (t == track_active) wattron(_win, COLOR_PAIR(1));
+                else if (t > 7) wattron(_win, COLOR_PAIR(2));
                 mvwprintw(_win, y, x, "%02X", pattern.note[ i ].note );
+                if (t == track_active) wattroff(_win, COLOR_PAIR(1));
+                else if (t > 7) wattroff(_win, COLOR_PAIR(2));
+            }
         }
-        wattroff(_win, COLOR_PAIR(2));
     }
     wrefresh(_win);
 }
@@ -387,12 +407,12 @@ void draw_tempo(WINDOW* _win) {
     mvwprintw(_win,18, cols/2 - w, " ######### %03i #########", project.tempo);
     mvwprintw(_win,19, cols/2 - w, "#########################"); 
 
-    wattron(_win, COLOR_PAIR(2));
+    wattron(_win, COLOR_PAIR(1));
     float x = w * sin( pct * 6.2831 );
     float y = 2 * abs( cos( pct * 6.2831 ) );
     dline(_win, cols/2,    16, 
                 cols/2 + x, 5 - y,  '|');
-    wattroff(_win, COLOR_PAIR(2));
+    wattroff(_win, COLOR_PAIR(1));
 
     wrefresh(_win);
 }
@@ -400,10 +420,12 @@ void draw_tempo(WINDOW* _win) {
 // PAGE 1: SOUND     
 void draw_page_one(WINDOW* _win) {
     mvwprintw(_win, 1, 1, "SOUND  P1      P2      FILTER  RESONA.");
+    wattron(_win, COLOR_PAIR(2));
     mvwprintw(_win, 2, 1, "       %s %s %s %s",   hBar(7, (size_t)opz.getActivePageParameters().param1).c_str(),
                                             hBar(7, (size_t)opz.getActivePageParameters().param2).c_str(),
                                             hBar(7, (size_t)opz.getActivePageParameters().filter).c_str(),
                                             hBar(7, (size_t)opz.getActivePageParameters().resonance).c_str() );
+    wattroff(_win, COLOR_PAIR(2));
     mvwprintw(_win, 3, 1, "       %7i %7i %7i %7i", 
                                             (int)((int)opz.getActivePageParameters().param1 / 2.55f), 
                                             (int)((int)opz.getActivePageParameters().param2 / 2.55f), 
@@ -418,10 +440,9 @@ void draw_page_two(WINDOW* _win) {
 
     wclear(_win);
 
-    if (page_id == 1)
-        wattron(_win, COLOR_PAIR(2));
+    if (page_id == 1) wattron(_win, COLOR_PAIR(1));
     box(_win, 0, 0);
-    wattroff(_win, COLOR_PAIR(2));
+    wattroff(_win, COLOR_PAIR(1));
 
     mvwprintw(_win, 1, 1, "ENVEL.");
 
@@ -453,13 +474,18 @@ void draw_page_two(WINDOW* _win) {
         h += x;
         d += x;
 
+        wattron(_win, COLOR_PAIR(2));
         dline(_win, s, 5, a, 1, '.');
         dline(_win, a, 1, h, 1, '.');
         dline(_win, h, 1, d, 5, '.');
+        wattroff(_win, COLOR_PAIR(2));
+
+        wattron(_win, COLOR_PAIR(1));
         mvwprintw(_win, 5, s, "+");
         mvwprintw(_win, 1, a, "+");
         mvwprintw(_win, 1, h, "+");
         mvwprintw(_win, 5, d, "+");
+        wattroff(_win, COLOR_PAIR(1));
 
         mvwprintw(_win, 6,  8, "S %i", (int)(100*attack));
         mvwprintw(_win, 6, 17, "A %i", (int)(100*decay));
@@ -477,14 +503,18 @@ void draw_page_two(WINDOW* _win) {
         d += x;
         r += x;
 
+        wattron(_win, COLOR_PAIR(2));
         dline(_win, x, 5, a, 1, '.');
         dline(_win, a, 1, d, h, '.');
         dline(_win, d, h, r, h, '.');
         dline(_win, r, h, x+w, 5, '.');
+        wattroff(_win, COLOR_PAIR(2));
 
+        wattron(_win, COLOR_PAIR(1));
         mvwprintw(_win, 1, a, "+");
         mvwprintw(_win, h, d, "+");
         mvwprintw(_win, h, r, "+");
+        wattroff(_win, COLOR_PAIR(1));
 
         mvwprintw(_win, 6,  8, "A %i", (int)(100*attack));
         mvwprintw(_win, 6, 17, "D %i", (int)(100*decay));
@@ -497,9 +527,11 @@ void draw_page_two(WINDOW* _win) {
 // PAGE 3: LFO
 void draw_page_three(WINDOW* _win) {
     mvwprintw(_win,1, 1, "LFO    DEPTH   RATE    DEST    SHAPE");
+    wattron(_win, COLOR_PAIR(2));
     mvwprintw(_win,2, 1, "       %s %s         %s",   hBar(7, (size_t)opz.getActivePageParameters().lfo_depth).c_str(),
                                             hBar(7, (size_t)opz.getActivePageParameters().lfo_speed).c_str(),
                                             T3::lfoShapeShapeString( opz.getActivePageParameters().lfo_shape ).c_str());
+    wattroff(_win, COLOR_PAIR(2));
     mvwprintw(_win,3, 1, "       %3i     %3i     %3s    %5s", 
                                             (int)((int)opz.getActivePageParameters().lfo_depth / 2.55f), 
                                             (int)((int)opz.getActivePageParameters().lfo_speed / 2.55f),
@@ -510,8 +542,10 @@ void draw_page_three(WINDOW* _win) {
 void draw_page_four(WINDOW* _win) {
     // PAGE 4: FX / PAN & LEVEL
     mvwprintw(_win, 1, 1, " FX  1       2");
+    wattron(_win, COLOR_PAIR(2));
     mvwprintw(_win, 2, 1, "     %s %s", hBar(7, (size_t)opz.getActivePageParameters().fx1).c_str(),
                                             hBar(7, (size_t)opz.getActivePageParameters().fx2).c_str());
+    wattroff(_win, COLOR_PAIR(2));
     mvwprintw(_win, 3, 1, "     %7i %7i", 
                                             (int)((int)opz.getActivePageParameters().fx1 / 2.55f),
                                             (int)((int)opz.getActivePageParameters().fx2 / 2.55f) );
@@ -521,15 +555,18 @@ void draw_page_four(WINDOW* _win) {
     for (size_t i = 0; i < 15; i++) {
         size_t p = opz.getActivePageParameters().pan;
         p = (p/254.0)*15;
-        if (i + 2 > p  && i < p ) wprintw(_win, "|");
+        if (i + 2 > p  && i < p ) {
+            wattron(_win, COLOR_PAIR(2));
+            wprintw(_win, "|");
+            wattroff(_win, COLOR_PAIR(2));
+        }
         else wprintw(_win,".");
     }
-    
-    mvwprintw(_win, 9, 1, " LEVEL     %03i", (int)( (int)opz.getActivePageParameters().level / 2.55f));
-    mvwprintw(_win, 10, 1, "     %s", hBar(15, (size_t)opz.getActivePageParameters().level).c_str());
 
-    // vBar(_win, 15, 13, 7, (size_t)opz.getActivePageParameters().level );
-    // mvwprintw(_win, 16, 12, "%03i", (int)( (int)opz.getActivePageParameters().level / 2.55f));
+    mvwprintw(_win, 9, 1, " LEVEL     %03i", (int)( (int)opz.getActivePageParameters().level / 2.55f));
+    wattron(_win, COLOR_PAIR(2));
+    mvwprintw(_win, 10, 1, "     %s", hBar(15, (size_t)opz.getActivePageParameters().level).c_str());
+    wattroff(_win, COLOR_PAIR(2));
 }
 
 void draw_track_params(WINDOW* _win) {
