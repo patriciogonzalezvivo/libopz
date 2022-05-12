@@ -174,9 +174,9 @@ int main(int argc, char** argv) {
 
             for (size_t i = 0; i < 5; i++) {
                 if (!pressing_track && i == page)
-                    wattron(windows[i], COLOR_PAIR(2));
+                    wattron(windows[i], COLOR_PAIR(1));
                 box(windows[i], 0, 0);
-                wattroff(windows[i], COLOR_PAIR(2));
+                wattroff(windows[i], COLOR_PAIR(1));
             }
 
             if (page == 0 || change_data) draw_page_one(windows[0]);
@@ -420,12 +420,12 @@ void draw_tempo(WINDOW* _win) {
 // PAGE 1: SOUND     
 void draw_page_one(WINDOW* _win) {
     mvwprintw(_win, 1, 1, "SOUND  P1      P2      FILTER  RESONA.");
-    wattron(_win, COLOR_PAIR(2));
+    wattron(_win, COLOR_PAIR(4));
     mvwprintw(_win, 2, 1, "       %s %s %s %s",   hBar(7, (size_t)opz.getActivePageParameters().param1).c_str(),
                                             hBar(7, (size_t)opz.getActivePageParameters().param2).c_str(),
                                             hBar(7, (size_t)opz.getActivePageParameters().filter).c_str(),
                                             hBar(7, (size_t)opz.getActivePageParameters().resonance).c_str() );
-    wattroff(_win, COLOR_PAIR(2));
+    wattroff(_win, COLOR_PAIR(4));
     mvwprintw(_win, 3, 1, "       %7i %7i %7i %7i", 
                                             (int)((int)opz.getActivePageParameters().param1 / 2.55f), 
                                             (int)((int)opz.getActivePageParameters().param2 / 2.55f), 
@@ -474,18 +474,18 @@ void draw_page_two(WINDOW* _win) {
         h += x;
         d += x;
 
-        wattron(_win, COLOR_PAIR(2));
+        wattron(_win, COLOR_PAIR(4));
         dline(_win, s, 5, a, 1, '.');
         dline(_win, a, 1, h, 1, '.');
         dline(_win, h, 1, d, 5, '.');
-        wattroff(_win, COLOR_PAIR(2));
+        wattroff(_win, COLOR_PAIR(4));
 
-        wattron(_win, COLOR_PAIR(1));
+        wattron(_win, COLOR_PAIR(2));
         mvwprintw(_win, 5, s, "+");
         mvwprintw(_win, 1, a, "+");
         mvwprintw(_win, 1, h, "+");
         mvwprintw(_win, 5, d, "+");
-        wattroff(_win, COLOR_PAIR(1));
+        wattroff(_win, COLOR_PAIR(2));
 
         mvwprintw(_win, 6,  8, "S %i", (int)(100*attack));
         mvwprintw(_win, 6, 17, "A %i", (int)(100*decay));
@@ -503,18 +503,18 @@ void draw_page_two(WINDOW* _win) {
         d += x;
         r += x;
 
-        wattron(_win, COLOR_PAIR(2));
+        wattron(_win, COLOR_PAIR(4));
         dline(_win, x, 5, a, 1, '.');
         dline(_win, a, 1, d, h, '.');
         dline(_win, d, h, r, h, '.');
         dline(_win, r, h, x+w, 5, '.');
-        wattroff(_win, COLOR_PAIR(2));
+        wattroff(_win, COLOR_PAIR(4));
 
-        wattron(_win, COLOR_PAIR(1));
+        wattron(_win, COLOR_PAIR(2));
         mvwprintw(_win, 1, a, "+");
         mvwprintw(_win, h, d, "+");
         mvwprintw(_win, h, r, "+");
-        wattroff(_win, COLOR_PAIR(1));
+        wattroff(_win, COLOR_PAIR(2));
 
         mvwprintw(_win, 6,  8, "A %i", (int)(100*attack));
         mvwprintw(_win, 6, 17, "D %i", (int)(100*decay));
@@ -527,11 +527,11 @@ void draw_page_two(WINDOW* _win) {
 // PAGE 3: LFO
 void draw_page_three(WINDOW* _win) {
     mvwprintw(_win,1, 1, "LFO    DEPTH   RATE    DEST    SHAPE");
-    wattron(_win, COLOR_PAIR(2));
+    wattron(_win, COLOR_PAIR(4));
     mvwprintw(_win,2, 1, "       %s %s         %s",   hBar(7, (size_t)opz.getActivePageParameters().lfo_depth).c_str(),
                                             hBar(7, (size_t)opz.getActivePageParameters().lfo_speed).c_str(),
                                             T3::lfoShapeShapeString( opz.getActivePageParameters().lfo_shape ).c_str());
-    wattroff(_win, COLOR_PAIR(2));
+    wattroff(_win, COLOR_PAIR(4));
     mvwprintw(_win,3, 1, "       %3i     %3i     %3s    %5s", 
                                             (int)((int)opz.getActivePageParameters().lfo_depth / 2.55f), 
                                             (int)((int)opz.getActivePageParameters().lfo_speed / 2.55f),
@@ -542,10 +542,10 @@ void draw_page_three(WINDOW* _win) {
 void draw_page_four(WINDOW* _win) {
     // PAGE 4: FX / PAN & LEVEL
     mvwprintw(_win, 1, 1, " FX  1       2");
-    wattron(_win, COLOR_PAIR(2));
+    wattron(_win, COLOR_PAIR(4));
     mvwprintw(_win, 2, 1, "     %s %s", hBar(7, (size_t)opz.getActivePageParameters().fx1).c_str(),
                                             hBar(7, (size_t)opz.getActivePageParameters().fx2).c_str());
-    wattroff(_win, COLOR_PAIR(2));
+    wattroff(_win, COLOR_PAIR(4));
     mvwprintw(_win, 3, 1, "     %7i %7i", 
                                             (int)((int)opz.getActivePageParameters().fx1 / 2.55f),
                                             (int)((int)opz.getActivePageParameters().fx2 / 2.55f) );
@@ -560,13 +560,17 @@ void draw_page_four(WINDOW* _win) {
             wprintw(_win, "|");
             wattroff(_win, COLOR_PAIR(2));
         }
-        else wprintw(_win,".");
+        else {
+            wattron(_win, COLOR_PAIR(4));
+            wprintw(_win,".");
+            wattroff(_win, COLOR_PAIR(4));
+        }
     }
 
     mvwprintw(_win, 9, 1, " LEVEL     %03i", (int)( (int)opz.getActivePageParameters().level / 2.55f));
-    wattron(_win, COLOR_PAIR(2));
+    wattron(_win, COLOR_PAIR(4));
     mvwprintw(_win, 10, 1, "     %s", hBar(15, (size_t)opz.getActivePageParameters().level).c_str());
-    wattroff(_win, COLOR_PAIR(2));
+    wattroff(_win, COLOR_PAIR(4));
 }
 
 void draw_track_params(WINDOW* _win) {
