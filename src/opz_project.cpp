@@ -1,11 +1,10 @@
-#include "opz_project.h"
-
 #include <iostream>
 #include <fstream>
 #include <iomanip>
 #include <string.h>
 
-#include "tools.h"
+#include "libopz/opz_project.h"
+#include "libopz/tools.h"
 
 namespace T3 {
 

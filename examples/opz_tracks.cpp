@@ -7,8 +7,8 @@
 #include <mutex>
 
 #include <ncurses.h>
-#include "opz_rtmidi.h"
-#include "tools.h"
+#include "libopz/opz_rtmidi.h"
+#include "libopz/tools.h"
 
 std::string version = "0.1";
 std::string name = "opz_tracks";

@@ -31,5 +31,4 @@ std::vector<unsigned char> compress(const unsigned char* inData, size_t inLength
 // zlib decompression
 std::vector<unsigned char> decompress(const unsigned char* inData, size_t inLength);
 
-
 };

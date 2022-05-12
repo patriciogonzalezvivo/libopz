@@ -3,8 +3,8 @@
 #include <string.h>
 #include <iostream>
 
-#include "opz_device.h"
-#include "tools.h"
+#include "libopz/opz_device.h"
+#include "libopz/tools.h"
 
 namespace T3 {
 

@@ -6,6 +6,7 @@ set_target_properties(opz_dump PROPERTIES
 )
 target_include_directories(opz_dump PRIVATE
     "${PROJECT_SOURCE_DIR}/deps"
+    "${PROJECT_SOURCE_DIR}/include"
     "${PROJECT_SOURCE_DIR}/src"
 )
 target_link_libraries(opz_dump PRIVATE libopz)
@@ -18,6 +19,7 @@ set_target_properties(opz_companion PROPERTIES
 )
 target_include_directories(opz_companion PRIVATE
     "${PROJECT_SOURCE_DIR}/deps"
+    "${PROJECT_SOURCE_DIR}/include"
     "${PROJECT_SOURCE_DIR}/src"
 )
 target_link_libraries(opz_companion PRIVATE libopz ncurses)
@@ -30,6 +32,7 @@ set_target_properties(opz_tracks PROPERTIES
 )
 target_include_directories(opz_tracks PRIVATE
     "${PROJECT_SOURCE_DIR}/deps"
+    "${PROJECT_SOURCE_DIR}/include"
     "${PROJECT_SOURCE_DIR}/src"
 )
 target_link_libraries(opz_tracks PRIVATE libopz ncurses)

@@ -1,5 +1,5 @@
 
-#include "opz_rtmidi.h"
+#include "libopz/opz_rtmidi.h"
 
 namespace T3 {
 
@@ -7,7 +7,7 @@ namespace T3 {
 #include <sys/time.h>
 #include <unistd.h>
 
-#include "tools.h"
+#include "libopz/tools.h"
 
 #ifdef PLATFORM_WINDOWS
 const int CLOCK_MONOTONIC = 0;

@@ -1,10 +1,10 @@
-file(GLOB ROOT_SOURCE 
-    "${PROJECT_SOURCE_DIR}/src/*.cpp"
-)
+set(INCLUDE_FOLDER "${PROJECT_SOURCE_DIR}/include")
+set(SOURCE_FOLDER "${PROJECT_SOURCE_DIR}/src")
 
-add_library(libopz
-    ${ROOT_SOURCE}
-)
+file(GLOB LIBOPZ_HEADER  "${INCLUDE_FOLDER}/libopz/*.h")
+file(GLOB LIBOPZ_SOURCE  "${PROJECT_SOURCE_DIR}/src/*.cpp")
+
+add_library(libopz ${LIBOPZ_SOURCE})
 
 set_target_properties(libopz PROPERTIES
     CXX_STANDARD 11
@@ -13,6 +13,7 @@ set_target_properties(libopz PROPERTIES
 )
 
 target_include_directories(libopz PRIVATE
+    ${INCLUDE_FOLDER}
     "${PROJECT_SOURCE_DIR}/deps"
 )
 

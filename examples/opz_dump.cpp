@@ -1,7 +1,7 @@
 #include <iostream>
 #include <fstream>
 
-#include "opz_rtmidi.h"
+#include "libopz/opz_rtmidi.h"
 
 std::string version = "0.1";
 std::string name = "opz_dump";

@@ -9,7 +9,7 @@
 #include <signal.h>
 
 #include <ncurses.h>
-#include "opz_rtmidi.h"
+#include "libopz/opz_rtmidi.h"
 
 #define sign(_x) (_x<0?-1:1)
 
