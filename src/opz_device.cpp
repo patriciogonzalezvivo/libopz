@@ -46,7 +46,7 @@ std::string event_name[] = {
     "KEY_TRACK", "KEY_KICK", "KEY_SNARE", "KEY_PERC", "KEY_SAMPLE", "KEY_BASS", "KEY_LEAD", "KEY_ARP", "KEY_CHORD", "KEY_FX1", "KEY_FX2", "KEY_TAPE", "KEY_MASTER", "KEY_PERFORM", "KEY_MODULE", "KEY_LIGHT", "KEY_MOTION",
     "KEY_RECORD", "PLAY_CHANGE", "KEY_STOP", 
     "OCTAVE_CHANGE", "KEY_SHIFT",
-    "PROJECT_CHANGE", "PATTERN_CHANGE", "TRACK_CHANGE", "PAGE_CHANGE", "SEQUENCE_CHANGE", "MUTE_CHANGE", "STEP_CHANGE",
+    "PROJECT_CHANGE", "PATTERN_CHANGE", "TRACK_CHANGE", "PAGE_CHANGE", "SEQUENCE_CHANGE", "MUTE_CHANGE", "STEP_CHANGE", "STEP_ZERO",
     "MICROPHONE_MODE_CHANGE", "MICROPHONE_LEVEL_CHANGE", "MICROPHONE_FX_CHANGE",
     "PARAMETER_CHANGE",
     "PATTERN_PACKAGE_RECIVED", "PATTERN_DOWNLOADED"
@@ -454,6 +454,9 @@ void opz_device::process_sysex(unsigned char *_message, size_t _length){
             uint8_t pattern = data[0];
             uint8_t address = data[17];
             uint8_t project = data[19];
+
+            if (m_event_enable)
+                    m_event(STEP_ZERO, 0); 
             m_active_step = 0;
 
             if (m_active_project != project) {

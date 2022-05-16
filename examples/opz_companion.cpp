@@ -165,7 +165,7 @@ int main(int argc, char** argv) {
         else if (large_screen)  draw_project(windows[5]);
 
         if ( large_screen || (!mic_on && !pressing_project && !pressing_mixer && !pressing_tempo)){
-            // wclear(windows[5]);
+            // werase(windows[5]);
 
             if (pressing_track)
                 wattron(windows[4], COLOR_PAIR(2));
@@ -285,7 +285,7 @@ void handle_winch(int sig) {
 }
 
 void draw_mic(WINDOW* _win) {
-    wclear(_win);
+    werase(_win);
     box(_win, 0, 0);
     mvwprintw(_win, 1, 2, "MIC LEVEL                  MIC FX ");
     mvwprintw(_win, 2, 2, "%s                  %s", 
@@ -303,7 +303,7 @@ void draw_project(WINDOW* _win) {
     int lines, cols;
     getmaxyx(_win, lines, cols);
 
-    wclear(_win);
+    werase(_win);
     box(_win, 0, 0);
 
     mvwprintw(_win, 0, 2, " PROJECT  %02i ", project_id);
@@ -362,7 +362,7 @@ void draw_project(WINDOW* _win) {
 void draw_mixer(WINDOW* _win) {
     T3::opz_project_data project = opz.getProjectData();
 
-    wclear(_win);
+    werase(_win);
     box(_win, 0, 0);
     mvwprintw(_win, 1, 2, "DRUMS               SYNTH                PUNCH                MASTER");
     mvwprintw(_win, 2, 2, "%03i                 %03i                  %03i                  %03i", 
@@ -380,7 +380,7 @@ void draw_tempo(WINDOW* _win) {
     T3::opz_project_data project = opz.getProjectData();
     double pct = (opz.getActiveStepId() % 8) / 8.0;
     
-    wclear(_win);
+    werase(_win);
     box(_win, 0, 0);
     mvwprintw(_win, 1, 2,           "TEMPO               SWING");
     mvwprintw(_win, 2, 2,           "%03i                 %03i", project.tempo, (int)((int)project.swing / 2.55f) - 50);
@@ -438,7 +438,7 @@ void draw_page_two(WINDOW* _win) {
     size_t track_id = opz.getActiveTrackId();
     size_t page_id = opz.getActivePageId();
 
-    wclear(_win);
+    werase(_win);
 
     if (page_id == 1) wattron(_win, COLOR_PAIR(1));
     box(_win, 0, 0);

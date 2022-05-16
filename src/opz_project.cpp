@@ -188,7 +188,7 @@ bool opz_project::saveAsTxt(const std::string& _filename) {
         out_file << "\n";
 
         out_file << "uint8_t drum_level, synth_level, punch_level, master_level, tempo;\n";
-        out_file <<   toStringHex( m_project.drum_level ) << " " << 
+        out_file << toStringHex( m_project.drum_level ) << " " << 
                     toStringHex( m_project.synth_level ) << " " << 
                     toStringHex( m_project.punch_level ) << " " << 
                     toStringHex( m_project.master_level ) << " " << 
