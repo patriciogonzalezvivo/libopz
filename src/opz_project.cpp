@@ -200,9 +200,9 @@ bool opz_project::saveAsTxt(const std::string& _filename) {
         out_file << "\n\n";
 
         out_file << "uint8_t swing, metronome_level, metronome_sound;\n";
-        out_file <<   toStringHex( m_project.swing ) << " " << 
-                    toStringHex( m_project.metronome_level ) << " " << 
-                    toStringHex( m_project.metronome_sound ) << "\n\n";
+        out_file <<     toStringHex( m_project.swing ) << " " << 
+                        toStringHex( m_project.metronome_level ) << " " << 
+                        toStringHex( m_project.metronome_sound ) << "\n\n";
 
         out_file << "uint32_t unknown2;\n";
         out_file << std::setfill('0') << std::setw(8) << std::uppercase << std::hex << (0xFFFFFFFF & m_project.unknown2 ) << "\n\n";
@@ -218,12 +218,12 @@ bool opz_project::saveAsTxt(const std::string& _filename) {
                     out_file << std::setfill('0') << std::setw(8) << std::uppercase << std::hex << (0xFFFFFFFF & m_project.pattern[i].track_param[j].plug ) << "\n\n";
 
                     out_file << "\t\tuint8_t step_count, unknown1, step_length, quantize, note_style, note_length;\n\t\t";
-                    out_file <<   toStringHex( m_project.pattern[i].track_param[j].step_count ) << " " << 
-                                toStringHex( m_project.pattern[i].track_param[j].unknown1 ) << " " << 
-                                toStringHex( m_project.pattern[i].track_param[j].step_length ) << " " << 
-                                toStringHex( m_project.pattern[i].track_param[j].quantize ) << " " << 
-                                toStringHex( m_project.pattern[i].track_param[j].note_style ) << " " << 
-                                toStringHex( m_project.pattern[i].track_param[j].note_length ) << "\n\n";
+                    out_file <<     toStringHex( m_project.pattern[i].track_param[j].step_count ) << " " << 
+                                    toStringHex( m_project.pattern[i].track_param[j].unknown1 ) << " " << 
+                                    toStringHex( m_project.pattern[i].track_param[j].step_length ) << " " << 
+                                    toStringHex( m_project.pattern[i].track_param[j].quantize ) << " " << 
+                                    toStringHex( m_project.pattern[i].track_param[j].note_style ) << " " << 
+                                    toStringHex( m_project.pattern[i].track_param[j].note_length ) << "\n\n";
 
                     out_file << "\t\tuint8_t unknown2[2]\n\t\t";
                     for (size_t k = 0; k < 2; k++)
@@ -235,11 +235,12 @@ bool opz_project::saveAsTxt(const std::string& _filename) {
                 for (size_t j = 0; j < 880; j++) {
                     out_file << "\tnote[" << std::setfill('0') << std::setw(3) << std::dec << j <<"] = { ";
                     out_file << std::setfill('0') << std::setw(8) << std::uppercase << std::hex << (0xFFFFFFFF & m_project.pattern[i].note[j].duration ) << " ";
+                    // out_file << toString( m_project.pattern[i].note[j].duration ) << " ";
 
-                    out_file <<   toStringHex( m_project.pattern[i].note[j].note ) << " " << 
-                                toStringHex( m_project.pattern[i].note[j].velocity ) << " " << 
-                                toStringHex( (uint8_t)m_project.pattern[i].note[j].micro_adjustment ) << " " << 
-                                toStringHex( m_project.pattern[i].note[j].age ) << " } \n";
+                    out_file <<     toStringHex( m_project.pattern[i].note[j].note ) << " " << 
+                                    toStringHex( m_project.pattern[i].note[j].velocity ) << " " << 
+                                    toStringHex( (uint8_t)m_project.pattern[i].note[j].micro_adjustment ) << " " << 
+                                    toStringHex( m_project.pattern[i].note[j].age ) << " } \n";
                 }
 
                 out_file << "\topz_step step[256];\n";
@@ -270,24 +271,24 @@ bool opz_project::saveAsTxt(const std::string& _filename) {
                 for (size_t j = 0; j < 16; j++) {
                     out_file << "\tsound_param[" << std::dec << j <<"];\n";
                     out_file << "\t\tuint8_t param1, param2, attack, decay, sustain, release, fx1, fx2, filter, resonance, pan, level, filter, resonance, pan, level, portamento, lfo_depth, lfo_speed, lfo_value, lfo_shape, note_style;\n\t\t";
-                    out_file <<   toStringHex( m_project.pattern[i].sound_param[j].param1 ) << " " << 
-                                toStringHex( m_project.pattern[i].sound_param[j].param2 ) << " " << 
-                                toStringHex( m_project.pattern[i].sound_param[j].attack ) << " " << 
-                                toStringHex( m_project.pattern[i].sound_param[j].decay ) << " " << 
-                                toStringHex( m_project.pattern[i].sound_param[j].sustain ) << " " << 
-                                toStringHex( m_project.pattern[i].sound_param[j].release ) << " " << 
-                                toStringHex( m_project.pattern[i].sound_param[j].fx1) << " " << 
-                                toStringHex( m_project.pattern[i].sound_param[j].fx2) << " " << 
-                                toStringHex( m_project.pattern[i].sound_param[j].filter) << " " << 
-                                toStringHex( m_project.pattern[i].sound_param[j].resonance) << " " << 
-                                toStringHex( m_project.pattern[i].sound_param[j].pan) << " " << 
-                                toStringHex( m_project.pattern[i].sound_param[j].level) << " " << 
-                                toStringHex( m_project.pattern[i].sound_param[j].portamento) << " " << 
-                                toStringHex( m_project.pattern[i].sound_param[j].lfo_depth) << " " << 
-                                toStringHex( m_project.pattern[i].sound_param[j].lfo_speed) << " " << 
-                                toStringHex( m_project.pattern[i].sound_param[j].lfo_value) << " " << 
-                                toStringHex( m_project.pattern[i].sound_param[j].lfo_shape) << " " << 
-                                toStringHex( m_project.pattern[i].sound_param[j].note_style ) << "\n\n";
+                    out_file <<     toStringHex( m_project.pattern[i].sound_param[j].param1 ) << " " << 
+                                    toStringHex( m_project.pattern[i].sound_param[j].param2 ) << " " << 
+                                    toStringHex( m_project.pattern[i].sound_param[j].attack ) << " " << 
+                                    toStringHex( m_project.pattern[i].sound_param[j].decay ) << " " << 
+                                    toStringHex( m_project.pattern[i].sound_param[j].sustain ) << " " << 
+                                    toStringHex( m_project.pattern[i].sound_param[j].release ) << " " << 
+                                    toStringHex( m_project.pattern[i].sound_param[j].fx1) << " " << 
+                                    toStringHex( m_project.pattern[i].sound_param[j].fx2) << " " << 
+                                    toStringHex( m_project.pattern[i].sound_param[j].filter) << " " << 
+                                    toStringHex( m_project.pattern[i].sound_param[j].resonance) << " " << 
+                                    toStringHex( m_project.pattern[i].sound_param[j].pan) << " " << 
+                                    toStringHex( m_project.pattern[i].sound_param[j].level) << " " << 
+                                    toStringHex( m_project.pattern[i].sound_param[j].portamento) << " " << 
+                                    toStringHex( m_project.pattern[i].sound_param[j].lfo_depth) << " " << 
+                                    toStringHex( m_project.pattern[i].sound_param[j].lfo_speed) << " " << 
+                                    toStringHex( m_project.pattern[i].sound_param[j].lfo_value) << " " << 
+                                    toStringHex( m_project.pattern[i].sound_param[j].lfo_shape) << " " << 
+                                    toStringHex( m_project.pattern[i].sound_param[j].note_style ) << "\n\n";
 
                 }
 

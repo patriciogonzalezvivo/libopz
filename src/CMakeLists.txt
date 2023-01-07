@@ -12,14 +12,14 @@ set_target_properties(libopz PROPERTIES
     CMAKE_CXX_EXTENSIONS OFF
 )
 
-target_include_directories(libopz PRIVATE
-    ${INCLUDE_FOLDER}
+target_include_directories(libopz PUBLIC
     "${PROJECT_SOURCE_DIR}/deps"
+    ${INCLUDE_FOLDER}
 )
 
 find_package(ZLIB)
 
-target_link_libraries(libopz PRIVATE
+target_link_libraries(libopz PUBLIC
     rtmidi
     ZLIB::ZLIB
 )

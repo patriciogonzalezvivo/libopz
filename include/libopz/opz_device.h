@@ -141,18 +141,22 @@ namespace T3
     protected:
         void process_sysex(unsigned char *_message, size_t _length);
         void process_event(unsigned char *_message, size_t _length);
+        
+        void process_track_change(unsigned char *_data, size_t _length);
+
         std::vector<unsigned char> m_packets;
 
         // Project Data
         int8_t          m_octave[16];
         bool            m_mutes[16];
 
-        // Active states
+        // Active states (IDs)
         uint8_t         m_active_project;
         uint8_t         m_active_pattern;
         opz_track_id    m_active_track;
         opz_page_id     m_active_page;
         size_t          m_active_step;
+        opz_note        m_active_note;
 
         // Non-musical key states
         opz_key_state   m_key_state;

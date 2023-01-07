@@ -35,6 +35,12 @@ char *printAscii(unsigned char *cp, size_t n) {
     return s;
 }
 
+std::string toString(uint32_t _value) {
+    std::ostringstream out;
+    out << std::fixed << _value;
+    return out.str();
+}
+
 std::string toStringHex(uint8_t _v) {
     std::ostringstream strStream;
     strStream << std::setfill('0') << std::setw(2) << std::uppercase << std::hex << (0xFF & _v);
@@ -51,6 +57,14 @@ std::string toStringHex(uint32_t _v) {
     std::ostringstream strStream;
     strStream << std::setfill('0') << std::setw(8) << std::uppercase << std::hex << (0xFFFFFFFF & _v);
     return strStream.str();
+}
+
+std::vector<std::string> note_letter = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+
+std::string toStringNote(uint8_t _v) {
+    std::ostringstream out;
+    out << std::fixed << (_v / 12) << note_letter[_v % 12];
+    return out.str();
 }
 
 uint8_t address2project(uint8_t _address) { return _address / 16; }
@@ -142,7 +156,7 @@ std::vector<unsigned char> decompress(const unsigned char* inData, size_t inLeng
     stream.opaque = 0;
 
     stream.avail_in = inLength - 1;
-    stream.next_in = const_cast<Byte *>(&inData[0]);
+    stream.next_in = const_cast<Byte*>(&inData[0]);
     
     int res = inflateInit(&stream);
     if (res != Z_OK)

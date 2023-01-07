@@ -11,9 +11,12 @@ namespace T3 {
 char *printHex(unsigned char *cp, size_t n);
 char *printAscii(unsigned char *cp, size_t n);
 
+std::string toString(uint32_t _value);
+
 std::string toStringHex(uint8_t _v);
 std::string toStringHex(uint16_t _v);
 std::string toStringHex(uint32_t _v);
+std::string toStringNote(uint8_t _v);
 
 // memory address to project/pattern values 
 uint8_t address2project(uint8_t _address);

@@ -59,16 +59,16 @@ typedef struct {
     uint8_t             note_style;
     uint8_t             note_length;
     uint8_t             unknown2[2];
-} opz_track_parameter, *p_opz_track_parameter;
+} opz_track_parameter, *p_opz_track_parameter;  // 12bytes
 
 // https://github.com/lrk/z-po-project/wiki/Project-file-format#note-chunk
 typedef struct {
-    int32_t             duration;
+    int32_t             duration;                   
     uint8_t             note;
     uint8_t             velocity;
     int8_t              micro_adjustment;
     uint8_t             age;
-} opz_note, *p_opz_note;
+} opz_note, *p_opz_note;                        // 8bytes
 
 // https://github.com/lrk/z-po-project/wiki/Project-file-format#step-chunk
 typedef struct {
@@ -76,7 +76,7 @@ typedef struct {
     uint8_t             components_parameters[16];      // Array of selected parameter value for each step components
     uint8_t             components_locked_values[18];   // Array of current lock value for each tracks parameters
     uint8_t             parameter_mask[18];             // Array of actually enabled parameter lock
-} opz_step, *p_opz_step;
+} opz_step, *p_opz_step;    // 54 bytes
 
 // https://github.com/lrk/z-po-project/wiki/Project-file-format#track-parameters
 typedef struct {
@@ -98,17 +98,17 @@ typedef struct {
     uint8_t             lfo_value;
     uint8_t             lfo_shape;
     uint8_t             note_style;
-} opz_sound_parameter, *p_opz_sound_parameter;     
+} opz_sound_parameter, *p_opz_sound_parameter;    // 18bytes 
 
 // https://github.com/lrk/z-po-project/wiki/Project-file-format#pattern-chunk
 typedef struct {
-    opz_track_parameter track_param[16];
-    opz_note            note[880];
-    opz_step            step[256];
-    opz_sound_parameter sound_param[16];
+    opz_track_parameter track_param[16];    // 0 to 192 (+12b x 16)
+    opz_note            note[880];          // 193 to 7232 (+8b x 880)
+    opz_step            step[256];          // 7233 to 21057 (54b x 256)
+    opz_sound_parameter sound_param[16];    // 21058 to 21346 (18b x 16)
     uint8_t             mute[40];           // mute config, tracks are mapped with bitmask
     uint16_t            send_tape;          // Send mapping for Tape track using bitmask
-    uint16_t            send_master;        // SendMaster  Send mapping for Master track using bitmask
+    uint16_t            send_master;        // Send mapping for Master track using bitmask
     uint8_t             active_mute_group;  // Active mute group
     uint8_t             unknown[3];
 } opz_pattern, *p_opz_pattern;
