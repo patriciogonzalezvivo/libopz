@@ -139,8 +139,6 @@ namespace T3
         size_t counter = _data[0];
         // uint8_t ??       = _data[1];
         size_t offset = (size_t)_data[2] +  ((size_t)_data[3] * 256);
-        //  0x00 move header (optative clean)
-        //  0x60 mutes
         m_active_project = address2project(_data[4]);
         m_active_pattern = address2pattern(_data[4]);
         size_t payload_length = _data[5];
@@ -186,7 +184,7 @@ namespace T3
                 }
             }
 
-            // if (verbose > 2)
+            if (verbose > 2)
             {
                 printf("    project: %i\n", m_active_project);
                 printf("    pattern: %i\n", m_active_pattern);
@@ -200,11 +198,6 @@ namespace T3
 
         // // MUTE TRACK
         // else if (offset == 0x60) {
-        //     // 0        1   2   3   4       5   6   7  8  9  10
-        //     // counter  ??  A2  A1  Address L  ??   ?? ?? ?? ??
-        //     // BA       10  60  53  11      04 00   80 00 00 00
-        //     // A3       14  60  53  20      04 00   08 00 00 00
-
         //     bool mutes[] = {
         //         (_data[ 7] & 0x02) ? true : false, (_data[ 7] & 0x08) ? true : false, (_data[ 7] & 0x20) ? true : false, (_data[ 7] & 0x80) ? true : false,
         //         (_data[ 8] & 0x02) ? true : false, (_data[ 8] & 0x08) ? true : false, (_data[ 8] & 0x20) ? true : false, (_data[ 8] & 0x80) ? true : false,
@@ -226,62 +219,52 @@ namespace T3
         //     if (m_event_enable)
         //         m_event(MUTE_CHANGE, 1);
         // }
-
-        // // ADD NOTE to STEP
-        // else if (offset == 0xC0 || offset == 0xC8) {
-        //     uint8_t* head = ( (uint8_t*)&m_project.pattern[m_active_pattern].track_param[0] ) + sizeof(uint8_t) * _data[2];
-        //     size_t note_offset = getNoteIdOffset(m_active_track, m_active_step);
-        //     size_t notes_total = getNotesPerTrack(m_active_track);
-
-        //     // memcpy(&m_project.pattern[m_active_pattern].note[note_offset], &decompressed.front(), std::min( sizeof(opz_pattern) * 16, sizeof(uint8_t) * decompressed.size()) );
-        // }
-
-        // else if (payload_length == 1) {
         else {
 
             // 0        1   2   3   4       5   6   7
             // counter  ??  A2  A1  Address Ln ??   Value
             // F1       0F  09  00  10      01 00   47
-            // B8       10  09  00  11      01 00   3C
-            // 74       00  7C  02  10      01 00   3B
-            // 76       00  34  04  10      01 00   37
-            // 77       00  EC  05  10      01 00   35
-            // 78       00  A4  07  10      01 00   35
-            // 79       00  5C  09  10      01 00   35
 
             // 0        1   2   3   4       5   6   7   8  9 10     11      12  13  14
             // counter  ??  A2  A1  Address Ln ??   Duration   	    Note	Vel MA 	Age
             // 18 		00 	C8	00 	10 		08 00   00 0A 00 00     3C      64  00  00
-            // 1B 		00 	C0 	00 	10 		08 00   00 0A 00 00 	3C  	64	00	00
-            // 26 		00 	C8 	00 	10 		08 00   00 0A 00 00 	3E 		64 	00	00
-            // 61       00  80  02  10      08 00   00 0A 00 00     3C      64  00  00
-            // 7C       00  78  02  10      08 00   00 0A 00 00     37      64  00  00
-            // BA       00  C8  00  10      08 00   00 0A 00 00     3C      64  00  00
 
             uint8_t *memory_head = ((uint8_t *)&m_project.pattern[m_active_pattern]) + sizeof(uint8_t) * offset;
+            memcpy(memory_head, payload_header, std::min( sizeof(opz_pattern) * 16, sizeof(uint8_t) * payload_length) );
+
+            size_t opz_pattern_map[] = { 0, 193, 7234, 21059, 21348, 21388, 21389, 21340 };
+            std::string opz_pattern_map_names[] = { "TRACK PARAM", "NOTE", "STEP", "SOUND PARAM", "MUTE", "SEND TAPE", "SEND_MASTER", "ACTIVE MUTE GROUP" };
+
             if (verbose) {
                 printf("    project: %i\n", m_active_project);
                 printf("    pattern: %i\n", m_active_pattern);
+
+
                 if (offset < 192)
                     printf("    parameter:    %s\n", toString((opz_pattern_parameter_id)offset).c_str());
                 else if (offset < 7232)
-                    printf("    note offset:  %i\n", (offset - 192)/8 );
+                    printf("    note offset:  %i\n", (int)(offset - 192)/8 );
                 else if (offset < 21057)
-                    printf("    step offset:  %i\n", (offset - 7232)/54 );
+                    printf("    step offset:  %i\n", (int)(offset - 7232)/54 );
                 else if (offset < 21346)
-                    printf("    sound param offset:  %i\n", (offset - 21346)/18 );
+                    printf("    sound param offset:  %i\n", (int)(offset - 21346)/18 );
             }
 
-            *memory_head = _data[7];
-            // memcpy(memory_head, payload_header, std::min( sizeof(opz_pattern) * 16, sizeof(uint8_t) * payload_length) );
+            for (size_t i = 0; i < 8; i++) {
+                if (offset < opz_pattern_map[i]) {
+                    std::cout << "    " << opz_pattern_map_names[i-1] << " CHANGED" << std::endl;
+                    break;
+                }
+            }
+
 
             if (m_event_enable)
                 m_event(PARAMETER_CHANGE, 1);
         }
 
-        size_t total_lg = header_size + payload_length + 1;
-        if (_length > total_lg)
-            process_track_change(&_data[total_lg - 1], _length - total_lg);
+        size_t total_lg = header_size + payload_length;
+        if (_length > (total_lg + 1) )
+            process_track_change(&_data[total_lg], _length - total_lg);
     }
 
     void opz_device::process_sysex(unsigned char *_message, size_t _length) {
@@ -313,11 +296,11 @@ namespace T3
 
         switch (header.parm_id) {
             case 0x01: {
-                // Universal response ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#01-universal-response )
-                if (verbose) {
-                    printf("Msg %02X (Universal response)\n", header.parm_id);
-                    std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
-                }
+                // // Universal response ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#01-universal-response )
+                // if (verbose) {
+                //     printf("Msg %02X (Universal response)\n", header.parm_id);
+                //     std::cout << "       " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
+                // }
             }
             break;
 
@@ -731,6 +714,8 @@ namespace T3
                 }
             }
         }
+
+        delete data;
     }
 
     void opz_device::process_event(unsigned char *_message, size_t _length) {

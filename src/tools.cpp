@@ -63,7 +63,7 @@ std::vector<std::string> note_letter = { "C", "C#", "D", "D#", "E", "F", "F#", "
 
 std::string toStringNote(uint8_t _v) {
     std::ostringstream out;
-    out << std::fixed << (_v / 12) << note_letter[_v % 12];
+    out << note_letter[_v % 12] << std::fixed << (_v / 12);
     return out.str();
 }
 

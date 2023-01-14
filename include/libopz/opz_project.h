@@ -102,14 +102,14 @@ typedef struct {
 
 // https://github.com/lrk/z-po-project/wiki/Project-file-format#pattern-chunk
 typedef struct {
-    opz_track_parameter track_param[16];    // 0 to 192 (+12b x 16)
-    opz_note            note[880];          // 193 to 7232 (+8b x 880)
-    opz_step            step[256];          // 7233 to 21057 (54b x 256)
-    opz_sound_parameter sound_param[16];    // 21058 to 21346 (18b x 16)
-    uint8_t             mute[40];           // mute config, tracks are mapped with bitmask
-    uint16_t            send_tape;          // Send mapping for Tape track using bitmask
-    uint16_t            send_master;        // Send mapping for Master track using bitmask
-    uint8_t             active_mute_group;  // Active mute group
+    opz_track_parameter track_param[16];    // 0 to 192 (+12b x 16 = 192)
+    opz_note            note[880];          // 193 to 7233 (+8b x 880 = 7040)
+    opz_step            step[256];          // 7234 to 21058 (54b x 256 = 13824)
+    opz_sound_parameter sound_param[16];    // 21059 to 21347 (18b x 16 = 288)
+    uint8_t             mute[40];           // 21348 to 21387 - mute config, tracks are mapped with bitmask
+    uint16_t            send_tape;          // 21388 Send mapping for Tape track using bitmask
+    uint16_t            send_master;        // 21389 Send mapping for Master track using bitmask
+    uint8_t             active_mute_group;  // 21340 Active mute group
     uint8_t             unknown[3];
 } opz_pattern, *p_opz_pattern;
 

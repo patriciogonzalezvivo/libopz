@@ -157,7 +157,7 @@ bool opz_project::loadOpz(const std::string& _filename) {
     char* buffer = new char[size];
     in_file.read(buffer,size);
 
-    memcpy( (char*)&m_project, buffer, sizeof(char) * size );
+    memcpy( (char*)&m_project, &buffer[4], sizeof(char) * size );
 
     delete[] buffer;
     in_file.close();
