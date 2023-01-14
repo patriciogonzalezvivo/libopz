@@ -46,8 +46,11 @@ enum opz_metronome_sound_id {
     CLICK = 0,          SWEDISH, ENGLISH, GERMAN, JAPANISE, ITALIAN 
 };
 
-const size_t opz_notes_per_track[] = {    2, 2, 2, 2, 4,  4,  8,  4,  1,  1,  1,  4,  6,  6, 4,   4 };
-const size_t opz_notes_offset_track[] = { 0, 2, 4, 6, 8, 12, 16, 24, 28, 29, 30, 31, 35, 41, 47, 51 };
+const size_t opz_notes_per_track[]      = { 2, 2, 2, 2, 4,  4,  8,  4,  1,  1,  1,  4,  6,  6, 4,   4 };
+const size_t opz_notes_offset_track[]   = { 0, 2, 4, 6, 8, 12, 16, 24, 28, 29, 30, 31, 35, 41, 47, 51 };
+const size_t opz_pattern_map[]          = { 0, 192, 7232, 21056, 21344 };//, 21384, 21386, 21388 };
+const std::string opz_pattern_map_name[] ={ "TRACK_PARAM", "NOTE", "STEP", "SOUND_PARAM", "MUTE" };//, "SEND TAPE", "SEND_MASTER", "ACTIVE MUTE GROUP" };
+const u_int8_t opz_mute_masks[4]        = { 0x02, 0x08, 0x20, 0x80 };
 
 // https://github.com/lrk/z-po-project/wiki/Project-file-format#track-chunk
 typedef struct {
@@ -102,14 +105,14 @@ typedef struct {
 
 // https://github.com/lrk/z-po-project/wiki/Project-file-format#pattern-chunk
 typedef struct {
-    opz_track_parameter track_param[16];    // 0 to 192 (+12b x 16 = 192)
-    opz_note            note[880];          // 193 to 7233 (+8b x 880 = 7040)
-    opz_step            step[256];          // 7234 to 21058 (54b x 256 = 13824)
-    opz_sound_parameter sound_param[16];    // 21059 to 21347 (18b x 16 = 288)
-    uint8_t             mute[40];           // 21348 to 21387 - mute config, tracks are mapped with bitmask
-    uint16_t            send_tape;          // 21388 Send mapping for Tape track using bitmask
-    uint16_t            send_master;        // 21389 Send mapping for Master track using bitmask
-    uint8_t             active_mute_group;  // 21340 Active mute group
+    opz_track_parameter track_param[16];    // 0 (+12b x 16 = 192)
+    opz_note            note[880];          // 192 (+8b x 880 = 7040)
+    opz_step            step[256];          // 7232 (54b x 256 = 13824)
+    opz_sound_parameter sound_param[16];    // 21056 (18b x 16 = 288)
+    uint8_t             mute[40];           // 21344 mute config, tracks are mapped with bitmask
+    uint16_t            send_tape;          // 21384 Send mapping for Tape track using bitmask
+    uint16_t            send_master;        // 21386 Send mapping for Master track using bitmask
+    uint8_t             active_mute_group;  // 21388 Active mute group
     uint8_t             unknown[3];
 } opz_pattern, *p_opz_pattern;
 
@@ -164,6 +167,7 @@ public:
     double                              getBeatPerStep() const { return 15.0 / (double)(m_project.tempo); }
 
     virtual const opz_pattern&          getPattern(size_t _id) const { return m_project.pattern[_id]; }
+    virtual const bool                  getMuteTrack(size_t _patterId, size_t _track) { return m_project.pattern[_patterId].mute[ _track/4 ] & opz_mute_masks[_track%4]; }
 
     virtual size_t                      getNoteIdOffset(size_t _track, size_t _step) { return _step * 55 + opz_notes_offset_track[_track]; }
     virtual size_t                      getNotesPerTrack(size_t _track) { return opz_notes_per_track[_track]; }

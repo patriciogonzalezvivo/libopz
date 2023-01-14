@@ -36,12 +36,15 @@ namespace T3
         "KEY_TRACK", "KEY_KICK", "KEY_SNARE", "KEY_PERC", "KEY_SAMPLE", "KEY_BASS", "KEY_LEAD", "KEY_ARP", "KEY_CHORD", "KEY_FX1", "KEY_FX2", "KEY_TAPE", "KEY_MASTER", "KEY_PERFORM", "KEY_MODULE", "KEY_LIGHT", "KEY_MOTION",
         "KEY_RECORD", "PLAY_CHANGE", "KEY_STOP",
         "OCTAVE_CHANGE", "KEY_SHIFT",
-        "PROJECT_CHANGE", "PATTERN_CHANGE", "TRACK_CHANGE", "PAGE_CHANGE", "SEQUENCE_CHANGE", "MUTE_CHANGE", "STEP_CHANGE", "STEP_ZERO",
+        "PROJECT_CHANGE", "PATTERN_CHANGE", "TRACK_CHANGE", "PAGE_CHANGE", 
+        "SEQUENCE_CHANGE", "MUTE_CHANGE", "STEP_CHANGE", "STEP_ZERO",
         "MICROPHONE_MODE_CHANGE", "MICROPHONE_LEVEL_CHANGE", "MICROPHONE_FX_CHANGE",
-        "PARAMETER_CHANGE",
+        "TRACK_PARAMETER_CHANGE", "SOUND_PARAMETER_CHANGE",
         "PATTERN_PACKAGE_RECIVED", "PATTERN_DOWNLOADED"
-                                   "NO_CONNECTION"
+        "NO_CONNECTION"
     };
+
+    opz_event_id pattern_map_event[] = { TRACK_PARAMETER_CHANGE, SEQUENCE_CHANGE, STEP_CHANGE, SOUND_PARAMETER_CHANGE, MUTE_CHANGE};//, "SEND TAPE", "SEND_MASTER", "ACTIVE MUTE GROUP" };
 
     // https://teenage.engineering/guides/op-z/parameter-pages
     std::string page_name[] = {"ONE", "TWO", "THREE", "FOUR"};
@@ -196,29 +199,6 @@ namespace T3
                 m_event(SEQUENCE_CHANGE, _data[4]);
         }
 
-        // // MUTE TRACK
-        // else if (offset == 0x60) {
-        //     bool mutes[] = {
-        //         (_data[ 7] & 0x02) ? true : false, (_data[ 7] & 0x08) ? true : false, (_data[ 7] & 0x20) ? true : false, (_data[ 7] & 0x80) ? true : false,
-        //         (_data[ 8] & 0x02) ? true : false, (_data[ 8] & 0x08) ? true : false, (_data[ 8] & 0x20) ? true : false, (_data[ 8] & 0x80) ? true : false,
-        //         (_data[ 9] & 0x02) ? true : false, (_data[ 9] & 0x08) ? true : false, (_data[ 9] & 0x20) ? true : false, (_data[ 9] & 0x80) ? true : false,
-        //         (_data[10] & 0x02) ? true : false, (_data[10] & 0x08) ? true : false, (_data[10] & 0x20) ? true : false, (_data[10] & 0x80) ? true : false
-        //     };
-        //     memcpy(&m_mutes, &mutes, sizeof(bool) * 16);
-
-        //     if (verbose > 2) {
-        //         printf("    project: %i\n", m_active_project );
-        //         printf("    pattern: %i\n", m_active_pattern );
-        //         printf("    offset:  0x%02X\n", offset);
-        //         printf("    mutes:   ");
-        //         for (size_t i = 0; i < 16; i++)
-        //             printf( "%c ", m_mutes[i] ? '1' : '0' );
-        //         printf("\n");
-        //     }
-
-        //     if (m_event_enable)
-        //         m_event(MUTE_CHANGE, 1);
-        // }
         else {
 
             // 0        1   2   3   4       5   6   7
@@ -232,34 +212,44 @@ namespace T3
             uint8_t *memory_head = ((uint8_t *)&m_project.pattern[m_active_pattern]) + sizeof(uint8_t) * offset;
             memcpy(memory_head, payload_header, std::min( sizeof(opz_pattern) * 16, sizeof(uint8_t) * payload_length) );
 
-            size_t opz_pattern_map[] = { 0, 193, 7234, 21059, 21348, 21388, 21389, 21340 };
-            std::string opz_pattern_map_names[] = { "TRACK PARAM", "NOTE", "STEP", "SOUND PARAM", "MUTE", "SEND TAPE", "SEND_MASTER", "ACTIVE MUTE GROUP" };
-
             if (verbose) {
                 printf("    project: %i\n", m_active_project);
                 printf("    pattern: %i\n", m_active_pattern);
-
 
                 if (offset < 192)
                     printf("    parameter:    %s\n", toString((opz_pattern_parameter_id)offset).c_str());
                 else if (offset < 7232)
                     printf("    note offset:  %i\n", (int)(offset - 192)/8 );
-                else if (offset < 21057)
+                else if (offset < 21056)
                     printf("    step offset:  %i\n", (int)(offset - 7232)/54 );
-                else if (offset < 21346)
+                else if (offset < 21344)
                     printf("    sound param offset:  %i\n", (int)(offset - 21346)/18 );
+                else {
+                    bool mutes[] = {
+                        (_data[ 7] & 0x02) ? true : false, (_data[ 7] & 0x08) ? true : false, (_data[ 7] & 0x20) ? true : false, (_data[ 7] & 0x80) ? true : false,
+                        (_data[ 8] & 0x02) ? true : false, (_data[ 8] & 0x08) ? true : false, (_data[ 8] & 0x20) ? true : false, (_data[ 8] & 0x80) ? true : false,
+                        (_data[ 9] & 0x02) ? true : false, (_data[ 9] & 0x08) ? true : false, (_data[ 9] & 0x20) ? true : false, (_data[ 9] & 0x80) ? true : false,
+                        (_data[10] & 0x02) ? true : false, (_data[10] & 0x08) ? true : false, (_data[10] & 0x20) ? true : false, (_data[10] & 0x80) ? true : false
+                    };
+                    printf("    mutes:   ");
+                    for (size_t i = 0; i < 16; i++)
+                        printf( "%c ", mutes[i] ? '1' : '0' );
+                    printf("\n");
+                }
             }
+
+            opz_event_id event;
 
             for (size_t i = 0; i < 8; i++) {
                 if (offset < opz_pattern_map[i]) {
-                    std::cout << "    " << opz_pattern_map_names[i-1] << " CHANGED" << std::endl;
+                    std::cout << "    " << opz_pattern_map_name[i-1] << " CHANGED" << std::endl;
+                    event = pattern_map_event[i-1];
                     break;
                 }
             }
 
-
             if (m_event_enable)
-                m_event(PARAMETER_CHANGE, 1);
+                m_event(event, 1);
         }
 
         size_t total_lg = header_size + payload_length;
@@ -614,7 +604,7 @@ namespace T3
                 memcpy(&m_project.pattern[m_active_pattern].sound_param[(size_t)m_active_track], &si, sizeof(opz_sound_parameter));
 
                 if (m_event_enable)
-                    m_event(PARAMETER_CHANGE, 1);
+                    m_event(SOUND_PARAMETER_CHANGE, 1);
 
                 if (verbose > 2) {
                     printf(" Proj. %i, pattern %i, track %s\n", m_active_project, m_active_pattern, toString(m_active_track).c_str());

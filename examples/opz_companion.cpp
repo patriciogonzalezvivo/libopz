@@ -139,7 +139,6 @@ int main(int argc, char** argv) {
             mvprintw(LINES-4, 2 + step * 4 + ( (step/4) * 4 ) , "[ ]");
         }
         
-        
         for (size_t i = 0; i < step_count; i++) {
             size_t x = 3 + i * 4 + ( (i/4) * 4 );
             mvprintw(LINES-5, x, "%02i", i + 1 );
