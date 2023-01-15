@@ -17,7 +17,7 @@ std::string version = "0.1";
 std::string name = "opz_companion";
 std::string header = name + " " + version + " by Patricio Gonzalez Vivo ( patriciogonzalezvivo.com )"; 
 
-opz::opz_rtmidi opz;
+opz::opz_rtmidi device;
 std::atomic<bool> keepRunnig(true);
 
 std::vector<WINDOW*> windows;
@@ -43,7 +43,7 @@ void draw_page_four(WINDOW* _window);
 void handle_winch(int sig);
 
 int main(int argc, char** argv) {
-    opz.connect();
+    device.connect();
     
     initscr();
     start_color();
@@ -86,7 +86,7 @@ int main(int argc, char** argv) {
     bool mic_on = false;
     
     // Listen to key events (no cc, neighter notes)
-    opz.setEventCallback( [&](opz::opz_event_id _id, int _value) {
+    device.setEventCallback( [&](opz::opz_event_id _id, int _value) {
         change = true;
 
         if (_id == opz::KEY_TRACK)           pressing_track = _value;
@@ -94,7 +94,7 @@ int main(int argc, char** argv) {
         else if (_id == opz::KEY_MIXER)      pressing_mixer = _value;
         else if (_id == opz::KEY_TEMPO)      pressing_tempo = _value;
         else if (_id == opz::MICROPHONE_MODE_CHANGE) mic_on = _value != 0;
-        else if (_id == opz::PATTERN_DOWNLOADED || _id == opz::PATTERN_CHANGE || _id == opz::TRACK_CHANGE || _id == opz::SEQUENCE_CHANGE || _id == opz::PAGE_CHANGE || _id == opz::PARAMETER_CHANGE ) change_data = true;
+        else if (_id == opz::PATTERN_DOWNLOADED || _id == opz::PATTERN_CHANGE || _id == opz::TRACK_CHANGE || _id == opz::SEQUENCE_CHANGE || _id == opz::PAGE_CHANGE || _id == opz::TRACK_PARAMETER_CHANGE ) change_data = true;
     } );
 
     std::thread waitForKeys([&](){
@@ -113,13 +113,13 @@ int main(int argc, char** argv) {
     refresh();
 
     while (keepRunnig.load()) {
-        opz.update();
+        device.update();
 
         if (!change)
             continue;
 
-        opz::opz_track_id track_id = opz.getActiveTrackId();
-        opz::opz_pattern pattern = opz.getActivePattern();
+        opz::opz_track_id track_id = device.getActiveTrackId();
+        opz::opz_pattern pattern = device.getActivePattern();
 
         std::string title_name = opz::toString(track_id);
 
@@ -131,18 +131,18 @@ int main(int argc, char** argv) {
         clear();
         mvprintw(0, COLS/2 - title_name.size()/2, "%s", title_name.c_str() );
 
-        size_t step_count = opz.getActiveTrackParameters().step_count;
-        size_t step_length = opz.getActiveTrackParameters().step_length;
+        size_t step_count = device.getActiveTrackParameters().step_count;
+        size_t step_length = device.getActiveTrackParameters().step_length;
 
-        if (opz.isPlaying()) {
-            size_t step = (opz.getActiveStepId() / step_length) % step_count;
+        if (device.isPlaying()) {
+            size_t step = (device.getActiveStepId() / step_length) % step_count;
             mvprintw(LINES-4, 2 + step * 4 + ( (step/4) * 4 ) , "[ ]");
         }
         
         for (size_t i = 0; i < step_count; i++) {
             size_t x = 3 + i * 4 + ( (i/4) * 4 );
             mvprintw(LINES-5, x, "%02i", i + 1 );
-            size_t note = opz.getNoteIdOffset(track_id, i);
+            size_t note = device.getNoteIdOffset(track_id, i);
             if ( pattern.note[ note ].note == 0xFF)
                 mvprintw(LINES-4, x, "-");
             else {
@@ -154,7 +154,7 @@ int main(int argc, char** argv) {
 
         mvprintw(LINES-2, 0, "STEP COUNT %2i      STEP LENGTH %2i                                        SUM %2i", 
                                 step_count, step_length, step_count * step_length);
-        mvprintw(LINES-1, COLS/2 - 3, "%s %02i", ((opz.isPlaying())? "|> " : "[ ]"), opz.getActiveStepId() + 1 );
+        mvprintw(LINES-1, COLS/2 - 3, "%s %02i", ((device.isPlaying())? "|> " : "[ ]"), device.getActiveStepId() + 1 );
         refresh();
 
         if (pressing_project)  draw_project(windows[5]);
@@ -169,7 +169,7 @@ int main(int argc, char** argv) {
             if (pressing_track)
                 wattron(windows[4], COLOR_PAIR(2));
 
-            size_t page = (size_t)opz.getActivePageId();
+            size_t page = (size_t)device.getActivePageId();
 
             for (size_t i = 0; i < 5; i++) {
                 if (!pressing_track && i == page)
@@ -195,7 +195,7 @@ int main(int argc, char** argv) {
     
     waitForKeys.join();
     endwin();
-    opz.disconnect();
+    device.disconnect();
 
     exit(0);
 }
@@ -288,16 +288,16 @@ void draw_mic(WINDOW* _win) {
     box(_win, 0, 0);
     mvwprintw(_win, 1, 2, "MIC LEVEL                  MIC FX ");
     mvwprintw(_win, 2, 2, "%s                  %s", 
-                            hBar(9, opz.getMicLevel() ).c_str(), 
-                            opz::toString(opz.getMicFx()).c_str());
+                            hBar(9, device.getMicLevel() ).c_str(), 
+                            opz::toString(device.getMicFx()).c_str());
     wrefresh(_win);
 }
 
 void draw_project(WINDOW* _win) {
-    size_t project_id = opz.getActiveProjectId();
-    uint8_t pattern_id = opz.getActivePatternId();
-    opz::opz_pattern pattern = opz.getActivePattern();
-    opz::opz_track_id track_active = opz.getActiveTrackId();
+    size_t project_id = device.getActiveProjectId();
+    uint8_t pattern_id = device.getActivePatternId();
+    opz::opz_pattern pattern = device.getActivePattern();
+    opz::opz_track_id track_active = device.getActiveTrackId();
 
     int lines, cols;
     getmaxyx(_win, lines, cols);
@@ -314,15 +314,15 @@ void draw_project(WINDOW* _win) {
     for (size_t i = 0; i < 16; i++) {
         int y = 2;
         int x = x_margin + i * song_width;
-        mvwprintw(_win, y, x, "%02X", opz.getProjectData().pattern_chain[pattern_id].pattern[i]);
-        mvwprintw(_win, y+1, x, "%02X", opz.getProjectData().pattern_chain[pattern_id].pattern[i+16]);
+        mvwprintw(_win, y, x, "%02X", device.getProjectData().pattern_chain[pattern_id].pattern[i]);
+        mvwprintw(_win, y+1, x, "%02X", device.getProjectData().pattern_chain[pattern_id].pattern[i+16]);
     }
 
     // PATTERN TRACK
     int name_width = 10;
     int step_width = (cols - name_width) / 16;
     x_margin = 2 + (cols - step_width * 16 - name_width) / 2;
-    size_t step_current = opz.getActiveStepId();
+    size_t step_current = device.getActiveStepId();
     
     size_t tracks = 16;
     for (size_t t = 0; t < tracks; t++) {
@@ -333,13 +333,13 @@ void draw_project(WINDOW* _win) {
         if (t == track_active) wattroff(_win, COLOR_PAIR(2));
         else if (t > 7) wattroff(_win, COLOR_PAIR(4));
 
-        size_t step_count = opz.getTrackParameters(opz::opz_track_id(t) ).step_count;
-        size_t step_length = opz.getTrackParameters(opz::opz_track_id(t) ).step_length;
+        size_t step_count = device.getTrackParameters(opz::opz_track_id(t) ).step_count;
+        size_t step_length = device.getTrackParameters(opz::opz_track_id(t) ).step_length;
         size_t step = (step_current / step_length) % step_count;
         mvwprintw(_win,y, x_margin + name_width + step * step_width - 1, "[  ]");
         for (size_t s = 0; s < step_count; s++) {
             int x = x_margin + name_width + s * step_width;
-            size_t i = opz.getNoteIdOffset(t, s);
+            size_t i = device.getNoteIdOffset(t, s);
 
             if ( pattern.note[ i ].note == 0xFF) {
                 if (t > 7) wattron(_win, COLOR_PAIR(4));
@@ -359,7 +359,7 @@ void draw_project(WINDOW* _win) {
 }
 
 void draw_mixer(WINDOW* _win) {
-    opz::opz_project_data project = opz.getProjectData();
+    opz::opz_project_data project = device.getProjectData();
 
     werase(_win);
     box(_win, 0, 0);
@@ -376,8 +376,8 @@ void draw_tempo(WINDOW* _win) {
     int lines, cols;
     getmaxyx(_win, lines, cols);
 
-    opz::opz_project_data project = opz.getProjectData();
-    double pct = (opz.getActiveStepId() % 8) / 8.0;
+    opz::opz_project_data project = device.getProjectData();
+    double pct = (device.getActiveStepId() % 8) / 8.0;
     
     werase(_win);
     box(_win, 0, 0);
@@ -420,22 +420,22 @@ void draw_tempo(WINDOW* _win) {
 void draw_page_one(WINDOW* _win) {
     mvwprintw(_win, 1, 1, "SOUND  P1      P2      FILTER  RESONA.");
     wattron(_win, COLOR_PAIR(4));
-    mvwprintw(_win, 2, 1, "       %s %s %s %s",   hBar(7, (size_t)opz.getActivePageParameters().param1).c_str(),
-                                            hBar(7, (size_t)opz.getActivePageParameters().param2).c_str(),
-                                            hBar(7, (size_t)opz.getActivePageParameters().filter).c_str(),
-                                            hBar(7, (size_t)opz.getActivePageParameters().resonance).c_str() );
+    mvwprintw(_win, 2, 1, "       %s %s %s %s",   hBar(7, (size_t)device.getActivePageParameters().param1).c_str(),
+                                            hBar(7, (size_t)device.getActivePageParameters().param2).c_str(),
+                                            hBar(7, (size_t)device.getActivePageParameters().filter).c_str(),
+                                            hBar(7, (size_t)device.getActivePageParameters().resonance).c_str() );
     wattroff(_win, COLOR_PAIR(4));
     mvwprintw(_win, 3, 1, "       %7i %7i %7i %7i", 
-                                            (int)((int)opz.getActivePageParameters().param1 / 2.55f), 
-                                            (int)((int)opz.getActivePageParameters().param2 / 2.55f), 
-                                            (int)((int)opz.getActivePageParameters().filter / 2.55f), 
-                                            (int)((int)opz.getActivePageParameters().resonance / 2.55f) );
+                                            (int)((int)device.getActivePageParameters().param1 / 2.55f), 
+                                            (int)((int)device.getActivePageParameters().param2 / 2.55f), 
+                                            (int)((int)device.getActivePageParameters().filter / 2.55f), 
+                                            (int)((int)device.getActivePageParameters().resonance / 2.55f) );
 }
 
 // PAGE 2: ENVELOPE
 void draw_page_two(WINDOW* _win) {
-    size_t track_id = opz.getActiveTrackId();
-    size_t page_id = opz.getActivePageId();
+    size_t track_id = device.getActiveTrackId();
+    size_t page_id = device.getActivePageId();
 
     werase(_win);
 
@@ -445,10 +445,10 @@ void draw_page_two(WINDOW* _win) {
 
     mvwprintw(_win, 1, 1, "ENVEL.");
 
-    float attack = (int)opz.getActivePageParameters().attack / 255.0f;
-    float decay = (int)opz.getActivePageParameters().decay / 255.0f;
-    float sustain = (int)opz.getActivePageParameters().sustain / 255.0f;
-    float release = (int)opz.getActivePageParameters().release / 255.0f;
+    float attack = (int)device.getActivePageParameters().attack / 255.0f;
+    float decay = (int)device.getActivePageParameters().decay / 255.0f;
+    float sustain = (int)device.getActivePageParameters().sustain / 255.0f;
+    float release = (int)device.getActivePageParameters().release / 255.0f;
     size_t x = 8;
     size_t w = 30;
 
@@ -527,32 +527,32 @@ void draw_page_two(WINDOW* _win) {
 void draw_page_three(WINDOW* _win) {
     mvwprintw(_win,1, 1, "LFO    DEPTH   RATE    DEST    SHAPE");
     wattron(_win, COLOR_PAIR(4));
-    mvwprintw(_win,2, 1, "       %s %s         %s",   hBar(7, (size_t)opz.getActivePageParameters().lfo_depth).c_str(),
-                                            hBar(7, (size_t)opz.getActivePageParameters().lfo_speed).c_str(),
-                                            opz::lfoShapeShapeString( opz.getActivePageParameters().lfo_shape ).c_str());
+    mvwprintw(_win,2, 1, "       %s %s         %s",   hBar(7, (size_t)device.getActivePageParameters().lfo_depth).c_str(),
+                                            hBar(7, (size_t)device.getActivePageParameters().lfo_speed).c_str(),
+                                            opz::lfoShapeShapeString( device.getActivePageParameters().lfo_shape ).c_str());
     wattroff(_win, COLOR_PAIR(4));
     mvwprintw(_win,3, 1, "       %3i     %3i     %3s    %5s", 
-                                            (int)((int)opz.getActivePageParameters().lfo_depth / 2.55f), 
-                                            (int)((int)opz.getActivePageParameters().lfo_speed / 2.55f),
-                                            opz::lfoDestinationShortString( opz.getActivePageParameters().lfo_value ).c_str(),
-                                            opz::lfoShapeShortString( opz.getActivePageParameters().lfo_shape ).c_str() );
+                                            (int)((int)device.getActivePageParameters().lfo_depth / 2.55f), 
+                                            (int)((int)device.getActivePageParameters().lfo_speed / 2.55f),
+                                            opz::lfoDestinationShortString( device.getActivePageParameters().lfo_value ).c_str(),
+                                            opz::lfoShapeShortString( device.getActivePageParameters().lfo_shape ).c_str() );
 }
 
 void draw_page_four(WINDOW* _win) {
     // PAGE 4: FX / PAN & LEVEL
     mvwprintw(_win, 1, 1, " FX  1       2");
     wattron(_win, COLOR_PAIR(4));
-    mvwprintw(_win, 2, 1, "     %s %s", hBar(7, (size_t)opz.getActivePageParameters().fx1).c_str(),
-                                            hBar(7, (size_t)opz.getActivePageParameters().fx2).c_str());
+    mvwprintw(_win, 2, 1, "     %s %s", hBar(7, (size_t)device.getActivePageParameters().fx1).c_str(),
+                                            hBar(7, (size_t)device.getActivePageParameters().fx2).c_str());
     wattroff(_win, COLOR_PAIR(4));
     mvwprintw(_win, 3, 1, "     %7i %7i", 
-                                            (int)((int)opz.getActivePageParameters().fx1 / 2.55f),
-                                            (int)((int)opz.getActivePageParameters().fx2 / 2.55f) );
+                                            (int)((int)device.getActivePageParameters().fx1 / 2.55f),
+                                            (int)((int)device.getActivePageParameters().fx2 / 2.55f) );
 
     mvwprintw(_win, 5, 1, " PAN L             R");
     mvwprintw(_win, 6, 1, "     ");
     for (size_t i = 0; i < 15; i++) {
-        size_t p = opz.getActivePageParameters().pan;
+        size_t p = device.getActivePageParameters().pan;
         p = (p/254.0)*15;
         if (i + 2 > p  && i < p ) {
             wattron(_win, COLOR_PAIR(2));
@@ -566,20 +566,20 @@ void draw_page_four(WINDOW* _win) {
         }
     }
 
-    mvwprintw(_win, 9, 1, " LEVEL     %03i", (int)( (int)opz.getActivePageParameters().level / 2.55f));
+    mvwprintw(_win, 9, 1, " LEVEL     %03i", (int)( (int)device.getActivePageParameters().level / 2.55f));
     wattron(_win, COLOR_PAIR(4));
-    mvwprintw(_win, 10, 1, "     %s", hBar(15, (size_t)opz.getActivePageParameters().level).c_str());
+    mvwprintw(_win, 10, 1, "     %s", hBar(15, (size_t)device.getActivePageParameters().level).c_str());
     wattroff(_win, COLOR_PAIR(4));
 }
 
 void draw_track_params(WINDOW* _win) {
     mvwprintw(_win, 1,  2, "NOTE");
     mvwprintw(_win, 3,  2, "    LENGTH");
-    mvwprintw(_win, 4,  2, "%10s", opz::noteLengthString( opz.getActiveTrackParameters().note_length ).c_str() );
+    mvwprintw(_win, 4,  2, "%10s", opz::noteLengthString( device.getActiveTrackParameters().note_length ).c_str() );
     mvwprintw(_win, 6,  2, "     STYLE");
-    mvwprintw(_win, 7,  2, "%10s", opz::noteStyleString( opz.getActiveTrackId(), opz.getActivePageParameters().note_style ).c_str() );
+    mvwprintw(_win, 7,  2, "%10s", opz::noteStyleString( device.getActiveTrackId(), device.getActivePageParameters().note_style ).c_str() );
     mvwprintw(_win, 10, 2, "  QUANTIZE");
-    mvwprintw(_win, 11, 2, "%9i%%", (int)((int)opz.getActiveTrackParameters().quantize / 2.55f));
+    mvwprintw(_win, 11, 2, "%9i%%", (int)((int)device.getActiveTrackParameters().quantize / 2.55f));
     mvwprintw(_win, 13, 2, "PORTAMENTO");
-    mvwprintw(_win, 14, 2, "%9i%%", (int)((int)opz.getActivePageParameters().portamento / 2.55f) );
+    mvwprintw(_win, 14, 2, "%9i%%", (int)((int)device.getActivePageParameters().portamento / 2.55f) );
 }

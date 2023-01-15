@@ -18,8 +18,8 @@ std::atomic<bool> keepRunnig(true);
 
 int main(int argc, char** argv) {
 
-    opz::opz_rtmidi opz;
-    opz.connect();
+    opz::opz_rtmidi device;
+    device.connect();
     
     initscr();
     start_color();
@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
     bool mic_on = false;
 
     // // Listen to key events (no cc, neighter notes)
-    // opz.setEventCallback( [&](opz::opz_event_id _id, int _value) {
+    // device.setEventCallback( [&](opz::opz_event_id _id, int _value) {
     // } );
 
     std::thread waitForKeys([&](){
@@ -48,7 +48,7 @@ int main(int argc, char** argv) {
         while ( true ) {
             ch = getch();
             if (ch == 'q') {
-                opz.saveAsTxt("project" + std::to_string( opz.getActiveProjectId() + 1) + ".txt");
+                device.saveAsTxt("project" + std::to_string( device.getActiveProjectId() + 1) + ".txt");
 
                 keepRunnig = false;
                 keepRunnig.store(false);
@@ -62,12 +62,12 @@ int main(int argc, char** argv) {
         getbegyx(stdscr, y_beg, x_beg);
         getmaxyx(stdscr, y_max, x_max);
 
-        opz.update();
+        device.update();
 
-        size_t project_id = opz.getActiveProjectId();
-        opz::opz_pattern pattern = opz.getActivePattern();
-        size_t pattern_id = opz.getActivePatternId();
-        size_t track_id = opz.getActiveTrackId();
+        size_t project_id = device.getActiveProjectId();
+        opz::opz_pattern pattern = device.getActivePattern();
+        size_t pattern_id = device.getActivePatternId();
+        size_t track_id = device.getActiveTrackId();
 
         // clear();
         mvprintw(0, (x_max-x_beg)/2 - 12, "PROJECT %02i | PATTERN %02i", project_id, pattern_id );
@@ -87,7 +87,7 @@ int main(int argc, char** argv) {
 
             for (size_t x = 0; x < 16; x++) {
 
-                size_t i = opz.getNoteIdOffset(y, x);
+                size_t i = device.getNoteIdOffset(y, x);
                 // mvprintw(y+4, 12 + x * x_width, "%i", i );
                 if ( pattern.note[ i ].note == 0xFF)
                     mvprintw(y+4, 12 + x * x_width, " .");
@@ -110,7 +110,7 @@ int main(int argc, char** argv) {
     
     waitForKeys.join();
     endwin();
-    opz.disconnect();
+    device.disconnect();
 
     exit(0);
 }
