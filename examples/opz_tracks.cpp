@@ -18,7 +18,7 @@ std::atomic<bool> keepRunnig(true);
 
 int main(int argc, char** argv) {
 
-    T3::opz_rtmidi opz;
+    opz::opz_rtmidi opz;
     opz.connect();
     
     initscr();
@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
     bool mic_on = false;
 
     // // Listen to key events (no cc, neighter notes)
-    // opz.setEventCallback( [&](T3::opz_event_id _id, int _value) {
+    // opz.setEventCallback( [&](opz::opz_event_id _id, int _value) {
     // } );
 
     std::thread waitForKeys([&](){
@@ -65,7 +65,7 @@ int main(int argc, char** argv) {
         opz.update();
 
         size_t project_id = opz.getActiveProjectId();
-        T3::opz_pattern pattern = opz.getActivePattern();
+        opz::opz_pattern pattern = opz.getActivePattern();
         size_t pattern_id = opz.getActivePatternId();
         size_t track_id = opz.getActiveTrackId();
 
@@ -79,7 +79,7 @@ int main(int argc, char** argv) {
                 if (y == track_id)
                     attron(COLOR_PAIR(2));
 
-                mvprintw(y+4 , 2, "%7s", T3::toString( T3::opz_track_id(y) ).c_str() );
+                mvprintw(y+4 , 2, "%7s", opz::toString( opz::opz_track_id(y) ).c_str() );
 
                 // mvprintw(x+2 , 10 + 16 * x_width, "%i", pattern.track_param[x].step_count );
                 // mvprintw(x+2 , 10 + 16 * x_width + 5, "%i", pattern.track_param[x].step_length );

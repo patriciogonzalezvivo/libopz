@@ -1,7 +1,7 @@
 
 #include "libopz/opz_rtmidi.h"
 
-namespace T3 {
+namespace opz {
 
 #include <time.h>
 #include <sys/time.h>

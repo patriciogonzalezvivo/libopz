@@ -6,7 +6,7 @@
 #include <sstream>
 #include <iomanip>
 
-namespace T3 {
+namespace opz {
 
 // print array of unsigend chars as HEX pairs
 char *printHex(unsigned char *cp, size_t n) {

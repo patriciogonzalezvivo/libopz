@@ -6,7 +6,7 @@
 #include "libopz/opz_device.h"
 #include "libopz/tools.h"
 
-namespace T3
+namespace opz
 {
 
 // TOOLS
@@ -54,14 +54,14 @@ namespace T3
     const std::vector<unsigned char> *opz_heartbeat() { return &master_heartbeat; }
     const std::vector<unsigned char> *opz_config_cmd() { return &config_cmd; };
     std::vector<unsigned char> opz_confirm_package_cmd(uint8_t *_data, size_t _length) {
-        // std::cout << "       DATA MSG                 | " << T3::printHex(_data, 6) << std::endl;
+        // std::cout << "       DATA MSG                 | " << opz::printHex(_data, 6) << std::endl;
         std::vector<unsigned char> msg = {0x09, 0x00, 0x00, _data[1], _data[2], _data[3], _data[4], 0x00};
-        std::vector<unsigned char> sysex_out = {T3::SYSEX_HEAD, T3::OPZ_VENDOR_ID[0], T3::OPZ_VENDOR_ID[1], T3::OPZ_VENDOR_ID[2], T3::OPZ_MAX_PROTOCOL_VERSION, 0x0B};
+        std::vector<unsigned char> sysex_out = {opz::SYSEX_HEAD, opz::OPZ_VENDOR_ID[0], opz::OPZ_VENDOR_ID[1], opz::OPZ_VENDOR_ID[2], opz::OPZ_MAX_PROTOCOL_VERSION, 0x0B};
         sysex_out.resize(100);
-        size_t outdata_length = T3::encode(&msg[0], msg.size(), &sysex_out[6]);
+        size_t outdata_length = opz::encode(&msg[0], msg.size(), &sysex_out[6]);
         sysex_out.resize(6 + outdata_length);
-        sysex_out.push_back(T3::SYSEX_END);
-        // std::cout << "   OUT 7BIT MSG " << T3::printHex(&sysex_out[0], sysex_out.size()) << std::endl;
+        sysex_out.push_back(opz::SYSEX_END);
+        // std::cout << "   OUT 7BIT MSG " << opz::printHex(&sysex_out[0], sysex_out.size()) << std::endl;
         return sysex_out;
     }
 

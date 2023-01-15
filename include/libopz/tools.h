@@ -5,7 +5,7 @@
 #include <vector>
 #include <string>
 
-namespace T3 {
+namespace opz {
 
 // debug print
 char *printHex(unsigned char *cp, size_t n);

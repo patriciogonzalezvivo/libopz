@@ -3,7 +3,7 @@
 #include "rtmidi/RtMidi.h"
 #include "opz_device.h"
 
-namespace T3 {
+namespace opz {
 
 class opz_rtmidi : public opz_device {
 public:

@@ -17,7 +17,7 @@ std::string version = "0.1";
 std::string name = "opz_companion";
 std::string header = name + " " + version + " by Patricio Gonzalez Vivo ( patriciogonzalezvivo.com )"; 
 
-T3::opz_rtmidi opz;
+opz::opz_rtmidi opz;
 std::atomic<bool> keepRunnig(true);
 
 std::vector<WINDOW*> windows;
@@ -86,15 +86,15 @@ int main(int argc, char** argv) {
     bool mic_on = false;
     
     // Listen to key events (no cc, neighter notes)
-    opz.setEventCallback( [&](T3::opz_event_id _id, int _value) {
+    opz.setEventCallback( [&](opz::opz_event_id _id, int _value) {
         change = true;
 
-        if (_id == T3::KEY_TRACK)           pressing_track = _value;
-        else if (_id == T3::KEY_PROJECT)    pressing_project = _value;
-        else if (_id == T3::KEY_MIXER)      pressing_mixer = _value;
-        else if (_id == T3::KEY_TEMPO)      pressing_tempo = _value;
-        else if (_id == T3::MICROPHONE_MODE_CHANGE) mic_on = _value != 0;
-        else if (_id == T3::PATTERN_DOWNLOADED || _id == T3::PATTERN_CHANGE || _id == T3::TRACK_CHANGE || _id == T3::SEQUENCE_CHANGE || _id == T3::PAGE_CHANGE || _id == T3::PARAMETER_CHANGE ) change_data = true;
+        if (_id == opz::KEY_TRACK)           pressing_track = _value;
+        else if (_id == opz::KEY_PROJECT)    pressing_project = _value;
+        else if (_id == opz::KEY_MIXER)      pressing_mixer = _value;
+        else if (_id == opz::KEY_TEMPO)      pressing_tempo = _value;
+        else if (_id == opz::MICROPHONE_MODE_CHANGE) mic_on = _value != 0;
+        else if (_id == opz::PATTERN_DOWNLOADED || _id == opz::PATTERN_CHANGE || _id == opz::TRACK_CHANGE || _id == opz::SEQUENCE_CHANGE || _id == opz::PAGE_CHANGE || _id == opz::PARAMETER_CHANGE ) change_data = true;
     } );
 
     std::thread waitForKeys([&](){
@@ -118,10 +118,10 @@ int main(int argc, char** argv) {
         if (!change)
             continue;
 
-        T3::opz_track_id track_id = opz.getActiveTrackId();
-        T3::opz_pattern pattern = opz.getActivePattern();
+        opz::opz_track_id track_id = opz.getActiveTrackId();
+        opz::opz_pattern pattern = opz.getActivePattern();
 
-        std::string title_name = T3::toString(track_id);
+        std::string title_name = opz::toString(track_id);
 
         if (mic_on) title_name = "MICROPHONE";
         else if (pressing_project) title_name = "PROJECTS";
@@ -289,15 +289,15 @@ void draw_mic(WINDOW* _win) {
     mvwprintw(_win, 1, 2, "MIC LEVEL                  MIC FX ");
     mvwprintw(_win, 2, 2, "%s                  %s", 
                             hBar(9, opz.getMicLevel() ).c_str(), 
-                            T3::toString(opz.getMicFx()).c_str());
+                            opz::toString(opz.getMicFx()).c_str());
     wrefresh(_win);
 }
 
 void draw_project(WINDOW* _win) {
     size_t project_id = opz.getActiveProjectId();
     uint8_t pattern_id = opz.getActivePatternId();
-    T3::opz_pattern pattern = opz.getActivePattern();
-    T3::opz_track_id track_active = opz.getActiveTrackId();
+    opz::opz_pattern pattern = opz.getActivePattern();
+    opz::opz_track_id track_active = opz.getActiveTrackId();
 
     int lines, cols;
     getmaxyx(_win, lines, cols);
@@ -329,12 +329,12 @@ void draw_project(WINDOW* _win) {
         int y = 5 + t;
         if (t == track_active) wattron(_win, COLOR_PAIR(2));
         else if (t > 7) wattron(_win, COLOR_PAIR(4));
-        mvwprintw(_win, y, x_margin, "%7s", T3::toString( T3::opz_track_id(t) ).c_str() );
+        mvwprintw(_win, y, x_margin, "%7s", opz::toString( opz::opz_track_id(t) ).c_str() );
         if (t == track_active) wattroff(_win, COLOR_PAIR(2));
         else if (t > 7) wattroff(_win, COLOR_PAIR(4));
 
-        size_t step_count = opz.getTrackParameters(T3::opz_track_id(t) ).step_count;
-        size_t step_length = opz.getTrackParameters(T3::opz_track_id(t) ).step_length;
+        size_t step_count = opz.getTrackParameters(opz::opz_track_id(t) ).step_count;
+        size_t step_length = opz.getTrackParameters(opz::opz_track_id(t) ).step_length;
         size_t step = (step_current / step_length) % step_count;
         mvwprintw(_win,y, x_margin + name_width + step * step_width - 1, "[  ]");
         for (size_t s = 0; s < step_count; s++) {
@@ -359,7 +359,7 @@ void draw_project(WINDOW* _win) {
 }
 
 void draw_mixer(WINDOW* _win) {
-    T3::opz_project_data project = opz.getProjectData();
+    opz::opz_project_data project = opz.getProjectData();
 
     werase(_win);
     box(_win, 0, 0);
@@ -376,7 +376,7 @@ void draw_tempo(WINDOW* _win) {
     int lines, cols;
     getmaxyx(_win, lines, cols);
 
-    T3::opz_project_data project = opz.getProjectData();
+    opz::opz_project_data project = opz.getProjectData();
     double pct = (opz.getActiveStepId() % 8) / 8.0;
     
     werase(_win);
@@ -385,7 +385,7 @@ void draw_tempo(WINDOW* _win) {
     mvwprintw(_win, 2, 2,           "%03i                 %03i", project.tempo, (int)((int)project.swing / 2.55f) - 50);
 
     mvwprintw(_win, 1, cols - 28, "SOUND                LEVEL");
-    mvwprintw(_win, 2, cols - 31, "%8s                  %03i", T3::metronomeSoundString(project.metronome_sound).c_str(), (int)((int)project.metronome_level / 2.55f) );
+    mvwprintw(_win, 2, cols - 31, "%8s                  %03i", opz::metronomeSoundString(project.metronome_sound).c_str(), (int)((int)project.metronome_level / 2.55f) );
 
     size_t w = 12;
     mvwprintw(_win, 3, cols/2 - w, "        ####|####");
@@ -529,13 +529,13 @@ void draw_page_three(WINDOW* _win) {
     wattron(_win, COLOR_PAIR(4));
     mvwprintw(_win,2, 1, "       %s %s         %s",   hBar(7, (size_t)opz.getActivePageParameters().lfo_depth).c_str(),
                                             hBar(7, (size_t)opz.getActivePageParameters().lfo_speed).c_str(),
-                                            T3::lfoShapeShapeString( opz.getActivePageParameters().lfo_shape ).c_str());
+                                            opz::lfoShapeShapeString( opz.getActivePageParameters().lfo_shape ).c_str());
     wattroff(_win, COLOR_PAIR(4));
     mvwprintw(_win,3, 1, "       %3i     %3i     %3s    %5s", 
                                             (int)((int)opz.getActivePageParameters().lfo_depth / 2.55f), 
                                             (int)((int)opz.getActivePageParameters().lfo_speed / 2.55f),
-                                            T3::lfoDestinationShortString( opz.getActivePageParameters().lfo_value ).c_str(),
-                                            T3::lfoShapeShortString( opz.getActivePageParameters().lfo_shape ).c_str() );
+                                            opz::lfoDestinationShortString( opz.getActivePageParameters().lfo_value ).c_str(),
+                                            opz::lfoShapeShortString( opz.getActivePageParameters().lfo_shape ).c_str() );
 }
 
 void draw_page_four(WINDOW* _win) {
@@ -575,9 +575,9 @@ void draw_page_four(WINDOW* _win) {
 void draw_track_params(WINDOW* _win) {
     mvwprintw(_win, 1,  2, "NOTE");
     mvwprintw(_win, 3,  2, "    LENGTH");
-    mvwprintw(_win, 4,  2, "%10s", T3::noteLengthString( opz.getActiveTrackParameters().note_length ).c_str() );
+    mvwprintw(_win, 4,  2, "%10s", opz::noteLengthString( opz.getActiveTrackParameters().note_length ).c_str() );
     mvwprintw(_win, 6,  2, "     STYLE");
-    mvwprintw(_win, 7,  2, "%10s", T3::noteStyleString( opz.getActiveTrackId(), opz.getActivePageParameters().note_style ).c_str() );
+    mvwprintw(_win, 7,  2, "%10s", opz::noteStyleString( opz.getActiveTrackId(), opz.getActivePageParameters().note_style ).c_str() );
     mvwprintw(_win, 10, 2, "  QUANTIZE");
     mvwprintw(_win, 11, 2, "%9i%%", (int)((int)opz.getActiveTrackParameters().quantize / 2.55f));
     mvwprintw(_win, 13, 2, "PORTAMENTO");

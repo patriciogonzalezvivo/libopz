@@ -7,8 +7,7 @@
 
 #include "opz_project.h"
 
-namespace T3
-{
+namespace opz {
 
     // Standard MIDI events
     enum midi_id {

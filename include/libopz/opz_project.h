@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <string>
 
-namespace T3 {
+namespace opz {
 
 enum opz_pattern_parameter_id {
     KICK_PLUG = 0,  KICK_PLUG1,     KICK_PLUG2,     KICK_PLUG3,     KICK_STEP_COUNT,    KICK_UNKNOWN,   KICK_STEP_LENGTH,   KICK_QUANTIZE,  KICK_NOTE_STYLE,    KICK_NOTE_LENGTH,   KICK_BYTE1,     KICK_BYTE2,

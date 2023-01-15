@@ -6,7 +6,7 @@
 #include "libopz/opz_project.h"
 #include "libopz/tools.h"
 
-namespace T3 {
+namespace opz {
 
 // https://teenage.engineering/guides/op-z/tracks
 std::string track_name[] = { 
