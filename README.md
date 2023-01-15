@@ -1,5 +1,8 @@
-# LibOPZ: a non official API library for the OP-Z
-[![](https://img.shields.io/static/v1?label=Sponsor&message=%E2%9D%A4&logo=GitHub&color=%23fe8e86)](https://github.com/sponsors/patriciogonzalezvivo)
+# LibOPZ [![](https://img.shields.io/static/v1?label=Sponsor&message=%E2%9D%A4&logo=GitHub&color=%23fe8e86)](https://github.com/sponsors/patriciogonzalezvivo)
+
+A non official API library for the OP-Z 
+
+# Compile 
 
 First you need to clone and compile the examples. It requires the following dev libraries installed on your system:
 
