@@ -115,6 +115,7 @@ namespace T3
         virtual int                 getOctave(size_t _id) const { return m_octave[_id]; }
         virtual int                 getActiveOctave() const { return getOctave(m_active_track); }
 
+        virtual void                setActivePatternId(size_t _id ) { m_active_pattern = _id; }
         virtual uint8_t             getActiveProjectId() const { return m_active_project; }
         virtual uint8_t             getActivePatternId() const { return m_active_pattern; }
         virtual opz_track_id        getActiveTrackId() const { return m_active_track; }

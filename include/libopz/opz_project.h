@@ -167,6 +167,7 @@ public:
     double                              getBeatPerStep() const { return 15.0 / (double)(m_project.tempo); }
 
     virtual const opz_pattern&          getPattern(size_t _id) const { return m_project.pattern[_id]; }
+    virtual const opz_pattern*          getPatternPtr(size_t _id) const { return &m_project.pattern[_id]; }
     virtual const bool                  getMuteTrack(size_t _patterId, size_t _track) { return m_project.pattern[_patterId].mute[ _track/4 ] & opz_mute_masks[_track%4]; }
 
     virtual size_t                      getNoteIdOffset(size_t _track, size_t _step) { return _step * 55 + opz_notes_offset_track[_track]; }
