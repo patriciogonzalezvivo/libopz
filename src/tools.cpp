@@ -59,8 +59,9 @@ std::string toStringHex(uint32_t _v) {
     return strStream.str();
 }
 
-std::vector<std::string> note_letter = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
-
+std::vector<std::string> note_letter = { "C",  "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+std::vector<bool> note_sharp = { false, true, false, true, false, false, true, false, true, false, true, false };
+bool isSharpNote(uint8_t _v) { return note_sharp[_v % 12]; }
 std::string toStringNote(uint8_t _v) {
     std::ostringstream out;
     out << note_letter[_v % 12] << std::fixed << (_v / 12);
