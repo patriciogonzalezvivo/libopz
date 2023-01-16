@@ -71,6 +71,7 @@ typedef struct {
     uint8_t             velocity;
     int8_t              micro_adjustment;
     uint8_t             age;
+    double              getDurationInSteps() const { return ((double)duration / 6200.0); }
 } opz_note, *p_opz_note;                        // 8bytes
 
 // https://github.com/lrk/z-po-project/wiki/Project-file-format#step-chunk
