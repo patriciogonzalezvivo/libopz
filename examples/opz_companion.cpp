@@ -157,11 +157,11 @@ int main(int argc, char** argv) {
         mvprintw(LINES-1, COLS/2 - 3, "%s %02i", ((device.isPlaying())? "|> " : "[ ]"), device.getActiveStepId() + 1 );
         refresh();
 
-        if (pressing_project)  draw_project(windows[5]);
+        if (pressing_project)       draw_project(windows[5]);
         else if (pressing_mixer)    draw_mixer(windows[5]);
         else if (pressing_tempo)    draw_tempo(windows[5]);
-        else if (mic_on) draw_mic(windows[5]);
-        else if (large_screen)  draw_project(windows[5]);
+        else if (mic_on)            draw_mic(windows[5]);
+        else if (large_screen)      draw_project(windows[5]);
 
         if ( large_screen || (!mic_on && !pressing_project && !pressing_mixer && !pressing_tempo)){
             // werase(windows[5]);

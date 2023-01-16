@@ -109,10 +109,7 @@ namespace opz {
         virtual opz_mic_fx_id       getMicFx() const { return m_mic_fx; }
         virtual uint8_t             getMicMode() const { return m_mic_mode; }
 
-        virtual bool                isTrackMute(opz_track_id _id) const { return m_mutes[_id]; }
-
-        virtual int                 getOctave(size_t _id) const { return m_octave[_id]; }
-        virtual int                 getActiveOctave() const { return getOctave(m_active_track); }
+        virtual bool                isTrackMute(opz_track_id _id) const { return getPattern(m_active_pattern).mute[_id]; }
 
         virtual void                setActivePatternId(size_t _id ) { m_active_pattern = _id; }
         virtual uint8_t             getActiveProjectId() const { return m_active_project; }
@@ -148,7 +145,6 @@ namespace opz {
 
         // Project Data
         int8_t          m_octave[16];
-        bool            m_mutes[16];
 
         // Active states (IDs)
         uint8_t         m_active_project;
@@ -167,6 +163,8 @@ namespace opz {
         float           m_mic_level;
         uint8_t         m_mic_mode;
         opz_mic_fx_id   m_mic_fx;
+
+        uint8_t         m_counter;
         bool            m_play;
 
         // CALLBACKS

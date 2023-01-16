@@ -13,6 +13,8 @@ public:
     void            disconnect();
     bool            isConnected() const { return m_connected; }
 
+    double          getTimeHeadPosition() const { return m_active_step + m_last_step / getBeatPerStep(); }
+
     void            update();
 
 private:

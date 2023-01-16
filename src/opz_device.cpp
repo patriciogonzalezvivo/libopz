@@ -139,7 +139,11 @@ namespace opz
 
         // Parse change header
         //
-        size_t counter = _data[0];
+        uint8_t counter = _data[0];
+        if (m_counter+1 != counter)
+            std::cout << "Counter don't match" << std::endl;
+        m_counter = counter;
+
         // uint8_t ??       = _data[1];
         size_t offset = (size_t)_data[2] +  ((size_t)_data[3] * 256);
         m_active_project = address2project(_data[4]);
@@ -153,16 +157,12 @@ namespace opz
 
         // SET STEP HEADER
         if (offset == 0x00) {
-            std::cout << "       MOVE HEADER " << std::endl;
             // 0        1   2   3   4       5   6   7   8  9
             // counter  ??  A2  A1  Address Le Ty   ?? ?? ??
             // 19 		00  00  00 	10 		03 05 	00 00 01
             // 1A 		00  00  00 	10 		03 05 	00 00 00
             // 18       00  00  00  10      03 05   00 01 01
-            // B8       00  00  00  10      03 05   00 01 01
             // 17 		00 	00 	00 	10 		02 04 	00 01
-            // 2C       00  00  00  10      02 04   00 01
-            // B9       00  00  00  10      02 04   00 01
             m_active_track = (opz_track_id)_data[7];
             m_active_step = _data[8];
 
@@ -170,21 +170,15 @@ namespace opz
             size_t notes_total = getNotesPerTrack(m_active_track);
 
             if (change_type == 0x04) {
-                std::cout << "       TURN KEY ON " << std::endl;
                 memcpy(&m_project.pattern[m_active_pattern].note[note_offset], &m_active_note, sizeof(opz_note));
             }
             else if (change_type == 0x05) {
                 size_t note_clear = _data[9];
                 memcpy(&m_active_note, &m_project.pattern[m_active_pattern].note[note_offset], sizeof(opz_note));
-                printf("    active note: %i\n", m_active_note.note);
-
                 // Set OFF all notes on that step (different track have different maxamount of notes per step)
                 if (note_clear == 1)
-                {
-                    printf("    NOTES OFF (%i)\n", (int)notes_total);
                     for (size_t i = 0; i < notes_total; i++)
                         m_project.pattern[m_active_pattern].note[note_offset + i].note = 0xFF;
-                }
             }
 
             if (verbose > 2)
@@ -239,10 +233,8 @@ namespace opz
             }
 
             opz_event_id event;
-
             for (size_t i = 0; i < 8; i++) {
                 if (offset < opz_pattern_map[i]) {
-                    std::cout << "    " << opz_pattern_map_name[i-1] << " CHANGED" << std::endl;
                     event = pattern_map_event[i-1];
                     break;
                 }

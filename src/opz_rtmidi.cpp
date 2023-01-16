@@ -117,16 +117,15 @@ void opz_rtmidi::update(){
         m_last_step += delta;
 
         if ( m_last_step >= getBeatPerStep() ) {
-            m_last_step = 0.0;
+            m_last_step -= getBeatPerStep();
 
             size_t total_steps = getActiveTrackParameters().step_count * getActiveTrackParameters().step_length;
             // m_active_step = (m_active_step + 1) % total_steps;
             m_active_step++;
+            
             if (m_event_enable)
                 m_event(STEP_CHANGE, m_active_step);
         }
-
-
     }
 
     usleep( 16700 );
