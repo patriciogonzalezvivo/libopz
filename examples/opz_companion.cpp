@@ -42,6 +42,18 @@ const int BOTTOM_BAR_MARGIN  = 6;    // step display rows + a blank line of brea
 
 bool change = true;
 
+// --- PROJECT view cursor (arrow keys, only while pressing_project) ---
+// Up/Down moves the highlighted track (row) and pushes a real track-select to
+// the device; Left/Right moves the highlighted step (column), local-only, to
+// pick a step to inspect/edit.
+std::atomic<int> proj_cursor_track(0);
+std::atomic<int> proj_cursor_step(0);
+
+// --- MIXER view cursor (arrow keys, only while pressing_mixer) ---
+// Left/Right picks which track's channel strip is active; Up/Down nudges
+// that track's mixer level; Enter toggles its mute - all pushed live via 0x12.
+std::atomic<int> mixer_cursor_track(0);
+
 // --- Track editing / write-back state ---
 // Local editable copy of the 16-pattern bank. Edits are staged here and only
 // pushed to the device (as a full 0x09/0x0a bank write) when the user asks to
@@ -248,28 +260,81 @@ int main(int argc, char** argv) {
                 change = true;
             }
             else if (ch == KEY_UP) {
-                int t = (int)device.getActiveTrackId() - 1;
-                if (t < 0) t = 15;
-                device.sendTrackSelect(opz::opz_track_id(t));
-                change = true;
-                change_data = true;
+                if (pressing_project) {
+                    int t = proj_cursor_track.load() - 1;
+                    if (t < 0) t = 15;
+                    proj_cursor_track.store(t);
+                    device.sendTrackSelect(opz::opz_track_id(t));
+                    change = true;
+                    change_data = true;
+                }
+                else if (pressing_mixer) {
+                    int t = mixer_cursor_track.load();
+                    int lvl = device.hasMixerState() ? (int)device.getMixerState().level[t] : 0;
+                    device.sendMixerTrackLevel(opz::opz_track_id(t), (uint8_t)std::min(255, lvl + 8));
+                    change = true;
+                    change_data = true;
+                }
             }
             else if (ch == KEY_DOWN) {
-                int t = ((int)device.getActiveTrackId() + 1) % 16;
-                device.sendTrackSelect(opz::opz_track_id(t));
-                change = true;
-                change_data = true;
+                if (pressing_project) {
+                    int t = (proj_cursor_track.load() + 1) % 16;
+                    proj_cursor_track.store(t);
+                    device.sendTrackSelect(opz::opz_track_id(t));
+                    change = true;
+                    change_data = true;
+                }
+                else if (pressing_mixer) {
+                    int t = mixer_cursor_track.load();
+                    int lvl = device.hasMixerState() ? (int)device.getMixerState().level[t] : 0;
+                    device.sendMixerTrackLevel(opz::opz_track_id(t), (uint8_t)std::max(0, lvl - 8));
+                    change = true;
+                    change_data = true;
+                }
             }
             else if (ch == KEY_LEFT) {
-                int p = (int)device.getActivePatternId() - 1;
-                if (p < 0) p = 15;
-                device.setActivePatternId(p);
+                if (pressing_project) {
+                    int s = proj_cursor_step.load() - 1;
+                    if (s < 0) s = 15;
+                    proj_cursor_step.store(s);
+                    change = true;
+                    change_data = true;
+                }
+                else if (pressing_mixer) {
+                    int t = (mixer_cursor_track.load() + 15) % 16;
+                    mixer_cursor_track.store(t);
+                    change = true;
+                    change_data = true;
+                }
+            }
+            else if (ch == KEY_RIGHT) {
+                if (pressing_project) {
+                    int s = (proj_cursor_step.load() + 1) % 16;
+                    proj_cursor_step.store(s);
+                    change = true;
+                    change_data = true;
+                }
+                else if (pressing_mixer) {
+                    int t = (mixer_cursor_track.load() + 1) % 16;
+                    mixer_cursor_track.store(t);
+                    change = true;
+                    change_data = true;
+                }
+            }
+            else if (ch == KEY_ENTER || ch == '\n' || ch == '\r') {
+                if (pressing_mixer) {
+                    device.sendMixerToggleMute(opz::opz_track_id(mixer_cursor_track.load()));
+                    change = true;
+                    change_data = true;
+                }
+            }
+            else if (ch >= '1' && ch <= '9') {
+                device.sendProjectSelect(ch - '1');
                 change = true;
                 change_data = true;
             }
-            else if (ch == KEY_RIGHT) {
-                int p = ((int)device.getActivePatternId() + 1) % 16;
-                device.setActivePatternId(p);
+            else if (ch == '0') {
+                device.sendProjectSelect(9);
                 change = true;
                 change_data = true;
             }

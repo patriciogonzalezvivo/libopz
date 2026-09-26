@@ -125,6 +125,7 @@ namespace opz {
 
         virtual void                setActivePatternId(size_t _id) { m_active_pattern = _id; }
         virtual void                setActiveTrackId(opz_track_id _id) { m_active_track = _id; }
+        virtual void                setActiveProjectId(uint8_t _id) { m_active_project = _id; }
 
         // Overwrite the in-memory 16-pattern bank. Use right after a confirmed
         // sendPattern() push so the local model (and any display reading it) reflects
@@ -135,8 +136,21 @@ namespace opz {
         virtual uint8_t             getActivePatternId() const { return m_active_pattern; }
         virtual opz_track_id        getActiveTrackId() const { return m_active_track; }
         virtual opz_page_id         getActivePageId() const { return m_active_page; }
+
+        // Last raw 0x06 (Button States) snapshot as decoded off the wire. Exposed
+        // so an experimental write can start from the device's own last-known
+        // state and only flip the field(s) under test, instead of guessing at
+        // undocumented bits that could latch held-button/encoder state.
+        const opz_key_state&        getKeyState() const { return m_key_state; }
         size_t                      getActiveStepId() const { return m_active_step; }
         uint8_t                     getActiveChainPos() const { return m_active_chain_pos; }
+
+        // Last raw 0x07 (Sequencer Settings) 20-byte payload as received. Exposed
+        // so a project-select write can start from the device's own last-known
+        // chain state and only flip the project byte, instead of guessing at the
+        // chain-sequence/length fields we don't independently track.
+        const uint8_t*              getChainPayload() const { return m_last_chain_payload; }
+        bool                        hasChainPayload() const { return m_has_chain_payload; }
 
         virtual const opz_pattern&  getActivePattern() const { return getPattern(m_active_pattern); }
 
@@ -192,6 +206,9 @@ namespace opz {
         opz_key_state   m_key_state;
         opz_key_state   m_key_prev_state;
         uint8_t         m_active_chain_pos;
+
+        uint8_t         m_last_chain_payload[20];
+        bool            m_has_chain_payload;
 
         // non-project or pattern related states
         float           m_level;

@@ -151,9 +151,12 @@ typedef struct {
     opz_midi_track_config track[16];
 } opz_midi_config, *p_opz_midi_config;
 
-// Per-track real-time mixer level snapshot from 0x12 (Sound State).
+// Per-track real-time mixer level + mute snapshot from 0x12 (Mixer State).
+// Bit N of mute_mask corresponds to track N. Bidirectional/writable per the
+// OP-Z SysEx protocol.
 typedef struct {
     uint8_t             level[16];
+    uint16_t            mute_mask;
 } opz_mixer_state, *p_opz_mixer_state;
 
 // https://github.com/lrk/z-po-project/wiki/Project-file-format#project-file-format

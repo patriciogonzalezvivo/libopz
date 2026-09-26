@@ -117,6 +117,7 @@ namespace opz
                                m_active_page(PAGE_ONE),
                                m_active_step(0),
                                m_active_chain_pos(0),
+                               m_has_chain_payload(false),
                                m_mic_mode(0),
                                m_counter(0),
                                m_counter_valid(false),
@@ -132,6 +133,7 @@ namespace opz
                                m_raw_enable(false) {
         memset(&m_midi_config, 0, sizeof(m_midi_config));
         memset(&m_mixer_state, 0, sizeof(m_mixer_state));
+        memset(&m_last_chain_payload, 0, sizeof(m_last_chain_payload));
     }
 
     void opz_device::process_message(unsigned char *_message, size_t _length) {
@@ -533,6 +535,9 @@ namespace opz
 
                 if (length < 20)
                     break;
+
+                memcpy(m_last_chain_payload, data, 20);
+                m_has_chain_payload = true;
 
                 uint8_t pattern = data[0];
                 m_active_chain_pos = data[1];

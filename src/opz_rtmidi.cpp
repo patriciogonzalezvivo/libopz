@@ -174,6 +174,39 @@ bool opz_rtmidi::sendTrackSelect(opz_track_id _track, int8_t _octave) {
     return send(buildSysex(0x03, body));
 }
 
+bool opz_rtmidi::sendProjectSelect(uint8_t _project) {
+    if (!hasChainPayload())
+        return false;
+
+    std::vector<unsigned char> body(getChainPayload(), getChainPayload() + 20);
+    body[19] = _project;
+    return send(buildSysex(0x07, body));
+}
+
+bool opz_rtmidi::sendMixerTrackLevel(opz_track_id _track, uint8_t _level) {
+    if (!hasMixerState())
+        return false;
+
+    opz_mixer_state st = getMixerState();
+    st.level[(size_t)_track] = _level;
+
+    std::vector<unsigned char> body(sizeof(opz_mixer_state));
+    memcpy(body.data(), &st, sizeof(opz_mixer_state));
+    return send(buildSysex(0x12, body));
+}
+
+bool opz_rtmidi::sendMixerToggleMute(opz_track_id _track) {
+    if (!hasMixerState())
+        return false;
+
+    opz_mixer_state st = getMixerState();
+    st.mute_mask ^= (1 << (int)_track);
+
+    std::vector<unsigned char> body(sizeof(opz_mixer_state));
+    memcpy(body.data(), &st, sizeof(opz_mixer_state));
+    return send(buildSysex(0x12, body));
+}
+
 std::vector<unsigned char> opz_rtmidi::buildSysex(uint8_t _parm_id, const std::vector<unsigned char>& _body) {
     std::vector<unsigned char> out = { SYSEX_HEAD, OPZ_VENDOR_ID[0], OPZ_VENDOR_ID[1], OPZ_VENDOR_ID[2], OPZ_MAX_PROTOCOL_VERSION, _parm_id };
     // worst case 7-bit encoding grows the body by ~8/7; reserve generously

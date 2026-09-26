@@ -33,6 +33,22 @@ public:
     // Sends a writable 0x03 (Keyboard Setting) SysEx message.
     bool            sendTrackSelect(opz_track_id _track, int8_t _octave = 0);
 
+    // Tell the device to switch to a different project. Requires a 0x07
+    // (Sequencer Settings) payload to already have been seen at least once
+    // (hasChainPayload()) - the write starts from that last raw 20-byte chain
+    // state and only flips the project byte, since the rest of the payload
+    // (chain sequence/length) isn't independently reconstructed here. Returns
+    // false without sending if no baseline has been received yet.
+    bool            sendProjectSelect(uint8_t _project);
+
+    // Per-track mixer level/mute (0x12, MixerState). Both require a baseline
+    // 0x12 to already have been received (hasMixerState()) - the write starts
+    // from that last-known 16-level + mute-mask snapshot and only flips the
+    // target track's field, leaving every other track's level/mute untouched.
+    // Return false without sending if no baseline has been received yet.
+    bool            sendMixerTrackLevel(opz_track_id _track, uint8_t _level);
+    bool            sendMixerToggleMute(opz_track_id _track);
+
     // Push a full 16-pattern bank to the device as a 0x09/0x0a stream (a live write).
     // Compresses + packetizes, waits for each 0x0b ACK. address/id come from the last
     // received dump (getPatternAddress()/getPatternId()). Returns packets ACK'd.
