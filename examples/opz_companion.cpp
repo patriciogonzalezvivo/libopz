@@ -247,13 +247,18 @@ int main(int argc, char** argv) {
         size_t step_count = device.getActiveTrackParameters().step_count;
         size_t step_length = device.getActiveTrackParameters().step_length;
 
+        // Fit all 16 steps (plus a visual gap every 4th step) within the actual
+        // terminal width, instead of a fixed spacing that clips the later steps
+        // on narrower terminals.
+        int cell_width = std::max(3, (COLS - 6) / 19);
+
         if (device.isPlaying() && step_count > 0 && step_length > 0) {
             size_t step = (device.getActiveStepId() / step_length) % step_count;
-            mvprintw(LINES-4, 2 + step * 4 + ( (step/4) * 4 ) , "[ ]");
+            mvprintw(LINES-4, 2 + step * cell_width + ( (step/4) * cell_width ) , "[ ]");
         }
         
         for (size_t i = 0; i < step_count; i++) {
-            size_t x = 3 + i * 4 + ( (i/4) * 4 );
+            size_t x = 3 + i * cell_width + ( (i/4) * cell_width );
             mvprintw(LINES-5, x, "%02i", i + 1 );
             size_t note = device.getNoteIdOffset(track_id, i);
 
