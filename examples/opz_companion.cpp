@@ -260,7 +260,14 @@ int main(int argc, char** argv) {
                 change = true;
             }
             else if (ch == KEY_UP) {
-                if (pressing_project) {
+                if (pressing_mixer) {
+                    int t = mixer_cursor_track.load();
+                    int lvl = device.hasMixerState() ? (int)device.getMixerState().level[t] : 0;
+                    device.sendMixerTrackLevel(opz::opz_track_id(t), (uint8_t)std::min(255, lvl + 8));
+                    change = true;
+                    change_data = true;
+                }
+                else if (pressing_project || show_project_panel) {
                     int t = proj_cursor_track.load() - 1;
                     if (t < 0) t = 15;
                     proj_cursor_track.store(t);
@@ -268,55 +275,48 @@ int main(int argc, char** argv) {
                     change = true;
                     change_data = true;
                 }
-                else if (pressing_mixer) {
-                    int t = mixer_cursor_track.load();
-                    int lvl = device.hasMixerState() ? (int)device.getMixerState().level[t] : 0;
-                    device.sendMixerTrackLevel(opz::opz_track_id(t), (uint8_t)std::min(255, lvl + 8));
-                    change = true;
-                    change_data = true;
-                }
             }
             else if (ch == KEY_DOWN) {
-                if (pressing_project) {
-                    int t = (proj_cursor_track.load() + 1) % 16;
-                    proj_cursor_track.store(t);
-                    device.sendTrackSelect(opz::opz_track_id(t));
-                    change = true;
-                    change_data = true;
-                }
-                else if (pressing_mixer) {
+                if (pressing_mixer) {
                     int t = mixer_cursor_track.load();
                     int lvl = device.hasMixerState() ? (int)device.getMixerState().level[t] : 0;
                     device.sendMixerTrackLevel(opz::opz_track_id(t), (uint8_t)std::max(0, lvl - 8));
                     change = true;
                     change_data = true;
                 }
+                else if (pressing_project || show_project_panel) {
+                    int t = (proj_cursor_track.load() + 1) % 16;
+                    proj_cursor_track.store(t);
+                    device.sendTrackSelect(opz::opz_track_id(t));
+                    change = true;
+                    change_data = true;
+                }
             }
             else if (ch == KEY_LEFT) {
-                if (pressing_project) {
+                if (pressing_mixer) {
+                    int t = (mixer_cursor_track.load() + 15) % 16;
+                    mixer_cursor_track.store(t);
+                    change = true;
+                    change_data = true;
+                }
+                else if (pressing_project || show_project_panel) {
                     int s = proj_cursor_step.load() - 1;
                     if (s < 0) s = 15;
                     proj_cursor_step.store(s);
                     change = true;
                     change_data = true;
                 }
-                else if (pressing_mixer) {
-                    int t = (mixer_cursor_track.load() + 15) % 16;
-                    mixer_cursor_track.store(t);
-                    change = true;
-                    change_data = true;
-                }
             }
             else if (ch == KEY_RIGHT) {
-                if (pressing_project) {
-                    int s = (proj_cursor_step.load() + 1) % 16;
-                    proj_cursor_step.store(s);
+                if (pressing_mixer) {
+                    int t = (mixer_cursor_track.load() + 1) % 16;
+                    mixer_cursor_track.store(t);
                     change = true;
                     change_data = true;
                 }
-                else if (pressing_mixer) {
-                    int t = (mixer_cursor_track.load() + 1) % 16;
-                    mixer_cursor_track.store(t);
+                else if (pressing_project || show_project_panel) {
+                    int s = (proj_cursor_step.load() + 1) % 16;
+                    proj_cursor_step.store(s);
                     change = true;
                     change_data = true;
                 }
@@ -329,15 +329,27 @@ int main(int argc, char** argv) {
                 }
             }
             else if (ch >= '1' && ch <= '9') {
-                device.sendProjectSelect(ch - '1');
+                device.sendPatternSelect(ch - '1');
                 change = true;
                 change_data = true;
             }
             else if (ch == '0') {
-                device.sendProjectSelect(9);
+                device.sendPatternSelect(9);
                 change = true;
                 change_data = true;
             }
+            // Shift+number (standard US-keyboard shift symbols) selects the
+            // project instead of the pattern: ! @ # $ % ^ & * ( ) = shift 1-0.
+            else if (ch == '!') { device.sendProjectSelect(0); change = true; change_data = true; }
+            else if (ch == '@') { device.sendProjectSelect(1); change = true; change_data = true; }
+            else if (ch == '#') { device.sendProjectSelect(2); change = true; change_data = true; }
+            else if (ch == '$') { device.sendProjectSelect(3); change = true; change_data = true; }
+            else if (ch == '%') { device.sendProjectSelect(4); change = true; change_data = true; }
+            else if (ch == '^') { device.sendProjectSelect(5); change = true; change_data = true; }
+            else if (ch == '&') { device.sendProjectSelect(6); change = true; change_data = true; }
+            else if (ch == '*') { device.sendProjectSelect(7); change = true; change_data = true; }
+            else if (ch == '(') { device.sendProjectSelect(8); change = true; change_data = true; }
+            else if (ch == ')') { device.sendProjectSelect(9); change = true; change_data = true; }
             else if (ch == ' ') {
                 unsigned char msg = device.isPlaying() ? opz::STOP_SONG : opz::START_SONG;
                 device.send(&msg, 1);
@@ -615,6 +627,11 @@ void draw_project(WINDOW* _win) {
     if (chain_pos > 0)
         mvwprintw(_win, 0, cols - 14, " CHAIN %02i ", chain_pos);
 
+    int cur_track = proj_cursor_track.load() % 16;
+    int cur_step = proj_cursor_step.load() % 16;
+    mvwprintw(_win, 1, 2, "STEP EDIT   TRACK %-7s STEP %02i   (up/down: track   left/right: step)",
+              opz::toString(opz::opz_track_id(cur_track)).c_str(), cur_step + 1);
+
     // CHAINED PATTERNS (TODO)
     int song_width = 4;
     int x_margin = (cols - song_width * 16) / 2;
@@ -669,6 +686,9 @@ void draw_project(WINDOW* _win) {
             int x = x_margin + name_width + s * step_width;
             size_t i = device.getNoteIdOffset(t, s);
 
+            bool is_cursor = (t == (size_t)cur_track && s == (size_t)cur_step);
+            if (is_cursor) wattron(_win, A_REVERSE);
+
             if (pattern.note[i].note == 0xFF) {
                 if (muted) wattron(_win, COLOR_PAIR(5));
                 else if (t > 7) wattron(_win, COLOR_PAIR(4));
@@ -685,6 +705,8 @@ void draw_project(WINDOW* _win) {
                 else if (t == (size_t)track_active) wattroff(_win, COLOR_PAIR(1));
                 else if (t > 7) wattroff(_win, COLOR_PAIR(2));
             }
+
+            if (is_cursor) wattroff(_win, A_REVERSE);
         }
     }
     wrefresh(_win);
@@ -718,28 +740,45 @@ void draw_mixer(WINDOW* _win) {
                             (int)((int)project.punch_level / 2.55f),
                             (int)((int)project.master_level / 2.55f));
 
+    int cur_track = mixer_cursor_track.load() % 16;
+    bool have_live = device.hasMixerState();
+    const opz::opz_mixer_state& mstate = device.getMixerState();
+
+    bool cur_muted = have_live ? (bool)((mstate.mute_mask >> cur_track) & 1) : device.getMuteTrack(pattern_id, cur_track);
+    int cur_level = have_live ? (int)mstate.level[cur_track] : -1;
+
+    mvwprintw(_win, 4, 2, "TRACK %-7s", opz::toString(opz::opz_track_id(cur_track)).c_str());
+    if (cur_level >= 0)
+        mvwprintw(_win, 4, 20, "LEVEL %03i  %s", cur_level, hBar(10, cur_level).c_str());
+    mvwprintw(_win, 4, cols - 22, "%s   (left/right: track  up/down: level  enter: mute)", cur_muted ? "MUTED " : "ACTIVE");
+
     int mute_col_w = std::max(4, (cols - 4) / 16);
     for (size_t t = 0; t < 16; t++) {
         int x = 2 + (int)t * mute_col_w;
-        bool muted = device.getMuteTrack(pattern_id, t);
+        bool muted = have_live ? (bool)((mstate.mute_mask >> t) & 1) : device.getMuteTrack(pattern_id, t);
         const char* short_names[] = {"KI","SN","PE","SA","BA","LE","AR","CH","F1","F2","TP","MA","PF","MO","LI","MT"};
+
+        bool is_cursor = (t == (size_t)cur_track);
+        if (is_cursor) wattron(_win, A_REVERSE);
 
         if (muted) {
             wattron(_win, COLOR_PAIR(5));
-            mvwprintw(_win, 5, x, "%s", short_names[t]);
-            mvwprintw(_win, 6, x, "--");
+            mvwprintw(_win, 6, x, "%s", short_names[t]);
+            mvwprintw(_win, 7, x, "--");
             wattroff(_win, COLOR_PAIR(5));
         }
         else {
             if (t < 4) wattron(_win, COLOR_PAIR(3));
             else if (t < 8) wattron(_win, COLOR_PAIR(4));
             else wattron(_win, COLOR_PAIR(2));
-            mvwprintw(_win, 5, x, "%s", short_names[t]);
-            mvwprintw(_win, 6, x, "##");
+            mvwprintw(_win, 6, x, "%s", short_names[t]);
+            mvwprintw(_win, 7, x, "##");
             if (t < 4) wattroff(_win, COLOR_PAIR(3));
             else if (t < 8) wattroff(_win, COLOR_PAIR(4));
             else wattroff(_win, COLOR_PAIR(2));
         }
+
+        if (is_cursor) wattroff(_win, A_REVERSE);
     }
 
     wrefresh(_win);

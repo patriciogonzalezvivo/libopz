@@ -183,6 +183,15 @@ bool opz_rtmidi::sendProjectSelect(uint8_t _project) {
     return send(buildSysex(0x07, body));
 }
 
+bool opz_rtmidi::sendPatternSelect(uint8_t _pattern) {
+    if (!hasChainPayload())
+        return false;
+
+    std::vector<unsigned char> body(getChainPayload(), getChainPayload() + 20);
+    body[0] = _pattern;
+    return send(buildSysex(0x07, body));
+}
+
 bool opz_rtmidi::sendMixerTrackLevel(opz_track_id _track, uint8_t _level) {
     if (!hasMixerState())
         return false;

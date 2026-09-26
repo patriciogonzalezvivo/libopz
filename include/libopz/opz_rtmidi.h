@@ -41,6 +41,12 @@ public:
     // false without sending if no baseline has been received yet.
     bool            sendProjectSelect(uint8_t _project);
 
+    // Same safe-write approach as sendProjectSelect, but flips the pattern
+    // byte (data[0] in the 0x07 payload, per libopz's own decode of the
+    // active-pattern field) instead of the project byte, leaving the active
+    // project untouched.
+    bool            sendPatternSelect(uint8_t _pattern);
+
     // Per-track mixer level/mute (0x12, MixerState). Both require a baseline
     // 0x12 to already have been received (hasMixerState()) - the write starts
     // from that last-known 16-level + mute-mask snapshot and only flips the
