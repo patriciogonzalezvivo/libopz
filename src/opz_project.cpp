@@ -86,11 +86,8 @@ std::string lfoDestinationShortString( uint8_t _value ) { return mapList(lfo_des
 
 opz_project::opz_project() {
     memset(&m_project, 0, sizeof(m_project));
+    m_project.tempo = 120;
 
-    // 0xFF is the device's "no note" sentinel; without this, a pattern that
-    // hasn't been synced from the device yet (or a project built in memory)
-    // reads as all-zero, which looks like real notes at pitch 0 instead of
-    // empty steps.
     for (size_t p = 0; p < 16; p++)
         for (size_t n = 0; n < 880; n++)
             m_project.pattern[p].note[n].note = 0xFF;
@@ -166,7 +163,10 @@ bool opz_project::loadOpz(const std::string& _filename) {
     char* buffer = new char[size];
     in_file.read(buffer,size);
 
-    memcpy( (char*)&m_project, &buffer[4], sizeof(char) * size );
+    size_t payload = (size > 4) ? size - 4 : 0;
+    if (payload > sizeof(m_project))
+        payload = sizeof(m_project);
+    memcpy((char*)&m_project, &buffer[4], payload);
 
     delete[] buffer;
     in_file.close();
@@ -179,7 +179,7 @@ bool opz_project::saveAsOpz(const std::string& _filename){
 
     char header[] = {0x00, 0x00, 0x00, 0x00};
     out_file.write(header, 4);
-    out_file.write((char*)&m_project, sizeof(opz_project));
+    out_file.write((char*)&m_project, sizeof(opz_project_data));
     out_file.close();
 
     return true;

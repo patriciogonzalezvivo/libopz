@@ -39,7 +39,25 @@ enum opz_sound_parameter_id {
 
 enum opz_note_style_id {
     DRUM_RETRIG = 0,    DRUM_MONO, DRUM_GATE, DRUM_LOOP,
-    SYNTH_POLY,         SYNTH_MONO, SYNTH_LEGATO 
+    SYNTH_POLY,         SYNTH_MONO, SYNTH_LEGATO
+};
+
+enum opz_step_component_id {
+    STEP_COMPONENT_STEP_1_2     = 0x0001,
+    STEP_COMPONENT_STEP_1_4     = 0x0002,
+    STEP_COMPONENT_STEP_3_4     = 0x0004,
+    STEP_COMPONENT_STEP_1_8     = 0x0008,
+    STEP_COMPONENT_RAMP_UP      = 0x0010,
+    STEP_COMPONENT_RAMP_DOWN    = 0x0020,
+    STEP_COMPONENT_RANDOM       = 0x0040,
+    STEP_COMPONENT_PULSE_WIDTH  = 0x0080,
+    STEP_COMPONENT_SWEEP_RIGHT  = 0x0100,
+    STEP_COMPONENT_SWEEP_LEFT   = 0x0200,
+    STEP_COMPONENT_MULTIPLY     = 0x0400,
+    STEP_COMPONENT_NOTE_LENGTH  = 0x0800,
+    STEP_COMPONENT_NOTE_STYLE   = 0x1000,
+    STEP_COMPONENT_TONALITY     = 0x2000,
+    STEP_COMPONENT_PARAMETER_SPARK = 0x4000
 };
 
 enum opz_metronome_sound_id {
@@ -122,6 +140,22 @@ typedef struct {
     uint8_t             pattern[32];        // Array of 32 bytes for the patterns id (from 0 to 15).
 } opz_pattern_chain, *p_opz_pattern_chain;
 
+// Per-track MIDI routing: channel assignment and CC-output enable flags.
+// Sent compressed from the device in 0x10 (MIDI Config) messages.
+typedef struct {
+    uint8_t             channel;            // MIDI channel (0-15, or 0xFF = off)
+    uint8_t             cc_enabled;         // whether CC output is enabled for this track
+} opz_midi_track_config, *p_opz_midi_track_config;
+
+typedef struct {
+    opz_midi_track_config track[16];
+} opz_midi_config, *p_opz_midi_config;
+
+// Per-track real-time mixer level snapshot from 0x12 (Sound State).
+typedef struct {
+    uint8_t             level[16];
+} opz_mixer_state, *p_opz_mixer_state;
+
 // https://github.com/lrk/z-po-project/wiki/Project-file-format#project-file-format
 typedef struct {
     opz_pattern_chain   pattern_chain[16];  // Array of saved pattern chains
@@ -133,7 +167,7 @@ typedef struct {
     uint8_t             unknown1[44];       // unknown, values are often 0x00
     uint8_t             swing;              // Swing level from 0 to 255
     uint8_t             metronome_level;    // Metronome sound level
-    uint8_t             metronome_sound;    // Metronome sound selection from 0x00 to 0xFF. Values might be mapped with some linear interpolated indexes 
+    uint8_t             metronome_sound;    // Metronome sound selection from 0x00 to 0xFF. Values might be mapped with some linear interpolated indexes
     uint32_t            unknown2;           // unknown, mostly 0x000000FF
     opz_pattern         pattern[16];
 } opz_project_data, *p_opz_project_data;
@@ -169,10 +203,13 @@ public:
 
     virtual const opz_pattern&          getPattern(size_t _id) const { return m_project.pattern[_id]; }
     virtual const opz_pattern*          getPatternPtr(size_t _id) const { return &m_project.pattern[_id]; }
-    virtual const bool                  getMuteTrack(size_t _patterId, size_t _track) { return m_project.pattern[_patterId].mute[ _track/4 ] & opz_mute_masks[_track%4]; }
+    virtual bool                        getMuteTrack(size_t _patterId, size_t _track) const { return m_project.pattern[_patterId].mute[ _track/4 ] & opz_mute_masks[_track%4]; }
 
     virtual size_t                      getNoteIdOffset(size_t _track, size_t _step) { return _step * 55 + opz_notes_offset_track[_track]; }
     virtual size_t                      getNotesPerTrack(size_t _track) { return opz_notes_per_track[_track]; }
+
+    virtual bool                        isSendToTape(size_t _patternId, opz_track_id _track) const { return m_project.pattern[_patternId].send_tape & (1 << _track); }
+    virtual bool                        isSendToMaster(size_t _patternId, opz_track_id _track) const { return m_project.pattern[_patternId].send_master & (1 << _track); }
 
     virtual const opz_track_parameter&  getTrackParameters(uint8_t patterm, opz_track_id _track) const { return m_project.pattern[patterm].track_param[(size_t)_track]; }
     virtual const opz_sound_parameter&  getSoundParameters(uint8_t patterm, opz_track_id _track) const { return m_project.pattern[patterm].sound_param[(size_t)_track]; };

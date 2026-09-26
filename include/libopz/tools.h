@@ -8,8 +8,8 @@
 namespace opz {
 
 // debug print
-char*       printHex(unsigned char *cp, size_t n);
-char*       printAscii(unsigned char *cp, size_t n);
+std::string printHex(unsigned char *cp, size_t n);
+std::string printAscii(unsigned char *cp, size_t n);
 
 std::string toString(uint32_t _value);
 

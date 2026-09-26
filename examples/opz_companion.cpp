@@ -145,8 +145,12 @@ int main(int argc, char** argv) {
 
     windows.push_back( newwin(18, 14, 1, 66) );  //  STEP / NOTE
     
-    // Extra window that can be display on the side or on top of the pages depending of the size of the terminal
-    windows.push_back( newwin((large_screen ? LINES-2 : 0), (large_screen ? COLS-80 : 0) , 1, (large_screen ? 80 : 0) ) );
+    // Extra window that can be display on the side or on top of the pages depending of the size of the terminal.
+    // Its content (draw_project) only ever fills down to the MOTION track row plus one blank line, so cap its
+    // height there instead of stretching to the bottom of the screen and overlapping the step display.
+    const int project_win_height = 23;
+    int project_win_width = large_screen ? COLS - 80 : COLS;
+    windows.push_back( newwin(std::min(LINES - 2, project_win_height), project_win_width, 1, (large_screen ? 80 : 0) ) );
 
     signal(SIGWINCH, handle_winch);
 
@@ -247,18 +251,21 @@ int main(int argc, char** argv) {
         size_t step_count = device.getActiveTrackParameters().step_count;
         size_t step_length = device.getActiveTrackParameters().step_length;
 
-        // Fit all 16 steps (plus a visual gap every 4th step) within the actual
-        // terminal width, instead of a fixed spacing that clips the later steps
-        // on narrower terminals.
-        int cell_width = std::max(3, (COLS - 6) / 19);
+        // Fit all 16 steps evenly within the actual terminal width, instead of a
+        // fixed spacing that clips the later steps on narrower terminals.
+        int cell_width = std::max(2, (COLS - 6) / 16);
 
         if (device.isPlaying() && step_count > 0 && step_length > 0) {
             size_t step = (device.getActiveStepId() / step_length) % step_count;
-            mvprintw(LINES-4, 2 + step * cell_width + ( (step/4) * cell_width ) , "[ ]");
+            mvprintw(LINES-4, 2 + step * cell_width, "[ ]");
         }
-        
-        for (size_t i = 0; i < step_count; i++) {
-            size_t x = 3 + i * cell_width + ( (i/4) * cell_width );
+
+        // Always render all 16 physical step slots, regardless of the track's
+        // configured step_count - note[] has a slot for every one of the 16
+        // steps no matter how many of them the track is currently sequencing,
+        // so a smaller step_count would otherwise hide real note data.
+        for (size_t i = 0; i < 16; i++) {
+            size_t x = 3 + i * cell_width;
             mvprintw(LINES-5, x, "%02i", i + 1 );
             size_t note = device.getNoteIdOffset(track_id, i);
 
@@ -269,7 +276,7 @@ int main(int argc, char** argv) {
                 mvprintw(LINES-4, x, "-");
             else {
                 attron(COLOR_PAIR(2));
-                mvprintw(LINES-4, x, "o");
+                mvprintw(LINES-4, x, "0");
                 attroff(COLOR_PAIR(2));
             }
 
@@ -312,6 +319,14 @@ int main(int argc, char** argv) {
 
             for (size_t i = 0; i < 5; i++)
                 wrefresh(windows[i]);
+
+            // The fixed-size windows above can overlap the step display rows
+            // drawn on stdscr (e.g. their borders sit on the same physical
+            // row as LINES-5..LINES-1 on shorter terminals). Re-push just
+            // those rows last so the step display always wins that overlap,
+            // without blanking out the rest of stdscr over the windows.
+            touchline(stdscr, LINES - 5, 5);
+            refresh();
 
             change = false;
             change_data = false;

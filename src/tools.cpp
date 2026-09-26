@@ -8,31 +8,19 @@
 
 namespace opz {
 
-// print array of unsigend chars as HEX pairs
-char *printHex(unsigned char *cp, size_t n) {
-    char *s = (char*)malloc(3*n );
-
-    if (s == NULL)
-        return s;
-
-    for (size_t k = 0; k < n; ++k)
-        sprintf(s + 3*(k), "%02X ", cp[k]);
-
-    s[3*n] = '\0';
+std::string printHex(unsigned char *cp, size_t n) {
+    std::string s;
+    s.reserve(3 * n);
+    char buf[4];
+    for (size_t k = 0; k < n; ++k) {
+        snprintf(buf, sizeof(buf), "%02X ", cp[k]);
+        s += buf;
+    }
     return s;
 }
 
-char *printAscii(unsigned char *cp, size_t n) {
-    char *s = (char*)malloc(n);
-
-    if (s == NULL)
-        return s;
-
-    for (size_t k = 0; k < n; ++k)
-        sprintf(s + k, "%c", cp[k]);
-
-    s[n] = '\0';
-    return s;
+std::string printAscii(unsigned char *cp, size_t n) {
+    return std::string(reinterpret_cast<char*>(cp), n);
 }
 
 std::string toString(uint32_t _value) {

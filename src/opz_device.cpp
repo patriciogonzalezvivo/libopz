@@ -1,7 +1,8 @@
-#include <stdio.h>  /* sprintf() */
-#include <stdlib.h> /* malloc() */
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <iostream>
+#include <algorithm>
 
 #include "libopz/opz_device.h"
 #include "libopz/tools.h"
@@ -40,7 +41,7 @@ namespace opz
         "SEQUENCE_CHANGE", "MUTE_CHANGE", "STEP_CHANGE", "STEP_ZERO",
         "MICROPHONE_MODE_CHANGE", "MICROPHONE_LEVEL_CHANGE", "MICROPHONE_FX_CHANGE",
         "TRACK_PARAMETER_CHANGE", "SOUND_PARAMETER_CHANGE",
-        "PATTERN_PACKAGE_RECIVED", "PATTERN_DOWNLOADED"
+        "PATTERN_PACKAGE_RECIVED", "PATTERN_DOWNLOADED",
         "NO_CONNECTION"
     };
 
@@ -115,10 +116,13 @@ namespace opz
                                m_active_track(KICK),
                                m_active_page(PAGE_ONE),
                                m_active_step(0),
+                               m_active_chain_pos(0),
                                m_mic_mode(0),
                                m_counter(0),
                                m_counter_valid(false),
                                m_play(false),
+                               m_has_midi_config(false),
+                               m_has_mixer_state(false),
                                m_pattern_id(0),
                                m_pattern_address(0),
                                m_ack_count(0),
@@ -126,6 +130,8 @@ namespace opz
                                m_event_enable(false),
                                m_midi_enable(false),
                                m_raw_enable(false) {
+        memset(&m_midi_config, 0, sizeof(m_midi_config));
+        memset(&m_mixer_state, 0, sizeof(m_mixer_state));
     }
 
     void opz_device::process_message(unsigned char *_message, size_t _length) {
@@ -145,8 +151,8 @@ namespace opz
         size_t header_size = 7;
 
         if (_length <= header_size) {
-            // if (verbose)
-            std::cout << "Track change to short to process: " << printHex(_data, _length) << "(" << _length << " bytes)" << std::endl;
+            if (verbose)
+                printf("Track change too short to process (%zu bytes)\n", _length);
             return;
         }
 
@@ -172,7 +178,7 @@ namespace opz
         uint8_t *payload_header = &_data[7];
 
         if (verbose)
-            std::cout << "       " << printHex(_data, _length) << "(" << _length << " bytes)" << std::endl;
+            std::cout << "       " << printHex(_data, _length) << "(" << _length << " bytes)\n";
 
         // SET STEP HEADER
         if (offset == 0x00) {
@@ -182,8 +188,8 @@ namespace opz
             // 1A 		00  00  00 	10 		03 05 	00 00 00
             // 18       00  00  00  10      03 05   00 01 01
             // 17 		00 	00 	00 	10 		02 04 	00 01
-            m_active_track = (opz_track_id)_data[7];
-            m_active_step = _data[8];
+            m_active_track = (opz_track_id)(_data[7] % 16);
+            m_active_step = _data[8] % 16;
 
             size_t note_offset = getNoteIdOffset(m_active_track, m_active_step);
             size_t notes_total = getNotesPerTrack(m_active_track);
@@ -222,8 +228,13 @@ namespace opz
             // counter  ??  A2  A1  Address Ln ??   Duration   	    Note	Vel MA 	Age
             // 18 		00 	C8	00 	10 		08 00   00 0A 00 00     3C      64  00  00
 
-            uint8_t *memory_head = ((uint8_t *)&m_project.pattern[m_active_pattern]) + sizeof(uint8_t) * offset;
-            memcpy(memory_head, payload_header, std::min( sizeof(opz_pattern) * 16, sizeof(uint8_t) * payload_length) );
+            if (offset + payload_length > sizeof(opz_pattern)) {
+                if (verbose)
+                    printf("    track change offset %zu + length %zu exceeds pattern size %zu, skipping\n", offset, (size_t)payload_length, sizeof(opz_pattern));
+                return;
+            }
+            uint8_t *memory_head = ((uint8_t *)&m_project.pattern[m_active_pattern]) + offset;
+            memcpy(memory_head, payload_header, payload_length);
 
             if (verbose) {
                 printf("    project: %i\n", m_active_project);
@@ -251,8 +262,8 @@ namespace opz
                 }
             }
 
-            opz_event_id event;
-            for (size_t i = 0; i < 8; i++) {
+            opz_event_id event = SEQUENCE_CHANGE;
+            for (size_t i = 1; i < sizeof(opz_pattern_map)/sizeof(opz_pattern_map[0]); i++) {
                 if (offset < opz_pattern_map[i]) {
                     event = pattern_map_event[i-1];
                     break;
@@ -524,6 +535,7 @@ namespace opz
                     break;
 
                 uint8_t pattern = data[0];
+                m_active_chain_pos = data[1];
                 uint8_t address = data[17];
                 uint8_t project = data[19];
 
@@ -632,7 +644,7 @@ namespace opz
 
                 const opz_project_data &pi = (const opz_project_data &)decompressed[0];
 
-                memcpy(&m_project, &pi, sizeof(uint8_t) * decompressed.size()); // sizeof(pi));
+                memcpy(&m_project, &pi, std::min(decompressed.size(), sizeof(opz_project_data)));
 
                 if (verbose > 2) {
                     printf("    drum level:      %i\n", pi.drum_level);
@@ -703,14 +715,24 @@ namespace opz
             break;
 
             case 0x10: {
-                // Compressed MIDI Config ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#10-zlib-compressed-midi-config )
                 if (verbose)
                     printf("Msg %02X (Compressed MIDI Config)\n", header.parm_id);
 
                 std::vector<unsigned char> decompressed = decompress(data, length);
                 if (verbose > 1 && verbose < 4) {
-                    std::cout << "   RAW " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
-                    std::cout << "   ENC " << printHex(decompressed.data(), decompressed.size()) << "(" << decompressed.size() << " bytes)" << std::endl;
+                    std::cout << "   RAW " << printHex(data, length) << "(" << length << " bytes)\n";
+                    std::cout << "   DEC " << printHex(decompressed.data(), decompressed.size()) << "(" << decompressed.size() << " bytes)\n";
+                }
+
+                if (!decompressed.empty()) {
+                    size_t copy_len = std::min(decompressed.size(), sizeof(opz_midi_config));
+                    memcpy(&m_midi_config, decompressed.data(), copy_len);
+                    m_has_midi_config = true;
+
+                    if (verbose > 2) {
+                        for (size_t t = 0; t < 16; t++)
+                            printf("    MIDI ch[%zu]: %u  cc: %u\n", t, m_midi_config.track[t].channel, m_midi_config.track[t].cc_enabled);
+                    }
                 }
             }
             break;
@@ -728,12 +750,16 @@ namespace opz
             break;
 
             case 0x12: {
-                // Sound State ( https://github.com/hyphz/opzdoc/wiki/MIDI-Protocol#12-sound-state )
                 if (verbose)
-                    printf("Msg %02X (Sound State)\n", header.parm_id);
+                    printf("Msg %02X (Sound/Mixer State)\n", header.parm_id);
 
                 if (verbose > 1 && verbose < 4)
-                    std::cout << "   RAW " << printHex(data, length) << "(" << length << " bytes)" << std::endl;
+                    std::cout << "   RAW " << printHex(data, length) << "(" << length << " bytes)\n";
+
+                if (length >= sizeof(opz_mixer_state)) {
+                    memcpy(&m_mixer_state, data, sizeof(opz_mixer_state));
+                    m_has_mixer_state = true;
+                }
             }
             break;
 

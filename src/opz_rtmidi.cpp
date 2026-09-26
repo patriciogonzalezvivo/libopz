@@ -228,9 +228,12 @@ bool opz_rtmidi::requestPatternSync(double _timeout_sec) {
 
     uint32_t before = m_dump_count;
 
-    // Ask the device to dump its current pattern bank (0x08 query). The inbound
-    // 0x09/0x0a stream is handled on the RtMidi callback thread, which updates
-    // m_project and bumps m_dump_count.
+    // Also request config/global data (0x0F) so we get tempo, levels, etc.
+    {
+        std::lock_guard<std::mutex> lock(m_out_mutex);
+        m_out->sendMessage(opz_config_cmd());
+    }
+
     std::vector<unsigned char> req = {
         SYSEX_HEAD, OPZ_VENDOR_ID[0], OPZ_VENDOR_ID[1], OPZ_VENDOR_ID[2],
         OPZ_MAX_PROTOCOL_VERSION, 0x08, SYSEX_END };

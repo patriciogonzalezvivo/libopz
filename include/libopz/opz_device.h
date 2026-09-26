@@ -115,7 +115,13 @@ namespace opz {
         virtual opz_mic_fx_id       getMicFx() const { return m_mic_fx; }
         virtual uint8_t             getMicMode() const { return m_mic_mode; }
 
-        virtual bool                isTrackMute(opz_track_id _id) const { return getPattern(m_active_pattern).mute[_id]; }
+        virtual bool                isTrackMute(opz_track_id _id) const { return getMuteTrack(m_active_pattern, (size_t)_id); }
+
+        virtual const opz_midi_config& getMidiConfig() const { return m_midi_config; }
+        virtual bool                hasMidiConfig() const { return m_has_midi_config; }
+
+        virtual const opz_mixer_state& getMixerState() const { return m_mixer_state; }
+        virtual bool                hasMixerState() const { return m_has_mixer_state; }
 
         virtual void                setActivePatternId(size_t _id ) { m_active_pattern = _id; }
 
@@ -129,6 +135,7 @@ namespace opz {
         virtual opz_track_id        getActiveTrackId() const { return m_active_track; }
         virtual opz_page_id         getActivePageId() const { return m_active_page; }
         size_t                      getActiveStepId() const { return m_active_step; }
+        uint8_t                     getActiveChainPos() const { return m_active_chain_pos; }
 
         virtual const opz_pattern&  getActivePattern() const { return getPattern(m_active_pattern); }
 
@@ -183,6 +190,7 @@ namespace opz {
         // Non-musical key states
         opz_key_state   m_key_state;
         opz_key_state   m_key_prev_state;
+        uint8_t         m_active_chain_pos;
 
         // non-project or pattern related states
         float           m_level;
@@ -193,6 +201,12 @@ namespace opz {
         uint8_t         m_counter;
         bool            m_counter_valid;    // false until the first 0x02 counter is seen
         bool            m_play;
+
+        opz_midi_config m_midi_config;
+        bool            m_has_midi_config;
+
+        opz_mixer_state m_mixer_state;
+        bool            m_has_mixer_state;
 
         // Pattern transfer bookkeeping (0x09/0x0a/0x0b)
         uint16_t        m_pattern_id;       // header field data[2..3] from last dump
