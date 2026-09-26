@@ -196,6 +196,11 @@ int main(int argc, char** argv) {
                 edit_mode.store(entering);
                 change = true;
             }
+            else if (ch == ' ') {
+                unsigned char msg = device.isPlaying() ? opz::STOP_SONG : opz::START_SONG;
+                device.send(&msg, 1);
+                change = true;
+            }
             else if (edit_mode.load()) {
                 if (ch == 'h') {
                     if (edit_step_cursor > 0) edit_step_cursor--;
@@ -272,21 +277,41 @@ int main(int argc, char** argv) {
             bool cursor_here = edit_mode.load() && (i == edit_step_cursor % std::max((size_t)1, step_count));
             if (cursor_here) attron(COLOR_PAIR(1));
 
-            if ( pattern.note[ note ].note == 0xFF)
-                mvprintw(LINES-4, x, "-");
+            size_t step_idx = (size_t)track_id * 16 + i;
+            bool has_components = (step_idx < 256) && (pattern.step[step_idx].components_bitmask != 0);
+
+            if ( pattern.note[ note ].note == 0xFF) {
+                if (has_components) {
+                    attron(COLOR_PAIR(5));
+                    mvprintw(LINES-4, x, "~");
+                    attroff(COLOR_PAIR(5));
+                }
+                else
+                    mvprintw(LINES-4, x, "-");
+            }
             else {
-                attron(COLOR_PAIR(2));
-                mvprintw(LINES-4, x, "0");
-                attroff(COLOR_PAIR(2));
+                if (has_components) {
+                    attron(COLOR_PAIR(1));
+                    mvprintw(LINES-4, x, "*");
+                    attroff(COLOR_PAIR(1));
+                }
+                else {
+                    attron(COLOR_PAIR(2));
+                    mvprintw(LINES-4, x, "0");
+                    attroff(COLOR_PAIR(2));
+                }
             }
 
             if (cursor_here) attroff(COLOR_PAIR(1));
         }
 
         mvprintw(LINES-3, 0, "%s", edit_status.c_str());
-        mvprintw(LINES-2, 0, "STEP COUNT %2i      STEP LENGTH %2i                                        SUM %2i", 
-                                step_count, step_length, step_count * step_length);
-        mvprintw(LINES-1, COLS/2 - 3, "%s %02i", ((device.isPlaying())? "|> " : "[ ]"), device.getActiveStepId() + 1 );
+        mvprintw(LINES-2, 0, "STEP COUNT %2i   STEP LENGTH %2i   SUM %2i   TEMPO %3i BPM",
+                                step_count, step_length, step_count * step_length,
+                                device.getProjectData().tempo);
+        attron(COLOR_PAIR(device.isPlaying() ? 2 : 5));
+        mvprintw(LINES-1, COLS/2 - 3, "%s %02zu", ((device.isPlaying())? "|> " : "[ ]"), device.getActiveStepId() + 1 );
+        attroff(COLOR_PAIR(device.isPlaying() ? 2 : 5));
         refresh();
 
         if (pressing_project)       draw_project(windows[5]);
@@ -445,8 +470,12 @@ void draw_project(WINDOW* _win) {
     werase(_win);
     box(_win, 0, 0);
 
-    mvwprintw(_win, 0, 2, " PROJECT  %02i ", project_id);
-    mvwprintw(_win, 0, 20, " PATTERN  %02i ", pattern_id );
+    mvwprintw(_win, 0, 2, " PROJECT %02i ", project_id);
+    mvwprintw(_win, 0, 18, " PATTERN %02i ", pattern_id);
+    mvwprintw(_win, 0, 34, " MUTE GRP %i ", pattern.active_mute_group);
+    uint8_t chain_pos = device.getActiveChainPos();
+    if (chain_pos > 0)
+        mvwprintw(_win, 0, cols - 14, " CHAIN %02i ", chain_pos);
 
     // CHAINED PATTERNS (TODO)
     int song_width = 4;
@@ -459,40 +488,63 @@ void draw_project(WINDOW* _win) {
     }
 
     // PATTERN TRACK
-    int name_width = 10;
+    int name_width = 12;
     int step_width = (cols - name_width) / 16;
     x_margin = 2 + (cols - step_width * 16 - name_width) / 2;
     size_t step_current = device.getActiveStepId();
-    
+
     size_t tracks = 16;
     for (size_t t = 0; t < tracks; t++) {
         int y = 5 + t;
-        if (t == track_active) wattron(_win, COLOR_PAIR(2));
-        else if (t > 7) wattron(_win, COLOR_PAIR(4));
-        mvwprintw(_win, y, x_margin, "%7s", opz::toString( opz::opz_track_id(t) ).c_str() );
-        if (t == track_active) wattroff(_win, COLOR_PAIR(2));
-        else if (t > 7) wattroff(_win, COLOR_PAIR(4));
+        bool muted = device.getMuteTrack(pattern_id, t);
+        bool send_tape = device.isSendToTape(pattern_id, opz::opz_track_id(t));
+        bool send_master = device.isSendToMaster(pattern_id, opz::opz_track_id(t));
 
-        size_t step_count = device.getTrackParameters(opz::opz_track_id(t) ).step_count;
-        size_t step_length = device.getTrackParameters(opz::opz_track_id(t) ).step_length;
+        if (muted) wattron(_win, COLOR_PAIR(5));
+        else if (t == (size_t)track_active) wattron(_win, COLOR_PAIR(2));
+        else if (t > 7) wattron(_win, COLOR_PAIR(4));
+
+        char route_ch = ' ';
+        if (send_tape && send_master) route_ch = '&';
+        else if (send_tape) route_ch = 'T';
+        else if (send_master) route_ch = 'M';
+
+        mvwprintw(_win, y, x_margin, "%c %7s", route_ch, opz::toString(opz::opz_track_id(t)).c_str());
+
+        if (muted) {
+            wprintw(_win, " X");
+            wattroff(_win, COLOR_PAIR(5));
+        }
+        else {
+            wprintw(_win, "  ");
+            if (t == (size_t)track_active) wattroff(_win, COLOR_PAIR(2));
+            else if (t > 7) wattroff(_win, COLOR_PAIR(4));
+        }
+
+        size_t step_count = device.getTrackParameters(opz::opz_track_id(t)).step_count;
+        size_t step_length = device.getTrackParameters(opz::opz_track_id(t)).step_length;
         if (step_count > 0 && step_length > 0) {
             size_t step = (step_current / step_length) % step_count;
-            mvwprintw(_win,y, x_margin + name_width + step * step_width - 1, "[  ]");
+            mvwprintw(_win, y, x_margin + name_width + step * step_width - 1, "[  ]");
         }
         for (size_t s = 0; s < step_count; s++) {
             int x = x_margin + name_width + s * step_width;
             size_t i = device.getNoteIdOffset(t, s);
 
-            if ( pattern.note[ i ].note == 0xFF) {
-                if (t > 7) wattron(_win, COLOR_PAIR(4));
+            if (pattern.note[i].note == 0xFF) {
+                if (muted) wattron(_win, COLOR_PAIR(5));
+                else if (t > 7) wattron(_win, COLOR_PAIR(4));
                 mvwprintw(_win, y, x, "--");
-                if (t > 7) wattroff(_win, COLOR_PAIR(4));
+                if (muted) wattroff(_win, COLOR_PAIR(5));
+                else if (t > 7) wattroff(_win, COLOR_PAIR(4));
             }
             else {
-                if (t == track_active) wattron(_win, COLOR_PAIR(1));
+                if (muted) wattron(_win, COLOR_PAIR(5));
+                else if (t == (size_t)track_active) wattron(_win, COLOR_PAIR(1));
                 else if (t > 7) wattron(_win, COLOR_PAIR(2));
-                mvwprintw(_win, y, x, "%02X", pattern.note[ i ].note );
-                if (t == track_active) wattroff(_win, COLOR_PAIR(1));
+                mvwprintw(_win, y, x, "%02X", pattern.note[i].note);
+                if (muted) wattroff(_win, COLOR_PAIR(5));
+                else if (t == (size_t)track_active) wattroff(_win, COLOR_PAIR(1));
                 else if (t > 7) wattroff(_win, COLOR_PAIR(2));
             }
         }
