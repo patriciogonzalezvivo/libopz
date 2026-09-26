@@ -23,7 +23,23 @@ opz::opz_rtmidi device;
 std::atomic<bool> keepRunnig(true);
 
 std::vector<WINDOW*> windows;
-bool large_screen = false;
+
+// The project/pattern-grid panel (windows[5]) can sit beside the track
+// property windows (SIDE), stacked below them (STACKED), or - if the
+// terminal isn't big enough for either - be hidden entirely and only
+// shown as a temporary full-screen overlay while pressing project/mixer/
+// tempo/mic (COMPACT).
+enum project_layout_t { LAYOUT_SIDE, LAYOUT_STACKED, LAYOUT_COMPACT };
+project_layout_t project_layout = LAYOUT_COMPACT;
+bool show_project_panel = false; // true when the panel is always visible (SIDE or STACKED)
+
+// Track property windows (0-4) occupy x:0-80, y:1-19 (fixed, regardless of layout).
+const int TRACK_PROPS_WIDTH  = 80;   // windows[2] (66 wide) + windows[4] (14 wide)
+const int TRACK_PROPS_HEIGHT = 19;   // windows[2]/[4] bottom out at y=19
+const int PROJECT_MIN_WIDTH  = 60;   // narrowest the project grid is still legible
+const int PROJECT_FULL_HEIGHT = 23;  // draw_project()'s content never exceeds this
+const int BOTTOM_BAR_MARGIN  = 6;    // step display rows + a blank line of breathing room
+
 bool change = true;
 
 // --- Track editing / write-back state ---
@@ -109,6 +125,45 @@ void draw_page_three(WINDOW* _window);
 void draw_page_four(WINDOW* _window);
 void handle_winch(int sig);
 
+project_layout_t compute_project_layout() {
+    if (COLS >= TRACK_PROPS_WIDTH + PROJECT_MIN_WIDTH)
+        return LAYOUT_SIDE;
+    if (LINES >= TRACK_PROPS_HEIGHT + PROJECT_FULL_HEIGHT + BOTTOM_BAR_MARGIN)
+        return LAYOUT_STACKED;
+    return LAYOUT_COMPACT;
+}
+
+// (Re)sizes and repositions the project panel (windows[5]) to match the
+// current terminal dimensions. Safe to call at startup and from the
+// SIGWINCH handler.
+void layout_project_window() {
+    project_layout = compute_project_layout();
+    show_project_panel = (project_layout != LAYOUT_COMPACT);
+
+    int h, w, y, x;
+    if (project_layout == LAYOUT_SIDE) {
+        w = COLS - TRACK_PROPS_WIDTH;
+        h = std::min(LINES - 2, PROJECT_FULL_HEIGHT);
+        y = 1; x = TRACK_PROPS_WIDTH;
+    }
+    else if (project_layout == LAYOUT_STACKED) {
+        w = COLS;
+        h = std::min(LINES - TRACK_PROPS_HEIGHT - BOTTOM_BAR_MARGIN, PROJECT_FULL_HEIGHT);
+        y = TRACK_PROPS_HEIGHT + 2; x = 0;
+    }
+    else {
+        w = COLS;
+        h = std::min(LINES - 2, PROJECT_FULL_HEIGHT);
+        y = 1; x = 0;
+    }
+
+    h = std::max(h, 1);
+    w = std::max(w, 1);
+
+    wresize(windows[5], h, w);
+    mvwin(windows[5], y, x);
+}
+
 int main(int argc, char** argv) {
     device.connect();
 
@@ -136,21 +191,18 @@ int main(int argc, char** argv) {
     keypad(stdscr, TRUE);
     noecho();
 
-    large_screen = (COLS >= 159); 
-
     windows.push_back( newwin(5, 41, 1, 0) );    //  PAGE ONE
     windows.push_back( newwin(8, 41, 6, 0) );    //  PAGE TWO
     windows.push_back( newwin(5, 66, 14, 0) );   //  PAGE THREE
     windows.push_back( newwin(13, 25, 1, 41) );  //  PAGE FOUR
 
     windows.push_back( newwin(18, 14, 1, 66) );  //  STEP / NOTE
-    
-    // Extra window that can be display on the side or on top of the pages depending of the size of the terminal.
-    // Its content (draw_project) only ever fills down to the MOTION track row plus one blank line, so cap its
-    // height there instead of stretching to the bottom of the screen and overlapping the step display.
-    const int project_win_height = 23;
-    int project_win_width = large_screen ? COLS - 80 : COLS;
-    windows.push_back( newwin(std::min(LINES - 2, project_win_height), project_win_width, 1, (large_screen ? 80 : 0) ) );
+
+    // Project/pattern-grid panel: sized and positioned by layout_project_window()
+    // below, which picks side-by-side, stacked, or hidden-until-pressed based on
+    // the current terminal size.
+    windows.push_back( newwin(1, 1, 1, 0) );     //  PROJECT (placeholder, resized below)
+    layout_project_window();
 
     signal(SIGWINCH, handle_winch);
 
@@ -339,9 +391,9 @@ int main(int argc, char** argv) {
         else if (pressing_mixer)    draw_mixer(windows[5]);
         else if (pressing_tempo)    draw_tempo(windows[5]);
         else if (mic_on)            draw_mic(windows[5]);
-        else if (large_screen)      draw_project(windows[5]);
+        else if (show_project_panel) draw_project(windows[5]);
 
-        if ( large_screen || (!mic_on && !pressing_project && !pressing_mixer && !pressing_tempo)){
+        if ( show_project_panel || (!mic_on && !pressing_project && !pressing_mixer && !pressing_tempo)){
             // werase(windows[5]);
 
             if (pressing_track)
@@ -466,7 +518,7 @@ void handle_winch(int sig) {
     for (size_t i = 0; i < windows.size(); i++)
         wrefresh(windows[i]);
 
-    wresize( windows[5], LINES-2, COLS-80 );
+    layout_project_window();
 }
 
 void draw_mic(WINDOW* _win) {
