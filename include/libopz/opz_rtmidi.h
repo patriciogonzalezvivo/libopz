@@ -68,6 +68,13 @@ public:
     // project snapshot so nothing else is clobbered.
     bool            sendGroupLevel(int _group, uint8_t _level);
 
+    // Project tempo (BPM, roughly 40-200 per the OP-Z project format), same
+    // safe 0x0c header-patch approach as sendGroupLevel.
+    bool            sendTempo(uint8_t _bpm);
+    bool            sendSwing(uint8_t _swing);
+    bool            sendMetronomeLevel(uint8_t _level);
+    bool            sendMetronomeSound(uint8_t _sound);
+
     // Push a full 16-pattern bank to the device as a 0x09/0x0a stream (a live write).
     // Compresses + packetizes, waits for each 0x0b ACK. address/id come from the last
     // received dump (getPatternAddress()/getPatternId()). Returns packets ACK'd.
@@ -81,6 +88,8 @@ public:
 
 private:
     static void     process_message(double _deltatime, std::vector<unsigned char>* _message, void* _userData);
+
+    bool            patchAndSendGlobalData(std::function<void(opz_project_data*)> _patch);
 
     RtMidiIn*       m_in;
     RtMidiOut*      m_out;

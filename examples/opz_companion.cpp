@@ -49,7 +49,7 @@ bool change = true;
 std::atomic<int> proj_cursor_track(0);
 std::atomic<int> proj_cursor_step(0);
 
-// --- MIXER view cursor (arrow keys, only while pressing_mixer) ---
+// --- MIXER view cursor (arrow keys, only while mixer mode is active) ---
 // Left/Right cycles through a single combined list: the 16 individual tracks
 // (0-15) followed by the 4 mixer groups drum/synth/punch/master (16-19).
 // Up/Down adjusts gain for whichever is selected: an individual track's
@@ -61,6 +61,20 @@ std::atomic<int> mixer_cursor(0);
 bool mixer_cursor_is_group() { return mixer_cursor.load() >= 16; }
 int mixer_cursor_group_index() { return mixer_cursor.load() - 16; } // 0=drum 1=synth 2=punch 3=master
 int mixer_cursor_track_index() { return mixer_cursor.load() % 16; }
+
+// --- TEMPO view cursor (arrow keys, only while tempo mode is active) ---
+// Left/Right cycles which property is selected; Up/Down adjusts it by +-1.
+// Entirely independent from track/pattern state - no side effects there.
+enum tempo_prop_t { TEMPO_PROP_BPM = 0, TEMPO_PROP_SWING, TEMPO_PROP_METRO_LEVEL, TEMPO_PROP_METRO_SOUND, TEMPO_PROP_COUNT };
+std::atomic<int> tempo_cursor_prop(0);
+
+// pressing_tempo/pressing_mixer (below, in main()) mirror the OP-Z's own
+// physical tempo/mixer key state, which requires physically holding a button
+// on the device - unusable together with typing arrow keys on the keyboard.
+// These give a keyboard-only way to enter the same views: 't'/'m' toggle
+// them, and every check below is "pressing_X || X_mode".
+std::atomic<bool> tempo_mode(false);
+std::atomic<bool> mixer_mode(false);
 
 // --- Track editing / write-back state ---
 // Local editable copy of the 16-pattern bank. Edits are staged here and only
@@ -294,6 +308,16 @@ int main(int argc, char** argv) {
                 keepRunnig.store(false);
                 break;
             }
+            else if (ch == 't') {
+                tempo_mode.store(!tempo_mode.load());
+                change = true;
+                change_data = true;
+            }
+            else if (ch == 'm') {
+                mixer_mode.store(!mixer_mode.load());
+                change = true;
+                change_data = true;
+            }
             else if (ch == 'e') {
                 bool entering = !edit_mode.load();
                 if (entering) {
@@ -308,7 +332,7 @@ int main(int argc, char** argv) {
                 change = true;
             }
             else if (ch == KEY_UP) {
-                if (pressing_mixer) {
+                if ((pressing_mixer || mixer_mode.load())) {
                     if (mixer_cursor_is_group()) {
                         int g = mixer_cursor_group_index();
                         const opz::opz_project_data& proj = device.getProjectData();
@@ -318,6 +342,16 @@ int main(int argc, char** argv) {
                     else {
                         adjust_track_level_and_send(opz::opz_track_id(mixer_cursor_track_index()), 8);
                     }
+                    change = true;
+                    change_data = true;
+                }
+                else if ((pressing_tempo || tempo_mode.load())) {
+                    int p = tempo_cursor_prop.load();
+                    const opz::opz_project_data& proj = device.getProjectData();
+                    if (p == TEMPO_PROP_BPM)               { uint8_t v = proj.tempo;           if (v < 200) device.sendTempo(v + 1); }
+                    else if (p == TEMPO_PROP_SWING)        { uint8_t v = proj.swing;           if (v < 255) device.sendSwing(v + 1); }
+                    else if (p == TEMPO_PROP_METRO_LEVEL)  { uint8_t v = proj.metronome_level; if (v < 255) device.sendMetronomeLevel(v + 1); }
+                    else if (p == TEMPO_PROP_METRO_SOUND)  { uint8_t v = proj.metronome_sound; if (v < 255) device.sendMetronomeSound(v + 1); }
                     change = true;
                     change_data = true;
                 }
@@ -331,7 +365,7 @@ int main(int argc, char** argv) {
                 }
             }
             else if (ch == KEY_DOWN) {
-                if (pressing_mixer) {
+                if ((pressing_mixer || mixer_mode.load())) {
                     if (mixer_cursor_is_group()) {
                         int g = mixer_cursor_group_index();
                         const opz::opz_project_data& proj = device.getProjectData();
@@ -344,6 +378,16 @@ int main(int argc, char** argv) {
                     change = true;
                     change_data = true;
                 }
+                else if ((pressing_tempo || tempo_mode.load())) {
+                    int p = tempo_cursor_prop.load();
+                    const opz::opz_project_data& proj = device.getProjectData();
+                    if (p == TEMPO_PROP_BPM)               { uint8_t v = proj.tempo;           if (v > 40)  device.sendTempo(v - 1); }
+                    else if (p == TEMPO_PROP_SWING)        { uint8_t v = proj.swing;           if (v > 0)   device.sendSwing(v - 1); }
+                    else if (p == TEMPO_PROP_METRO_LEVEL)  { uint8_t v = proj.metronome_level; if (v > 0)   device.sendMetronomeLevel(v - 1); }
+                    else if (p == TEMPO_PROP_METRO_SOUND)  { uint8_t v = proj.metronome_sound; if (v > 0)   device.sendMetronomeSound(v - 1); }
+                    change = true;
+                    change_data = true;
+                }
                 else if (pressing_project || show_project_panel) {
                     int t = (proj_cursor_track.load() + 1) % 16;
                     proj_cursor_track.store(t);
@@ -353,10 +397,20 @@ int main(int argc, char** argv) {
                 }
             }
             else if (ch == KEY_LEFT) {
-                if (pressing_mixer) {
+                if ((pressing_mixer || mixer_mode.load())) {
                     mixer_cursor.store((mixer_cursor.load() + MIXER_CURSOR_COUNT - 1) % MIXER_CURSOR_COUNT);
-                    if (!mixer_cursor_is_group())
+                    if (!mixer_cursor_is_group()) {
+                        // Keep the pattern/tracker view (and the device's own
+                        // active track) in sync with whatever track mixer mode
+                        // is currently pointed at.
+                        proj_cursor_track.store(mixer_cursor_track_index());
                         device.sendTrackSelect(opz::opz_track_id(mixer_cursor_track_index()));
+                    }
+                    change = true;
+                    change_data = true;
+                }
+                else if ((pressing_tempo || tempo_mode.load())) {
+                    tempo_cursor_prop.store((tempo_cursor_prop.load() + TEMPO_PROP_COUNT - 1) % TEMPO_PROP_COUNT);
                     change = true;
                     change_data = true;
                 }
@@ -369,10 +423,17 @@ int main(int argc, char** argv) {
                 }
             }
             else if (ch == KEY_RIGHT) {
-                if (pressing_mixer) {
+                if ((pressing_mixer || mixer_mode.load())) {
                     mixer_cursor.store((mixer_cursor.load() + 1) % MIXER_CURSOR_COUNT);
-                    if (!mixer_cursor_is_group())
+                    if (!mixer_cursor_is_group()) {
+                        proj_cursor_track.store(mixer_cursor_track_index());
                         device.sendTrackSelect(opz::opz_track_id(mixer_cursor_track_index()));
+                    }
+                    change = true;
+                    change_data = true;
+                }
+                else if ((pressing_tempo || tempo_mode.load())) {
+                    tempo_cursor_prop.store((tempo_cursor_prop.load() + 1) % TEMPO_PROP_COUNT);
                     change = true;
                     change_data = true;
                 }
@@ -384,7 +445,7 @@ int main(int argc, char** argv) {
                 }
             }
             else if (ch == KEY_ENTER || ch == '\n' || ch == '\r') {
-                if (pressing_mixer && !mixer_cursor_is_group()) {
+                if ((pressing_mixer || mixer_mode.load()) && !mixer_cursor_is_group()) {
                     edit_status = "toggling mute...";
                     change = true;
                     bool ok = toggle_track_mute_and_send(opz::opz_track_id(mixer_cursor_track_index()));
@@ -393,28 +454,28 @@ int main(int argc, char** argv) {
                     change_data = true;
                 }
             }
-            else if (ch >= '1' && ch <= '9') {
-                device.sendPatternSelect(ch - '1');
+            else if ((ch >= '1' && ch <= '9') || ch == '0') {
+                int idx = (ch == '0') ? 9 : (ch - '1');
+                edit_status = "switching pattern...";
                 change = true;
-                change_data = true;
-            }
-            else if (ch == '0') {
-                device.sendPatternSelect(9);
+                bool ok = device.sendPatternSelect(idx);
+                edit_status = ok ? "" : "pattern select failed (no chain baseline yet, or bank refresh timed out)";
                 change = true;
                 change_data = true;
             }
             // Shift+number (standard US-keyboard shift symbols) selects the
             // project instead of the pattern: ! @ # $ % ^ & * ( ) = shift 1-0.
-            else if (ch == '!') { device.sendProjectSelect(0); change = true; change_data = true; }
-            else if (ch == '@') { device.sendProjectSelect(1); change = true; change_data = true; }
-            else if (ch == '#') { device.sendProjectSelect(2); change = true; change_data = true; }
-            else if (ch == '$') { device.sendProjectSelect(3); change = true; change_data = true; }
-            else if (ch == '%') { device.sendProjectSelect(4); change = true; change_data = true; }
-            else if (ch == '^') { device.sendProjectSelect(5); change = true; change_data = true; }
-            else if (ch == '&') { device.sendProjectSelect(6); change = true; change_data = true; }
-            else if (ch == '*') { device.sendProjectSelect(7); change = true; change_data = true; }
-            else if (ch == '(') { device.sendProjectSelect(8); change = true; change_data = true; }
-            else if (ch == ')') { device.sendProjectSelect(9); change = true; change_data = true; }
+            else if (ch == '!' || ch == '@' || ch == '#' || ch == '$' || ch == '%' ||
+                     ch == '^' || ch == '&' || ch == '*' || ch == '(' || ch == ')') {
+                static const std::string shift_symbols = "!@#$%^&*()";
+                int idx = shift_symbols.find(ch);
+                edit_status = "switching project...";
+                change = true;
+                bool ok = device.sendProjectSelect(idx);
+                edit_status = ok ? "" : "project select failed (no chain baseline yet, or bank refresh timed out)";
+                change = true;
+                change_data = true;
+            }
             else if (ch == ' ') {
                 unsigned char msg = device.isPlaying() ? opz::STOP_SONG : opz::START_SONG;
                 device.send(&msg, 1);
@@ -461,8 +522,8 @@ int main(int argc, char** argv) {
 
         if (mic_on) title_name = "MICROPHONE";
         else if (pressing_project) title_name = "PROJECTS";
-        else if (pressing_mixer)   title_name = "MIXER";
-        else if (pressing_tempo)   title_name = "TEMPO";
+        else if ((pressing_mixer || mixer_mode.load()))   title_name = "MIXER";
+        else if ((pressing_tempo || tempo_mode.load()))   title_name = "TEMPO";
         else if (edit_mode.load()) title_name = "EDIT " + title_name;
 
         clear();
@@ -530,12 +591,12 @@ int main(int argc, char** argv) {
         refresh();
 
         if (pressing_project)       draw_project(windows[5]);
-        else if (pressing_mixer)    draw_mixer(windows[5]);
-        else if (pressing_tempo)    draw_tempo(windows[5]);
+        else if ((pressing_mixer || mixer_mode.load()))    draw_mixer(windows[5]);
+        else if ((pressing_tempo || tempo_mode.load()))    draw_tempo(windows[5]);
         else if (mic_on)            draw_mic(windows[5]);
         else if (show_project_panel) draw_project(windows[5]);
 
-        if ( show_project_panel || (!mic_on && !pressing_project && !pressing_mixer && !pressing_tempo)){
+        if ( show_project_panel || (!mic_on && !pressing_project && !(pressing_mixer || mixer_mode.load()) && !(pressing_tempo || tempo_mode.load()))){
             // werase(windows[5]);
 
             if (pressing_track)
@@ -866,13 +927,32 @@ void draw_tempo(WINDOW* _win) {
     opz::opz_project_data project = device.getProjectData();
     double pct = (device.getActiveStepId() % 8) / 8.0;
     
+    int prop = tempo_cursor_prop.load();
+
     werase(_win);
     box(_win, 0, 0);
-    mvwprintw(_win, 1, 2,           "TEMPO               SWING");
-    mvwprintw(_win, 2, 2,           "%03i                 %03i", project.tempo, (int)((int)project.swing / 2.55f) - 50);
 
-    mvwprintw(_win, 1, cols - 28, "SOUND                LEVEL");
-    mvwprintw(_win, 2, cols - 31, "%8s                  %03i", opz::metronomeSoundString(project.metronome_sound).c_str(), (int)((int)project.metronome_level / 2.55f) );
+    if (prop == TEMPO_PROP_BPM) wattron(_win, A_REVERSE);
+    mvwprintw(_win, 1, 2, "TEMPO");
+    if (prop == TEMPO_PROP_BPM) wattroff(_win, A_REVERSE);
+    mvwprintw(_win, 2, 2, "%03i", project.tempo);
+
+    if (prop == TEMPO_PROP_SWING) wattron(_win, A_REVERSE);
+    mvwprintw(_win, 1, 22, "SWING");
+    if (prop == TEMPO_PROP_SWING) wattroff(_win, A_REVERSE);
+    mvwprintw(_win, 2, 22, "%03i", (int)((int)project.swing / 2.55f) - 50);
+
+    if (prop == TEMPO_PROP_METRO_SOUND) wattron(_win, A_REVERSE);
+    mvwprintw(_win, 1, cols - 28, "SOUND");
+    if (prop == TEMPO_PROP_METRO_SOUND) wattroff(_win, A_REVERSE);
+    mvwprintw(_win, 2, cols - 28, "%8s", opz::metronomeSoundString(project.metronome_sound).c_str());
+
+    if (prop == TEMPO_PROP_METRO_LEVEL) wattron(_win, A_REVERSE);
+    mvwprintw(_win, 1, cols - 8, "LEVEL");
+    if (prop == TEMPO_PROP_METRO_LEVEL) wattroff(_win, A_REVERSE);
+    mvwprintw(_win, 2, cols - 8, "%03i", (int)((int)project.metronome_level / 2.55f));
+
+    mvwprintw(_win, lines - 2, 2, "(left/right: property  up/down: value)");
 
     size_t w = 12;
     mvwprintw(_win, 3, cols/2 - w, "        ####|####");

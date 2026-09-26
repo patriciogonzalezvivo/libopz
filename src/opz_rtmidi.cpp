@@ -181,7 +181,25 @@ bool opz_rtmidi::sendProjectSelect(uint8_t _project) {
 
     std::vector<unsigned char> body(getChainPayload(), getChainPayload() + 20);
     body[19] = _project;
+    // Also force the pattern back to the first slot in the same frame - the
+    // device doesn't seem to treat the project byte alone as a real context
+    // switch (it kept reporting the old project's pattern data), but setting
+    // both together makes it commit to the new project and emit fresh data.
+    body[0] = 0;
     if (!send(buildSysex(0x07, body)))
+        return false;
+
+    // The device doesn't push a fresh pattern dump immediately - it needs to
+    // actually commit to the new project first. Wait for it to echo back a
+    // 0x07 confirming the new project id before requesting the bank;
+    // requesting too early just re-fetches the OLD project's patterns.
+    double waited = 0.0;
+    const double confirm_timeout = 2.0;
+    while (waited < confirm_timeout && getActiveProjectId() != _project) {
+        update();
+        waited += 0.0167;
+    }
+    if (getActiveProjectId() != _project)
         return false;
 
     // Each project has its own 16-pattern bank, so the locally cached bank
@@ -199,6 +217,16 @@ bool opz_rtmidi::sendPatternSelect(uint8_t _pattern) {
     std::vector<unsigned char> body(getChainPayload(), getChainPayload() + 20);
     body[0] = _pattern;
     if (!send(buildSysex(0x07, body)))
+        return false;
+
+    // Same confirm-before-refresh reasoning as sendProjectSelect.
+    double waited = 0.0;
+    const double confirm_timeout = 2.0;
+    while (waited < confirm_timeout && getActivePatternId() != _pattern) {
+        update();
+        waited += 0.0167;
+    }
+    if (getActivePatternId() != _pattern)
         return false;
 
     // Guards against the same staleness if a project switch just happened
@@ -231,29 +259,59 @@ bool opz_rtmidi::sendMixerToggleMute(opz_track_id _track) {
     return send(buildSysex(0x12, body));
 }
 
-bool opz_rtmidi::sendGroupLevel(int _group, uint8_t _level) {
-    // The 0x0c payload the device actually sends only covers everything up
-    // to (not including) the 16-pattern array - patterns travel separately
-    // via 0x08/0x09/0x0a. Snapshot that header portion from the last known
-    // project state and only flip the target group's byte.
+// The 0x0c payload the device actually sends only covers everything up to
+// (not including) the 16-pattern array - patterns travel separately via
+// 0x08/0x09/0x0a. Snapshots that header portion from the last known project
+// state, lets _patch mutate a single field, and sends it back.
+bool opz_rtmidi::patchAndSendGlobalData(std::function<void(opz_project_data*)> _patch) {
     size_t header_size = offsetof(opz_project_data, pattern);
 
     std::vector<unsigned char> raw(sizeof(opz_project_data));
     memcpy(raw.data(), &getProjectData(), sizeof(opz_project_data));
 
-    opz_project_data* hdr = reinterpret_cast<opz_project_data*>(raw.data());
-    switch (_group) {
-        case 0: hdr->drum_level   = _level; break;
-        case 1: hdr->synth_level  = _level; break;
-        case 2: hdr->punch_level  = _level; break;
-        case 3: hdr->master_level = _level; break;
-        default: return false;
-    }
+    _patch(reinterpret_cast<opz_project_data*>(raw.data()));
 
     std::vector<unsigned char> compressed = compress(raw.data(), header_size);
     if (compressed.empty())
         return false;
     return send(buildSysex(0x0c, compressed));
+}
+
+bool opz_rtmidi::sendGroupLevel(int _group, uint8_t _level) {
+    if (_group < 0 || _group > 3)
+        return false;
+    return patchAndSendGlobalData([_group, _level](opz_project_data* hdr) {
+        switch (_group) {
+            case 0: hdr->drum_level   = _level; break;
+            case 1: hdr->synth_level  = _level; break;
+            case 2: hdr->punch_level  = _level; break;
+            case 3: hdr->master_level = _level; break;
+        }
+    });
+}
+
+bool opz_rtmidi::sendTempo(uint8_t _bpm) {
+    return patchAndSendGlobalData([_bpm](opz_project_data* hdr) {
+        hdr->tempo = _bpm;
+    });
+}
+
+bool opz_rtmidi::sendSwing(uint8_t _swing) {
+    return patchAndSendGlobalData([_swing](opz_project_data* hdr) {
+        hdr->swing = _swing;
+    });
+}
+
+bool opz_rtmidi::sendMetronomeLevel(uint8_t _level) {
+    return patchAndSendGlobalData([_level](opz_project_data* hdr) {
+        hdr->metronome_level = _level;
+    });
+}
+
+bool opz_rtmidi::sendMetronomeSound(uint8_t _sound) {
+    return patchAndSendGlobalData([_sound](opz_project_data* hdr) {
+        hdr->metronome_sound = _sound;
+    });
 }
 
 std::vector<unsigned char> opz_rtmidi::buildSysex(uint8_t _parm_id, const std::vector<unsigned char>& _body) {
