@@ -119,6 +119,9 @@ const unsigned CHUNK_SIZE = 4096;
 std::vector<unsigned char> compress(const unsigned char* inData, size_t inLength) {
     std::vector<unsigned char> output;
 
+    if (inLength == 0)
+        return output;
+
 	z_stream stream;
 	stream.zalloc = 0;
 	stream.zfree = 0;
@@ -140,7 +143,7 @@ std::vector<unsigned char> compress(const unsigned char* inData, size_t inLength
 		unsigned compressed = sizeof(ChunkOut) - stream.avail_out;
 		unsigned oldsize = output.size();
 		output.resize(oldsize + compressed);
-		memcpy(&output[oldsize], ChunkOut, compressed);
+		memcpy(output.data() + oldsize, ChunkOut, compressed);
 	}
 	while (stream.avail_out == 0);
 	deflateEnd(&stream);
@@ -150,6 +153,9 @@ std::vector<unsigned char> compress(const unsigned char* inData, size_t inLength
 
 std::vector<unsigned char> decompress(const unsigned char* inData, size_t inLength) {
     std::vector<unsigned char> output;
+
+    if (inLength == 0)
+        return output;
 
     z_stream stream;
     stream.zalloc = 0;
@@ -171,7 +177,10 @@ std::vector<unsigned char> decompress(const unsigned char* inData, size_t inLeng
         unsigned compressed = sizeof(ChunkOut) - stream.avail_out;
         unsigned oldsize = output.size();
         output.resize(oldsize + compressed);
-        memcpy(&output[oldsize], ChunkOut, compressed);
+        memcpy(output.data() + oldsize, ChunkOut, compressed);
+
+        if (res != Z_OK && res != Z_STREAM_END)
+            break;
     }
     while (stream.avail_out == 0);
     inflateEnd(&stream);

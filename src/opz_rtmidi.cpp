@@ -1,13 +1,14 @@
 
 #include "libopz/opz_rtmidi.h"
+#include "libopz/tools.h"
+#include <algorithm>
 
 namespace opz {
 
 #include <time.h>
 #include <sys/time.h>
 #include <unistd.h>
-
-#include "libopz/tools.h"
+#include <string.h>
 
 #ifdef PLATFORM_WINDOWS
 const int CLOCK_MONOTONIC = 0;
@@ -52,45 +53,57 @@ m_connected(false) {
 
 bool opz_rtmidi::connect() {
 
-    m_in = new RtMidiIn();
-    unsigned int nPorts = m_in->getPortCount();
     bool in_connected = false;
-    for(unsigned int i = 0; i < nPorts; i++) {
-        std::string name = m_in->getPortName(i);
-        if (name.rfind("OP-Z", 0) == 0) {
-            try {
-                m_in = new RtMidiIn(RtMidi::Api(0), "opz_dump");
-                m_in->openPort(i, name);
-                m_in->ignoreTypes(false, false, true);
-                m_in->setCallback(process_message, this);
-                in_connected = true;
-                break;
-            } catch(RtMidiError &error) {
-                error.printMessage();
-            }
-        }
-    }
-
-    if (in_connected) {
-        m_out = new RtMidiOut();
-        nPorts = m_out->getPortCount();
+    try {
+        m_in = new RtMidiIn();
+        unsigned int nPorts = m_in->getPortCount();
         for(unsigned int i = 0; i < nPorts; i++) {
-            std::string name = m_out->getPortName(i);
+            std::string name = m_in->getPortName(i);
             if (name.rfind("OP-Z", 0) == 0) {
                 try {
-                    clock_gettime(CLOCK_MONOTONIC, &time_start);
-
-                    m_out = new RtMidiOut(RtMidi::Api(0), "opz_dump");
-                    m_out->openPort(i, name);
-                    m_out->sendMessage( opz_init_msg() );
-
-                    m_connected = true;
-                    return true;
-                }
-                catch(RtMidiError &error) {
+                    RtMidiIn* in = new RtMidiIn(RtMidi::Api(0), "opz_dump");
+                    in->openPort(i, name);
+                    in->ignoreTypes(false, false, true);
+                    in->setCallback(process_message, this);
+                    delete m_in;
+                    m_in = in;
+                    in_connected = true;
+                    break;
+                } catch(RtMidiError &error) {
                     error.printMessage();
                 }
             }
+        }
+    } catch(RtMidiError &error) {
+        error.printMessage();
+    }
+
+    if (in_connected) {
+        try {
+            m_out = new RtMidiOut();
+            unsigned int nPorts = m_out->getPortCount();
+            for(unsigned int i = 0; i < nPorts; i++) {
+                std::string name = m_out->getPortName(i);
+                if (name.rfind("OP-Z", 0) == 0) {
+                    try {
+                        clock_gettime(CLOCK_MONOTONIC, &time_start);
+
+                        RtMidiOut* out = new RtMidiOut(RtMidi::Api(0), "opz_dump");
+                        out->openPort(i, name);
+                        out->sendMessage( opz_init_msg() );
+                        delete m_out;
+                        m_out = out;
+
+                        m_connected = true;
+                        return true;
+                    }
+                    catch(RtMidiError &error) {
+                        error.printMessage();
+                    }
+                }
+            }
+        } catch(RtMidiError &error) {
+            error.printMessage();
         }
     }
 
@@ -134,6 +147,95 @@ void opz_rtmidi::update(){
 void opz_rtmidi::process_message(double _deltatime, std::vector<unsigned char>* _message, void* _userData) {
     opz_device *device = static_cast<opz_device*>(_userData);
     device->process_message(&_message->at(0), _message->size());
+}
+
+bool opz_rtmidi::send(const std::vector<unsigned char>& _msg) {
+    if (!m_connected || m_out == NULL)
+        return false;
+    m_out->sendMessage(&_msg);
+    return true;
+}
+
+bool opz_rtmidi::send(unsigned char* _data, size_t _length) {
+    std::vector<unsigned char> msg(_data, _data + _length);
+    return send(msg);
+}
+
+std::vector<unsigned char> opz_rtmidi::buildSysex(uint8_t _parm_id, const std::vector<unsigned char>& _body) {
+    std::vector<unsigned char> out = { SYSEX_HEAD, OPZ_VENDOR_ID[0], OPZ_VENDOR_ID[1], OPZ_VENDOR_ID[2], OPZ_MAX_PROTOCOL_VERSION, _parm_id };
+    // worst case 7-bit encoding grows the body by ~8/7; reserve generously
+    out.resize(out.size() + _body.size() * 2 + 8);
+    size_t enc_len = encode(&_body[0], _body.size(), &out[6]);
+    out.resize(6 + enc_len);
+    out.push_back(SYSEX_END);
+    return out;
+}
+
+int opz_rtmidi::sendPattern(const opz_pattern* _bank16, uint8_t _address, uint16_t _id) {
+    if (!m_connected || m_out == NULL)
+        return 0;
+
+    // 1) Compress the raw 16-pattern bank (single-member zlib), reusing the shared helper.
+    const unsigned char* raw = (const unsigned char*)_bank16;
+    size_t raw_len = sizeof(opz_pattern) * 16;
+    std::vector<unsigned char> comp = compress(raw, raw_len);
+    if (comp.empty())
+        return 0;
+
+    // 2) Packetize into 0x09 frames (final is 0x0a), header = 6 bytes:
+    //    [address, 0x00, id_lo, id_hi, pkt_lo, pkt_hi] + zlib chunk.
+    const size_t chunk = 178;
+    size_t npkt = (comp.size() + chunk - 1) / chunk;
+    int acked = 0;
+    for (size_t i = 0; i < npkt; i++) {
+        size_t off = i * chunk;
+        size_t len = std::min(chunk, comp.size() - off);
+        bool last = (i == npkt - 1);
+
+        std::vector<unsigned char> body = {
+            _address, 0x00,
+            (unsigned char)(_id & 0xFF), (unsigned char)((_id >> 8) & 0xFF),
+            (unsigned char)(i & 0xFF), (unsigned char)((i >> 8) & 0xFF)
+        };
+        body.insert(body.end(), comp.begin() + off, comp.begin() + off + len);
+
+        std::vector<unsigned char> frame = buildSysex(last ? 0x0a : 0x09, body);
+
+        uint32_t before = m_ack_count;
+        m_out->sendMessage(&frame);
+
+        // Flow control: wait for this packet's 0x0b ACK (device applies on the last
+        // data packets and may not ACK the 0x0a terminator, so don't block on it).
+        if (!last) {
+            for (int w = 0; w < 40 && m_ack_count <= before; w++)
+                usleep(15000);
+            if (m_ack_count > before) acked++;
+        }
+    }
+    return acked;
+}
+
+bool opz_rtmidi::requestPatternSync(double _timeout_sec) {
+    if (!m_connected || m_out == NULL)
+        return false;
+
+    uint32_t before = m_dump_count;
+
+    // Ask the device to dump its current pattern bank (0x08 query). The inbound
+    // 0x09/0x0a stream is handled on the RtMidi callback thread, which updates
+    // m_project and bumps m_dump_count.
+    std::vector<unsigned char> req = {
+        SYSEX_HEAD, OPZ_VENDOR_ID[0], OPZ_VENDOR_ID[1], OPZ_VENDOR_ID[2],
+        OPZ_MAX_PROTOCOL_VERSION, 0x08, SYSEX_END };
+    m_out->sendMessage(&req);
+
+    // Spin until a fresh dump lands, keeping the heartbeat alive via update().
+    double waited = 0.0;
+    while (waited < _timeout_sec && m_dump_count == before) {
+        update();           // sends heartbeat as needed, sleeps ~16.7ms
+        waited += 0.0167;
+    }
+    return m_dump_count != before;
 }
 
 void opz_rtmidi::disconnect() {

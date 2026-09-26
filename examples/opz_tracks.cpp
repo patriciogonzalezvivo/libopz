@@ -20,7 +20,12 @@ int main(int argc, char** argv) {
 
     opz::opz_rtmidi device;
     device.connect();
-    
+
+    // Pull the pattern bank that's already in the OP-Z's memory before drawing
+    // anything, otherwise the grid stays empty until the device happens to emit
+    // a runtime delta (e.g. the user edits a step) for each track.
+    device.requestPatternSync();
+
     initscr();
     start_color();
 

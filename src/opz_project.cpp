@@ -85,6 +85,15 @@ std::string lfoDestinationString( uint8_t _value ) { return mapList(lfo_destinat
 std::string lfoDestinationShortString( uint8_t _value ) { return mapList(lfo_destination_short_name, _value); }
 
 opz_project::opz_project() {
+    memset(&m_project, 0, sizeof(m_project));
+
+    // 0xFF is the device's "no note" sentinel; without this, a pattern that
+    // hasn't been synced from the device yet (or a project built in memory)
+    // reads as all-zero, which looks like real notes at pitch 0 instead of
+    // empty steps.
+    for (size_t p = 0; p < 16; p++)
+        for (size_t n = 0; n < 880; n++)
+            m_project.pattern[p].note[n].note = 0xFF;
 }
 
 float opz_project::getSoundParameter(uint8_t _pattern, opz_track_id _track, opz_sound_parameter_id _prop) const {

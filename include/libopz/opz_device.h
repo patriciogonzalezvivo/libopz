@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <string.h>
 #include <vector>
 #include <functional>
 
@@ -101,6 +102,11 @@ namespace opz {
             m_midi = _callback;
             m_midi_enable = true;
         }
+        // Raw inbound SysEx/MIDI bytes, before any parsing (useful for capture/replay)
+        void setRawCallback(std::function<void(unsigned char*, size_t)> _callback) {
+            m_raw = _callback;
+            m_raw_enable = true;
+        }
 
         virtual bool                isPlaying() const { return m_play; }
 
@@ -112,6 +118,12 @@ namespace opz {
         virtual bool                isTrackMute(opz_track_id _id) const { return getPattern(m_active_pattern).mute[_id]; }
 
         virtual void                setActivePatternId(size_t _id ) { m_active_pattern = _id; }
+
+        // Overwrite the in-memory 16-pattern bank. Use right after a confirmed
+        // sendPattern() push so the local model (and any display reading it) reflects
+        // what was just written, without waiting for the device to send a fresh dump.
+        void                        loadPatternBank(const opz_pattern* _bank16) { memcpy(&m_project.pattern[0], _bank16, sizeof(opz_pattern) * 16); }
+
         virtual uint8_t             getActiveProjectId() const { return m_active_project; }
         virtual uint8_t             getActivePatternId() const { return m_active_pattern; }
         virtual opz_track_id        getActiveTrackId() const { return m_active_track; }
@@ -128,6 +140,20 @@ namespace opz {
 
         const opz_sound_parameter&  getSoundParameters(opz_track_id _track) const { return opz_project::getSoundParameters(m_active_pattern, _track); };
         const opz_sound_parameter&  getActivePageParameters() const { return getSoundParameters(m_active_track); };
+
+        // Pattern-transfer fields captured from the last received dump
+        uint16_t                    getPatternId() const { return m_pattern_id; }
+        uint8_t                     getPatternAddress() const { return m_pattern_address; }
+        uint32_t                    getAckCount() const { return m_ack_count; }
+
+        // Last-seen 0x02 change-record counter. The device increments this per Track
+        // Setting it emits (telemetry only, inbound 0x02 writes are not applied by the
+        // device, so this is for observation, not for crafting writes).
+        uint8_t                     getCounter() const { return m_counter; }
+
+        // Count of full-bank dumps (0x0a) applied to m_project. Increments each time a
+        // fresh dump lands; used by requestPatternSync() to detect a completed sync.
+        uint32_t                    getDumpCount() const { return m_dump_count; }
 
         size_t verbose; // 0 off
                         // 1 event description
@@ -165,7 +191,14 @@ namespace opz {
         opz_mic_fx_id   m_mic_fx;
 
         uint8_t         m_counter;
+        bool            m_counter_valid;    // false until the first 0x02 counter is seen
         bool            m_play;
+
+        // Pattern transfer bookkeeping (0x09/0x0a/0x0b)
+        uint16_t        m_pattern_id;       // header field data[2..3] from last dump
+        uint8_t         m_pattern_address;  // header field data[0] (proj<<4|pattern)
+        uint32_t        m_ack_count;        // count of 0x0b ACKs received
+        uint32_t        m_dump_count;       // count of full-bank dumps (0x0a) applied
 
         // CALLBACKS
         bool m_packet_recived_enabled;
@@ -176,6 +209,9 @@ namespace opz {
 
         std::function<void(midi_id, size_t, size_t, size_t)> m_midi;
         bool m_midi_enable;
+
+        std::function<void(unsigned char*, size_t)> m_raw;
+        bool m_raw_enable;
     };
 
 }

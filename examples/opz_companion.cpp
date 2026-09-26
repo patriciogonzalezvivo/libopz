@@ -7,6 +7,8 @@
 #include <mutex>
 #include <math.h>
 #include <signal.h>
+#include <algorithm>
+#include <cstring>
 
 #include <ncurses.h>
 #include "libopz/opz_rtmidi.h"
@@ -23,6 +25,71 @@ std::atomic<bool> keepRunnig(true);
 std::vector<WINDOW*> windows;
 bool large_screen = false;
 bool change = true;
+
+// --- Track editing / write-back state ---
+// Local editable copy of the 16-pattern bank. Edits are staged here and only
+// pushed to the device (as a full 0x09/0x0a bank write) when the user asks to
+// send them, since inbound 0x02 edits are not applied by the device.
+std::mutex edit_mtx;
+std::atomic<bool> edit_mode(false);
+opz::opz_pattern edit_bank[16];
+size_t edit_step_cursor = 0;
+std::string edit_status = "";
+
+void sync_edit_bank_from_device() {
+    std::lock_guard<std::mutex> lock(edit_mtx);
+    memcpy(edit_bank, &device.getProjectData().pattern[0], sizeof(edit_bank));
+}
+
+opz::opz_pattern get_display_pattern() {
+    std::lock_guard<std::mutex> lock(edit_mtx);
+    return edit_mode.load() ? edit_bank[device.getActivePatternId()] : device.getActivePattern();
+}
+
+// Places (or clears, if already set) a note at the cursor step of the active
+// track/pattern in the local edit_bank.
+void toggle_note_at_cursor() {
+    std::lock_guard<std::mutex> lock(edit_mtx);
+
+    size_t pattern_id = device.getActivePatternId();
+    opz::opz_track_id track = device.getActiveTrackId();
+    opz::opz_pattern& pat = edit_bank[pattern_id];
+
+    size_t step_count = pat.track_param[track].step_count;
+    if (step_count == 0)
+        return;
+
+    size_t step = edit_step_cursor % step_count;
+    size_t note_offset = device.getNoteIdOffset(track, step);
+    size_t notes_total = device.getNotesPerTrack(track);
+
+    bool is_set = pat.note[note_offset].note != 0xFF;
+    for (size_t i = 0; i < notes_total; i++) {
+        if (is_set)
+            pat.note[note_offset + i].note = 0xFF;
+        else {
+            pat.note[note_offset + i].duration = 6200;         // ~1 step
+            pat.note[note_offset + i].note = 0x3C;             // middle C
+            pat.note[note_offset + i].velocity = 0x64;
+            pat.note[note_offset + i].micro_adjustment = 0;
+            pat.note[note_offset + i].age = 0;
+        }
+    }
+}
+
+// Refreshes the device's own bank first (so any live edits made on the OP-Z
+// itself aren't clobbered), then pushes the local edit_bank as a full write.
+bool send_edit_bank_to_device() {
+    device.requestPatternSync(1.0);
+
+    uint8_t  address = device.getPatternAddress();
+    uint16_t id      = device.getPatternId();
+
+    std::lock_guard<std::mutex> lock(edit_mtx);
+    int acked = device.sendPattern(edit_bank, address, id);
+    device.loadPatternBank(edit_bank);
+    return acked > 0;
+}
 
 // global
 void draw_mic(WINDOW* _window);
@@ -44,7 +111,12 @@ void handle_winch(int sig);
 
 int main(int argc, char** argv) {
     device.connect();
-    
+
+    // Pull the pattern bank that's already in the OP-Z's memory before drawing
+    // anything, otherwise every track looks empty until the device happens to
+    // emit a runtime delta (e.g. the user edits a step) for it.
+    device.requestPatternSync();
+
     initscr();
     start_color();
     use_default_colors();
@@ -107,6 +179,46 @@ int main(int argc, char** argv) {
                 keepRunnig.store(false);
                 break;
             }
+            else if (ch == 'e') {
+                bool entering = !edit_mode.load();
+                if (entering) {
+                    sync_edit_bank_from_device();
+                    edit_step_cursor = 0;
+                    edit_status = "EDIT: h/l move cursor, space toggle note, s send to device, c cancel, e exit";
+                }
+                else {
+                    edit_status = "";
+                }
+                edit_mode.store(entering);
+                change = true;
+            }
+            else if (edit_mode.load()) {
+                if (ch == 'h') {
+                    if (edit_step_cursor > 0) edit_step_cursor--;
+                    change = true;
+                }
+                else if (ch == 'l') {
+                    edit_step_cursor++;
+                    change = true;
+                }
+                else if (ch == 'c') {
+                    sync_edit_bank_from_device();
+                    edit_status = "edits discarded, re-synced from device";
+                    change = true;
+                }
+                else if (ch == ' ') {
+                    toggle_note_at_cursor();
+                    change = true;
+                }
+                else if (ch == 's') {
+                    edit_status = "sending pattern bank to device...";
+                    change = true;
+                    bool ok = send_edit_bank_to_device();
+                    edit_status = ok ? "sent to device" : "send failed (no ack from device)";
+                    edit_mode.store(false);
+                    change = true;
+                }
+            }
         }
     });
 
@@ -119,7 +231,7 @@ int main(int argc, char** argv) {
             continue;
 
         opz::opz_track_id track_id = device.getActiveTrackId();
-        opz::opz_pattern pattern = device.getActivePattern();
+        opz::opz_pattern pattern = get_display_pattern();
 
         std::string title_name = opz::toString(track_id);
 
@@ -127,6 +239,7 @@ int main(int argc, char** argv) {
         else if (pressing_project) title_name = "PROJECTS";
         else if (pressing_mixer)   title_name = "MIXER";
         else if (pressing_tempo)   title_name = "TEMPO";
+        else if (edit_mode.load()) title_name = "EDIT " + title_name;
 
         clear();
         mvprintw(0, COLS/2 - title_name.size()/2, "%s", title_name.c_str() );
@@ -134,7 +247,7 @@ int main(int argc, char** argv) {
         size_t step_count = device.getActiveTrackParameters().step_count;
         size_t step_length = device.getActiveTrackParameters().step_length;
 
-        if (device.isPlaying()) {
+        if (device.isPlaying() && step_count > 0 && step_length > 0) {
             size_t step = (device.getActiveStepId() / step_length) % step_count;
             mvprintw(LINES-4, 2 + step * 4 + ( (step/4) * 4 ) , "[ ]");
         }
@@ -143,6 +256,10 @@ int main(int argc, char** argv) {
             size_t x = 3 + i * 4 + ( (i/4) * 4 );
             mvprintw(LINES-5, x, "%02i", i + 1 );
             size_t note = device.getNoteIdOffset(track_id, i);
+
+            bool cursor_here = edit_mode.load() && (i == edit_step_cursor % std::max((size_t)1, step_count));
+            if (cursor_here) attron(COLOR_PAIR(1));
+
             if ( pattern.note[ note ].note == 0xFF)
                 mvprintw(LINES-4, x, "-");
             else {
@@ -150,8 +267,11 @@ int main(int argc, char** argv) {
                 mvprintw(LINES-4, x, "o");
                 attroff(COLOR_PAIR(2));
             }
+
+            if (cursor_here) attroff(COLOR_PAIR(1));
         }
 
+        mvprintw(LINES-3, 0, "%s", edit_status.c_str());
         mvprintw(LINES-2, 0, "STEP COUNT %2i      STEP LENGTH %2i                                        SUM %2i", 
                                 step_count, step_length, step_count * step_length);
         mvprintw(LINES-1, COLS/2 - 3, "%s %02i", ((device.isPlaying())? "|> " : "[ ]"), device.getActiveStepId() + 1 );
@@ -335,8 +455,10 @@ void draw_project(WINDOW* _win) {
 
         size_t step_count = device.getTrackParameters(opz::opz_track_id(t) ).step_count;
         size_t step_length = device.getTrackParameters(opz::opz_track_id(t) ).step_length;
-        size_t step = (step_current / step_length) % step_count;
-        mvwprintw(_win,y, x_margin + name_width + step * step_width - 1, "[  ]");
+        if (step_count > 0 && step_length > 0) {
+            size_t step = (step_current / step_length) % step_count;
+            mvwprintw(_win,y, x_margin + name_width + step * step_width - 1, "[  ]");
+        }
         for (size_t s = 0; s < step_count; s++) {
             int x = x_margin + name_width + s * step_width;
             size_t i = device.getNoteIdOffset(t, s);
