@@ -731,7 +731,23 @@ int main(int argc, char** argv) {
                 }
                 change = true;
             }
-            else if (ch == 0x16) { // CTRL+V
+            else if (ch == 0x18) { // CTRL+X (cut)
+                if (grid_sel_active.load()) {
+                    grid_copy_selection();
+                    grid_delete_selection();
+                    grid_sel_active.store(false);
+                    edit_status = "cut";
+                } else if (pressing_project || project_mode.load() || show_project_panel) {
+                    grid_sel_anchor_track = proj_cursor_track.load();
+                    grid_sel_anchor_step = proj_cursor_step.load();
+                    grid_copy_selection();
+                    set_note_at(proj_cursor_track.load(), proj_cursor_step.load(), 0xFF);
+                    edit_status = "cut step";
+                }
+                change = true;
+                change_data = true;
+            }
+            else if (ch == 0x16) { // CTRL+V (paste)
                 if (!grid_clipboard.empty() && (pressing_project || project_mode.load() || show_project_panel)) {
                     grid_paste_at_cursor();
                     grid_sel_active.store(false);
