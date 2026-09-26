@@ -123,7 +123,8 @@ namespace opz {
         virtual const opz_mixer_state& getMixerState() const { return m_mixer_state; }
         virtual bool                hasMixerState() const { return m_has_mixer_state; }
 
-        virtual void                setActivePatternId(size_t _id ) { m_active_pattern = _id; }
+        virtual void                setActivePatternId(size_t _id) { m_active_pattern = _id; }
+        virtual void                setActiveTrackId(opz_track_id _id) { m_active_track = _id; }
 
         // Overwrite the in-memory 16-pattern bank. Use right after a confirmed
         // sendPattern() push so the local model (and any display reading it) reflects

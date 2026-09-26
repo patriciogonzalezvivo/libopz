@@ -29,6 +29,10 @@ public:
     // Returns the complete frame ready to send().
     std::vector<unsigned char> buildSysex(uint8_t _parm_id, const std::vector<unsigned char>& _body);
 
+    // Tell the device to switch to a different track (and optionally octave).
+    // Sends a writable 0x03 (Keyboard Setting) SysEx message.
+    bool            sendTrackSelect(opz_track_id _track, int8_t _octave = 0);
+
     // Push a full 16-pattern bank to the device as a 0x09/0x0a stream (a live write).
     // Compresses + packetizes, waits for each 0x0b ACK. address/id come from the last
     // received dump (getPatternAddress()/getPatternId()). Returns packets ACK'd.

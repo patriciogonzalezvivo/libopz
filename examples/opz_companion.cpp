@@ -170,16 +170,15 @@ int main(int argc, char** argv) {
         else if (_id == opz::KEY_MIXER)      pressing_mixer = _value;
         else if (_id == opz::KEY_TEMPO)      pressing_tempo = _value;
         else if (_id == opz::MICROPHONE_MODE_CHANGE) mic_on = _value != 0;
-        else if (_id == opz::PATTERN_DOWNLOADED || _id == opz::PATTERN_CHANGE || _id == opz::TRACK_CHANGE || _id == opz::SEQUENCE_CHANGE || _id == opz::PAGE_CHANGE || _id == opz::TRACK_PARAMETER_CHANGE ) change_data = true;
+        else if (_id == opz::PATTERN_DOWNLOADED || _id == opz::PATTERN_CHANGE || _id == opz::TRACK_CHANGE || _id == opz::SEQUENCE_CHANGE || _id == opz::PAGE_CHANGE || _id == opz::TRACK_PARAMETER_CHANGE || _id == opz::MUTE_CHANGE ) change_data = true;
     } );
 
     std::thread waitForKeys([&](){
-        char ch;
+        int ch;
         while ( true ) {
             ch = getch();
-            
+
             if (ch == 'x') {
-                keepRunnig = false;
                 keepRunnig.store(false);
                 break;
             }
@@ -195,6 +194,32 @@ int main(int argc, char** argv) {
                 }
                 edit_mode.store(entering);
                 change = true;
+            }
+            else if (ch == KEY_UP) {
+                int t = (int)device.getActiveTrackId() - 1;
+                if (t < 0) t = 15;
+                device.sendTrackSelect(opz::opz_track_id(t));
+                change = true;
+                change_data = true;
+            }
+            else if (ch == KEY_DOWN) {
+                int t = ((int)device.getActiveTrackId() + 1) % 16;
+                device.sendTrackSelect(opz::opz_track_id(t));
+                change = true;
+                change_data = true;
+            }
+            else if (ch == KEY_LEFT) {
+                int p = (int)device.getActivePatternId() - 1;
+                if (p < 0) p = 15;
+                device.setActivePatternId(p);
+                change = true;
+                change_data = true;
+            }
+            else if (ch == KEY_RIGHT) {
+                int p = ((int)device.getActivePatternId() + 1) % 16;
+                device.setActivePatternId(p);
+                change = true;
+                change_data = true;
             }
             else if (ch == ' ') {
                 unsigned char msg = device.isPlaying() ? opz::STOP_SONG : opz::START_SONG;
@@ -213,10 +238,6 @@ int main(int argc, char** argv) {
                 else if (ch == 'c') {
                     sync_edit_bank_from_device();
                     edit_status = "edits discarded, re-synced from device";
-                    change = true;
-                }
-                else if (ch == ' ') {
-                    toggle_note_at_cursor();
                     change = true;
                 }
                 else if (ch == 's') {
@@ -277,7 +298,7 @@ int main(int argc, char** argv) {
             bool cursor_here = edit_mode.load() && (i == edit_step_cursor % std::max((size_t)1, step_count));
             if (cursor_here) attron(COLOR_PAIR(1));
 
-            size_t step_idx = (size_t)track_id * 16 + i;
+            size_t step_idx = i * 16 + (size_t)track_id;
             bool has_components = (step_idx < 256) && (pattern.step[step_idx].components_bitmask != 0);
 
             if ( pattern.note[ note ].note == 0xFF) {
@@ -554,15 +575,56 @@ void draw_project(WINDOW* _win) {
 
 void draw_mixer(WINDOW* _win) {
     opz::opz_project_data project = device.getProjectData();
+    uint8_t pattern_id = device.getActivePatternId();
+    opz::opz_pattern pattern = device.getActivePattern();
+
+    int lines, cols;
+    getmaxyx(_win, lines, cols);
 
     werase(_win);
     box(_win, 0, 0);
+
+    mvwprintw(_win, 0, 2, " MIXER ");
+    mvwprintw(_win, 0, cols - 16, " MUTE GRP %i ", pattern.active_mute_group);
+
     mvwprintw(_win, 1, 2, "DRUMS               SYNTH                PUNCH                MASTER");
-    mvwprintw(_win, 2, 2, "%03i                 %03i                  %03i                  %03i", 
-                            (int)((int)project.drum_level / 2.55f), 
-                            (int)((int)project.synth_level / 2.55f), 
-                            (int)((int)project.punch_level / 2.55f), 
-                            (int)((int)project.master_level / 2.55f) );
+    wattron(_win, COLOR_PAIR(4));
+    mvwprintw(_win, 2, 2, "%s              %s               %s               %s",
+                            hBar(7, project.drum_level).c_str(),
+                            hBar(7, project.synth_level).c_str(),
+                            hBar(7, project.punch_level).c_str(),
+                            hBar(7, project.master_level).c_str());
+    wattroff(_win, COLOR_PAIR(4));
+    mvwprintw(_win, 3, 2, "%03i                 %03i                  %03i                  %03i",
+                            (int)((int)project.drum_level / 2.55f),
+                            (int)((int)project.synth_level / 2.55f),
+                            (int)((int)project.punch_level / 2.55f),
+                            (int)((int)project.master_level / 2.55f));
+
+    int mute_col_w = std::max(4, (cols - 4) / 16);
+    for (size_t t = 0; t < 16; t++) {
+        int x = 2 + (int)t * mute_col_w;
+        bool muted = device.getMuteTrack(pattern_id, t);
+        const char* short_names[] = {"KI","SN","PE","SA","BA","LE","AR","CH","F1","F2","TP","MA","PF","MO","LI","MT"};
+
+        if (muted) {
+            wattron(_win, COLOR_PAIR(5));
+            mvwprintw(_win, 5, x, "%s", short_names[t]);
+            mvwprintw(_win, 6, x, "--");
+            wattroff(_win, COLOR_PAIR(5));
+        }
+        else {
+            if (t < 4) wattron(_win, COLOR_PAIR(3));
+            else if (t < 8) wattron(_win, COLOR_PAIR(4));
+            else wattron(_win, COLOR_PAIR(2));
+            mvwprintw(_win, 5, x, "%s", short_names[t]);
+            mvwprintw(_win, 6, x, "##");
+            if (t < 4) wattroff(_win, COLOR_PAIR(3));
+            else if (t < 8) wattroff(_win, COLOR_PAIR(4));
+            else wattroff(_win, COLOR_PAIR(2));
+        }
+    }
+
     wrefresh(_win);
 }
 

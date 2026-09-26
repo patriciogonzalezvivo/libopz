@@ -165,6 +165,15 @@ bool opz_rtmidi::send(unsigned char* _data, size_t _length) {
     return send(msg);
 }
 
+bool opz_rtmidi::sendTrackSelect(opz_track_id _track, int8_t _octave) {
+    uint8_t play_nibble = m_play ? 0x10 : 0x00;
+    std::vector<unsigned char> body = {
+        (unsigned char)_octave,
+        (unsigned char)(play_nibble | ((uint8_t)_track & 0x0F))
+    };
+    return send(buildSysex(0x03, body));
+}
+
 std::vector<unsigned char> opz_rtmidi::buildSysex(uint8_t _parm_id, const std::vector<unsigned char>& _body) {
     std::vector<unsigned char> out = { SYSEX_HEAD, OPZ_VENDOR_ID[0], OPZ_VENDOR_ID[1], OPZ_VENDOR_ID[2], OPZ_MAX_PROTOCOL_VERSION, _parm_id };
     // worst case 7-bit encoding grows the body by ~8/7; reserve generously
