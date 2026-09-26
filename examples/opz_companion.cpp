@@ -76,6 +76,20 @@ std::atomic<int> tempo_cursor_prop(0);
 std::atomic<bool> tempo_mode(false);
 std::atomic<bool> mixer_mode(false);
 std::atomic<bool> project_mode(false);
+std::atomic<bool> screen_mode(false);
+std::atomic<bool> need_pattern_refresh(false);
+
+// Note editing: Enter starts editing, hex digits type, Enter confirms
+std::atomic<bool> grid_editing_note(false);
+std::string grid_note_input;
+
+// Selection: SHIFT+arrow extends, stored as anchor + current cursor
+std::atomic<bool> grid_sel_active(false);
+int grid_sel_anchor_track = 0;
+int grid_sel_anchor_step = 0;
+
+// Clipboard: rectangular region of MIDI note values (0xFF = empty)
+std::vector<std::vector<uint8_t>> grid_clipboard;
 
 // --- Track editing / write-back state ---
 // Local editable copy of the 16-pattern bank. Edits are staged here and only
@@ -109,6 +123,129 @@ char step_component_char(uint16_t mask) {
     if (mask & 0x2000) return 'T';  // tonality
     if (mask & 0x4000) return '!';  // parameter spark
     return '+';
+}
+
+bool grid_in_selection(int track, int step) {
+    if (!grid_sel_active.load()) return false;
+    int t0 = std::min(grid_sel_anchor_track, proj_cursor_track.load());
+    int t1 = std::max(grid_sel_anchor_track, proj_cursor_track.load());
+    int s0 = std::min(grid_sel_anchor_step, proj_cursor_step.load());
+    int s1 = std::max(grid_sel_anchor_step, proj_cursor_step.load());
+    return track >= t0 && track <= t1 && step >= s0 && step <= s1;
+}
+
+bool set_note_at(int track, int step, uint8_t note_val) {
+    device.requestPatternSync(1.0);
+    uint8_t address = device.getPatternAddress();
+    uint16_t id = device.getPatternId();
+    size_t pattern_id = device.getActivePatternId();
+
+    std::lock_guard<std::mutex> lock(edit_mtx);
+    memcpy(edit_bank, &device.getProjectData().pattern[0], sizeof(edit_bank));
+
+    size_t note_offset = device.getNoteIdOffset(track, step);
+    size_t notes_total = device.getNotesPerTrack(opz::opz_track_id(track));
+    for (size_t i = 0; i < notes_total; i++) {
+        if (note_val == 0xFF) {
+            edit_bank[pattern_id].note[note_offset + i].note = 0xFF;
+        } else {
+            edit_bank[pattern_id].note[note_offset + i].note = note_val;
+            edit_bank[pattern_id].note[note_offset + i].duration = 6200;
+            edit_bank[pattern_id].note[note_offset + i].velocity = 0x64;
+            edit_bank[pattern_id].note[note_offset + i].micro_adjustment = 0;
+            edit_bank[pattern_id].note[note_offset + i].age = 0;
+        }
+    }
+
+    int acked = device.sendPattern(edit_bank, address, id);
+    device.loadPatternBank(edit_bank);
+    return acked > 0;
+}
+
+void grid_copy_selection() {
+    int t0 = std::min(grid_sel_anchor_track, proj_cursor_track.load());
+    int t1 = std::max(grid_sel_anchor_track, proj_cursor_track.load());
+    int s0 = std::min(grid_sel_anchor_step, proj_cursor_step.load());
+    int s1 = std::max(grid_sel_anchor_step, proj_cursor_step.load());
+
+    opz::opz_pattern pattern = device.getActivePattern();
+    grid_clipboard.clear();
+    for (int t = t0; t <= t1; t++) {
+        std::vector<uint8_t> row;
+        for (int s = s0; s <= s1; s++) {
+            size_t note_offset = device.getNoteIdOffset(t, s);
+            row.push_back(pattern.note[note_offset].note);
+        }
+        grid_clipboard.push_back(row);
+    }
+}
+
+void grid_paste_at_cursor() {
+    if (grid_clipboard.empty()) return;
+
+    device.requestPatternSync(1.0);
+    uint8_t address = device.getPatternAddress();
+    uint16_t id = device.getPatternId();
+    size_t pattern_id = device.getActivePatternId();
+
+    int start_t = proj_cursor_track.load();
+    int start_s = proj_cursor_step.load();
+
+    std::lock_guard<std::mutex> lock(edit_mtx);
+    memcpy(edit_bank, &device.getProjectData().pattern[0], sizeof(edit_bank));
+
+    for (size_t dt = 0; dt < grid_clipboard.size(); dt++) {
+        int t = start_t + (int)dt;
+        if (t >= 16) break;
+        for (size_t ds = 0; ds < grid_clipboard[dt].size(); ds++) {
+            int s = start_s + (int)ds;
+            if (s >= 16) break;
+            size_t note_offset = device.getNoteIdOffset(t, s);
+            size_t notes_total = device.getNotesPerTrack(opz::opz_track_id(t));
+            uint8_t val = grid_clipboard[dt][ds];
+            for (size_t i = 0; i < notes_total; i++) {
+                if (val == 0xFF) {
+                    edit_bank[pattern_id].note[note_offset + i].note = 0xFF;
+                } else {
+                    edit_bank[pattern_id].note[note_offset + i].note = val;
+                    edit_bank[pattern_id].note[note_offset + i].duration = 6200;
+                    edit_bank[pattern_id].note[note_offset + i].velocity = 0x64;
+                    edit_bank[pattern_id].note[note_offset + i].micro_adjustment = 0;
+                    edit_bank[pattern_id].note[note_offset + i].age = 0;
+                }
+            }
+        }
+    }
+
+    device.sendPattern(edit_bank, address, id);
+    device.loadPatternBank(edit_bank);
+}
+
+void grid_delete_selection() {
+    int t0 = std::min(grid_sel_anchor_track, proj_cursor_track.load());
+    int t1 = std::max(grid_sel_anchor_track, proj_cursor_track.load());
+    int s0 = std::min(grid_sel_anchor_step, proj_cursor_step.load());
+    int s1 = std::max(grid_sel_anchor_step, proj_cursor_step.load());
+
+    device.requestPatternSync(1.0);
+    uint8_t address = device.getPatternAddress();
+    uint16_t id = device.getPatternId();
+    size_t pattern_id = device.getActivePatternId();
+
+    std::lock_guard<std::mutex> lock(edit_mtx);
+    memcpy(edit_bank, &device.getProjectData().pattern[0], sizeof(edit_bank));
+
+    for (int t = t0; t <= t1; t++) {
+        for (int s = s0; s <= s1; s++) {
+            size_t note_offset = device.getNoteIdOffset(t, s);
+            size_t notes_total = device.getNotesPerTrack(opz::opz_track_id(t));
+            for (size_t i = 0; i < notes_total; i++)
+                edit_bank[pattern_id].note[note_offset + i].note = 0xFF;
+        }
+    }
+
+    device.sendPattern(edit_bank, address, id);
+    device.loadPatternBank(edit_bank);
 }
 
 void sync_edit_bank_from_device() {
@@ -209,7 +346,6 @@ bool adjust_track_level_and_send(opz::opz_track_id _track, int _delta) {
 // global
 void draw_mic(WINDOW* _window);
 void draw_project(WINDOW* _window);
-
 // pattern
 void draw_mixer(WINDOW* _window);
 void draw_tempo(WINDOW* _window);
@@ -286,7 +422,7 @@ int main(int argc, char** argv) {
     init_pair(4, COLOR_GREEN, -1);
     init_pair(5, COLOR_BLUE, -1);
 
-    cbreak();
+    raw();
     keypad(stdscr, TRUE);
     noecho();
 
@@ -310,8 +446,9 @@ int main(int argc, char** argv) {
     bool pressing_project = false;
     bool pressing_mixer = false;
     bool pressing_tempo = false;
+    bool pressing_screen = false;
     bool mic_on = false;
-    
+
     // Listen to key events (no cc, neighter notes)
     device.setEventCallback( [&](opz::opz_event_id _id, int _value) {
         change = true;
@@ -320,8 +457,13 @@ int main(int argc, char** argv) {
         else if (_id == opz::KEY_PROJECT)    pressing_project = _value;
         else if (_id == opz::KEY_MIXER)      pressing_mixer = _value;
         else if (_id == opz::KEY_TEMPO)      pressing_tempo = _value;
+        else if (_id == opz::KEY_SCREEN)     pressing_screen = _value;
         else if (_id == opz::MICROPHONE_MODE_CHANGE) mic_on = _value != 0;
-        else if (_id == opz::PATTERN_DOWNLOADED || _id == opz::PATTERN_CHANGE || _id == opz::TRACK_CHANGE || _id == opz::SEQUENCE_CHANGE || _id == opz::PAGE_CHANGE || _id == opz::TRACK_PARAMETER_CHANGE || _id == opz::MUTE_CHANGE ) change_data = true;
+        else if (_id == opz::PATTERN_DOWNLOADED || _id == opz::PATTERN_CHANGE || _id == opz::TRACK_CHANGE || _id == opz::SEQUENCE_CHANGE || _id == opz::PAGE_CHANGE || _id == opz::TRACK_PARAMETER_CHANGE || _id == opz::MUTE_CHANGE || _id == opz::PROJECT_CHANGE) {
+            change_data = true;
+            if (_id == opz::PROJECT_CHANGE || _id == opz::PATTERN_CHANGE)
+                need_pattern_refresh.store(true);
+        }
     } );
 
     std::thread waitForKeys([&](){
@@ -329,28 +471,35 @@ int main(int argc, char** argv) {
         while ( true ) {
             ch = getch();
 
-            if (ch == 'x') {
+            if (ch == 'x' || ch == 'q' || ch == 'Q') {
                 keepRunnig.store(false);
                 break;
             }
             else if (ch == 't') {
                 bool entering = !tempo_mode.load();
                 tempo_mode.store(entering);
-                if (entering) { mixer_mode.store(false); project_mode.store(false); }
+                if (entering) { mixer_mode.store(false); project_mode.store(false); screen_mode.store(false); }
                 change = true;
                 change_data = true;
             }
             else if (ch == 'm') {
                 bool entering = !mixer_mode.load();
                 mixer_mode.store(entering);
-                if (entering) { tempo_mode.store(false); project_mode.store(false); }
+                if (entering) { tempo_mode.store(false); project_mode.store(false); screen_mode.store(false); }
                 change = true;
                 change_data = true;
             }
             else if (ch == 'p') {
                 bool entering = !project_mode.load();
                 project_mode.store(entering);
-                if (entering) { mixer_mode.store(false); tempo_mode.store(false); }
+                if (entering) { mixer_mode.store(false); tempo_mode.store(false); screen_mode.store(false); }
+                change = true;
+                change_data = true;
+            }
+            else if (ch == 's' && !edit_mode.load()) {
+                bool entering = !screen_mode.load();
+                screen_mode.store(entering);
+                if (entering) { mixer_mode.store(false); tempo_mode.store(false); project_mode.store(false); }
                 change = true;
                 change_data = true;
             }
@@ -396,6 +545,7 @@ int main(int argc, char** argv) {
                     if (t < 0) t = 15;
                     proj_cursor_track.store(t);
                     device.sendTrackSelect(opz::opz_track_id(t));
+                    grid_sel_active.store(false);
                     change = true;
                     change_data = true;
                 }
@@ -428,6 +578,7 @@ int main(int argc, char** argv) {
                     int t = (proj_cursor_track.load() + 1) % 16;
                     proj_cursor_track.store(t);
                     device.sendTrackSelect(opz::opz_track_id(t));
+                    grid_sel_active.store(false);
                     change = true;
                     change_data = true;
                 }
@@ -447,6 +598,7 @@ int main(int argc, char** argv) {
                     int s = proj_cursor_step.load() - 1;
                     if (s < 0) s = 15;
                     proj_cursor_step.store(s);
+                    grid_sel_active.store(false);
                     change = true;
                     change_data = true;
                 }
@@ -465,18 +617,134 @@ int main(int argc, char** argv) {
                 else if (pressing_project || project_mode.load() || show_project_panel) {
                     int s = (proj_cursor_step.load() + 1) % 16;
                     proj_cursor_step.store(s);
+                    grid_sel_active.store(false);
                     change = true;
                     change_data = true;
                 }
             }
+            // SHIFT+arrow keys for selection in track panel
+            else if (ch == KEY_SR || ch == 337) { // shift-up
+                if (!grid_sel_active.load()) {
+                    grid_sel_active.store(true);
+                    grid_sel_anchor_track = proj_cursor_track.load();
+                    grid_sel_anchor_step = proj_cursor_step.load();
+                }
+                int t = proj_cursor_track.load() - 1;
+                if (t >= 0) proj_cursor_track.store(t);
+                change = true;
+            }
+            else if (ch == KEY_SF || ch == 336) { // shift-down
+                if (!grid_sel_active.load()) {
+                    grid_sel_active.store(true);
+                    grid_sel_anchor_track = proj_cursor_track.load();
+                    grid_sel_anchor_step = proj_cursor_step.load();
+                }
+                int t = proj_cursor_track.load() + 1;
+                if (t < 16) proj_cursor_track.store(t);
+                change = true;
+            }
+            else if (ch == KEY_SLEFT || ch == 393) { // shift-left
+                if (!grid_sel_active.load()) {
+                    grid_sel_active.store(true);
+                    grid_sel_anchor_track = proj_cursor_track.load();
+                    grid_sel_anchor_step = proj_cursor_step.load();
+                }
+                int s = proj_cursor_step.load() - 1;
+                if (s >= 0) proj_cursor_step.store(s);
+                change = true;
+            }
+            else if (ch == KEY_SRIGHT || ch == 402) { // shift-right
+                if (!grid_sel_active.load()) {
+                    grid_sel_active.store(true);
+                    grid_sel_anchor_track = proj_cursor_track.load();
+                    grid_sel_anchor_step = proj_cursor_step.load();
+                }
+                int s = proj_cursor_step.load() + 1;
+                if (s < 16) proj_cursor_step.store(s);
+                change = true;
+            }
             else if (ch == KEY_ENTER || ch == '\n' || ch == '\r') {
-                if ((pressing_mixer || mixer_mode.load()) && !mixer_cursor_is_group()) {
+                if (grid_editing_note.load()) {
+                    if (!grid_note_input.empty()) {
+                        int val = (int)strtol(grid_note_input.c_str(), nullptr, 16);
+                        if (val >= 0 && val <= 127) {
+                            set_note_at(proj_cursor_track.load(), proj_cursor_step.load(), (uint8_t)val);
+                            change_data = true;
+                        }
+                    }
+                    grid_editing_note.store(false);
+                    grid_note_input.clear();
+                    change = true;
+                }
+                else if ((pressing_mixer || mixer_mode.load()) && !mixer_cursor_is_group()) {
                     edit_status = "toggling mute...";
                     change = true;
                     bool ok = toggle_track_mute_and_send(opz::opz_track_id(mixer_cursor_track_index()));
                     edit_status = ok ? "" : "mute toggle failed (no ack from device)";
                     change = true;
                     change_data = true;
+                }
+                else if (pressing_project || project_mode.load() || show_project_panel) {
+                    grid_editing_note.store(true);
+                    grid_note_input.clear();
+                    grid_sel_active.store(false);
+                    change = true;
+                }
+            }
+            else if (ch == 27) { // Escape
+                if (grid_editing_note.load()) {
+                    grid_editing_note.store(false);
+                    grid_note_input.clear();
+                    change = true;
+                }
+                else if (grid_sel_active.load()) {
+                    grid_sel_active.store(false);
+                    change = true;
+                }
+            }
+            else if (ch == KEY_DC || ch == 127) { // DEL / Backspace
+                if (grid_editing_note.load()) {
+                    if (!grid_note_input.empty()) grid_note_input.pop_back();
+                    change = true;
+                }
+                else if (grid_sel_active.load()) {
+                    grid_delete_selection();
+                    grid_sel_active.store(false);
+                    change = true;
+                    change_data = true;
+                }
+                else if (pressing_project || project_mode.load() || show_project_panel) {
+                    set_note_at(proj_cursor_track.load(), proj_cursor_step.load(), 0xFF);
+                    change = true;
+                    change_data = true;
+                }
+            }
+            else if (ch == 0x03) { // CTRL+C
+                if (grid_sel_active.load()) {
+                    grid_copy_selection();
+                    edit_status = "copied";
+                } else if (pressing_project || project_mode.load() || show_project_panel) {
+                    grid_sel_anchor_track = proj_cursor_track.load();
+                    grid_sel_anchor_step = proj_cursor_step.load();
+                    grid_copy_selection();
+                    edit_status = "copied step";
+                }
+                change = true;
+            }
+            else if (ch == 0x16) { // CTRL+V
+                if (!grid_clipboard.empty() && (pressing_project || project_mode.load() || show_project_panel)) {
+                    grid_paste_at_cursor();
+                    grid_sel_active.store(false);
+                    edit_status = "pasted";
+                    change = true;
+                    change_data = true;
+                }
+            }
+            else if (grid_editing_note.load()) {
+                if ((ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F')) {
+                    if (grid_note_input.size() < 2)
+                        grid_note_input += (char)toupper(ch);
+                    change = true;
                 }
             }
             else if ((ch >= '1' && ch <= '9') || ch == '0') {
@@ -537,6 +805,12 @@ int main(int argc, char** argv) {
     while (keepRunnig.load()) {
         device.update();
 
+        if (need_pattern_refresh.load()) {
+            need_pattern_refresh.store(false);
+            std::vector<unsigned char> dump_req = { 0xF0, 0x00, 0x20, 0x76, 0x01, 0x08, 0xF7 };
+            device.send(dump_req);
+        }
+
         if (!change)
             continue;
 
@@ -549,6 +823,7 @@ int main(int argc, char** argv) {
         else if (pressing_project || project_mode.load()) title_name = "PROJECTS";
         else if ((pressing_mixer || mixer_mode.load()))   title_name = "MIXER";
         else if ((pressing_tempo || tempo_mode.load()))   title_name = "TEMPO";
+        else if (screen_mode.load()) title_name = title_name;
         else if (edit_mode.load()) title_name = "EDIT " + title_name;
 
         clear();
@@ -614,6 +889,7 @@ int main(int argc, char** argv) {
         attron(COLOR_PAIR(device.isPlaying() ? 2 : 5));
         mvprintw(LINES-1, COLS/2 - 3, "%s %02zu", ((device.isPlaying())? "|> " : "[ ]"), device.getActiveStepId() + 1 );
         attroff(COLOR_PAIR(device.isPlaying() ? 2 : 5));
+
         refresh();
 
         if (pressing_project || project_mode.load())       draw_project(windows[5]);
@@ -623,8 +899,6 @@ int main(int argc, char** argv) {
         else if (show_project_panel) draw_project(windows[5]);
 
         if ( show_project_panel || (!mic_on && !(pressing_project || project_mode.load()) && !(pressing_mixer || mixer_mode.load()) && !(pressing_tempo || tempo_mode.load()))){
-            // werase(windows[5]);
-
             if (pressing_track)
                 wattron(windows[4], COLOR_PAIR(2));
 
@@ -647,11 +921,6 @@ int main(int argc, char** argv) {
             for (size_t i = 0; i < 5; i++)
                 wrefresh(windows[i]);
 
-            // The fixed-size windows above can overlap the step display rows
-            // drawn on stdscr (e.g. their borders sit on the same physical
-            // row as LINES-5..LINES-1 on shorter terminals). Re-push just
-            // those rows last so the step display always wins that overlap,
-            // without blanking out the rest of stdscr over the windows.
             touchline(stdscr, LINES - 5, 5);
             refresh();
 
@@ -772,9 +1041,6 @@ void draw_project(WINDOW* _win) {
     werase(_win);
     box(_win, 0, 0);
 
-    // Displayed as the 1-based label matching the keyboard's 1,2,...,9,0 row
-    // (key '1' -> slot 0 -> label 1; key '0' -> slot 9 -> label 10), even
-    // though the internal/device index (project_id/pattern_id) stays 0-based.
     mvwprintw(_win, 0, 2, " PROJECT %02zu ", project_id + 1);
     mvwprintw(_win, 0, 18, " PATTERN %02i ", pattern_id + 1);
     mvwprintw(_win, 0, 34, " MUTE GRP %i ", pattern.active_mute_group);
@@ -786,8 +1052,12 @@ void draw_project(WINDOW* _win) {
     int cur_step = proj_cursor_step.load() % 16;
     mvwprintw(_win, 1, 2, "STEP EDIT   TRACK %-7s STEP %02i   (up/down: track   left/right: step)",
               opz::toString(opz::opz_track_id(cur_track)).c_str(), cur_step + 1);
+    if (grid_sel_active.load())
+        mvwprintw(_win, 1, cols - 42, " SELECT (Ctrl-C/DEL/Esc) ");
+    else if (grid_editing_note.load())
+        mvwprintw(_win, 1, cols - 22, " NOTE: %s_ ", grid_note_input.c_str());
 
-    // CHAINED PATTERNS (TODO)
+    // CHAINED PATTERNS
     int song_width = 4;
     int x_margin = (cols - song_width * 16) / 2;
     for (size_t i = 0; i < 16; i++) {
@@ -797,11 +1067,21 @@ void draw_project(WINDOW* _win) {
         mvwprintw(_win, y+1, x, "%02X", device.getProjectData().pattern_chain[pattern_id].pattern[i+16]);
     }
 
-    // PATTERN TRACK
+    // PATTERN TRACKS
     int name_width = 12;
     int step_width = (cols - name_width) / 16;
     x_margin = 2 + (cols - step_width * 16 - name_width) / 2;
     size_t step_current = device.getActiveStepId();
+
+    // Selection bounds
+    int sel_t0 = 0, sel_t1 = 0, sel_s0 = 0, sel_s1 = 0;
+    bool has_sel = grid_sel_active.load();
+    if (has_sel) {
+        sel_t0 = std::min(grid_sel_anchor_track, cur_track);
+        sel_t1 = std::max(grid_sel_anchor_track, cur_track);
+        sel_s0 = std::min(grid_sel_anchor_step, cur_step);
+        sel_s1 = std::max(grid_sel_anchor_step, cur_step);
+    }
 
     size_t tracks = 16;
     for (size_t t = 0; t < tracks; t++) {
@@ -842,7 +1122,9 @@ void draw_project(WINDOW* _win) {
             size_t i = device.getNoteIdOffset(t, s);
 
             bool is_cursor = (t == (size_t)cur_track && s == (size_t)cur_step);
+            bool in_sel = has_sel && (int)t >= sel_t0 && (int)t <= sel_t1 && (int)s >= sel_s0 && (int)s <= sel_s1;
             if (is_cursor) wattron(_win, A_REVERSE);
+            else if (in_sel) wattron(_win, A_REVERSE);
 
             if (pattern.note[i].note == 0xFF) {
                 if (muted) wattron(_win, COLOR_PAIR(5));
@@ -861,7 +1143,7 @@ void draw_project(WINDOW* _win) {
                 else if (t > 7) wattroff(_win, COLOR_PAIR(2));
             }
 
-            if (is_cursor) wattroff(_win, A_REVERSE);
+            if (is_cursor || in_sel) wattroff(_win, A_REVERSE);
         }
     }
     wrefresh(_win);
