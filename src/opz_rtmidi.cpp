@@ -202,12 +202,14 @@ bool opz_rtmidi::sendProjectSelect(uint8_t _project) {
     if (getActiveProjectId() != _project)
         return false;
 
-    // Each project has its own 16-pattern bank, so the locally cached bank
-    // (m_project.pattern[]) is stale for the new project until a fresh 0x08
-    // dump lands - request one now instead of leaving the display showing
-    // the old project's patterns. Propagate whether that refresh actually
-    // landed, instead of unconditionally reporting success.
-    return requestPatternSync(3.0);
+    // The device needs time to finish loading the new project from flash
+    // before it can respond to a pattern dump request.
+    usleep(300000);
+
+    // Send a separate pattern-select for pattern 0 in the new project
+    // context. This second 0x07 (distinct from the combined project+pattern
+    // one above) reliably triggers the device to push a fresh pattern dump.
+    return sendPatternSelect(0);
 }
 
 bool opz_rtmidi::sendPatternSelect(uint8_t _pattern) {
@@ -274,7 +276,11 @@ bool opz_rtmidi::patchAndSendGlobalData(std::function<void(opz_project_data*)> _
     std::vector<unsigned char> compressed = compress(raw.data(), header_size);
     if (compressed.empty())
         return false;
-    return send(buildSysex(0x0c, compressed));
+    bool ok = send(buildSysex(0x0c, compressed));
+    if (ok) {
+        memcpy(&m_project, raw.data(), header_size);
+    }
+    return ok;
 }
 
 bool opz_rtmidi::sendGroupLevel(int _group, uint8_t _level) {

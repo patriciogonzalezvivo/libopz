@@ -75,6 +75,7 @@ std::atomic<int> tempo_cursor_prop(0);
 // them, and every check below is "pressing_X || X_mode".
 std::atomic<bool> tempo_mode(false);
 std::atomic<bool> mixer_mode(false);
+std::atomic<bool> project_mode(false);
 
 // --- Track editing / write-back state ---
 // Local editable copy of the 16-pattern bank. Edits are staged here and only
@@ -85,6 +86,30 @@ std::atomic<bool> edit_mode(false);
 opz::opz_pattern edit_bank[16];
 size_t edit_step_cursor = 0;
 std::string edit_status = "";
+
+char step_component_char(uint16_t mask) {
+    if (!mask) return ' ';
+    if (mask & (mask - 1)) {
+        int count = __builtin_popcount(mask);
+        return (count <= 9) ? ('0' + count) : '+';
+    }
+    if (mask & 0x0001) return 'H';  // 1/2 (half)
+    if (mask & 0x0002) return 'Q';  // 1/4 (quarter)
+    if (mask & 0x0004) return 'E';  // 3/4
+    if (mask & 0x0008) return 'W';  // 1/8
+    if (mask & 0x0010) return '/';  // ramp up
+    if (mask & 0x0020) return '\\'; // ramp down
+    if (mask & 0x0040) return '?';  // random
+    if (mask & 0x0080) return '~';  // pulse width
+    if (mask & 0x0100) return '>';  // sweep right
+    if (mask & 0x0200) return '<';  // sweep left
+    if (mask & 0x0400) return 'x';  // multiply
+    if (mask & 0x0800) return 'L';  // note length
+    if (mask & 0x1000) return 'S';  // note style
+    if (mask & 0x2000) return 'T';  // tonality
+    if (mask & 0x4000) return '!';  // parameter spark
+    return '+';
+}
 
 void sync_edit_bank_from_device() {
     std::lock_guard<std::mutex> lock(edit_mtx);
@@ -309,12 +334,23 @@ int main(int argc, char** argv) {
                 break;
             }
             else if (ch == 't') {
-                tempo_mode.store(!tempo_mode.load());
+                bool entering = !tempo_mode.load();
+                tempo_mode.store(entering);
+                if (entering) { mixer_mode.store(false); project_mode.store(false); }
                 change = true;
                 change_data = true;
             }
             else if (ch == 'm') {
-                mixer_mode.store(!mixer_mode.load());
+                bool entering = !mixer_mode.load();
+                mixer_mode.store(entering);
+                if (entering) { tempo_mode.store(false); project_mode.store(false); }
+                change = true;
+                change_data = true;
+            }
+            else if (ch == 'p') {
+                bool entering = !project_mode.load();
+                project_mode.store(entering);
+                if (entering) { mixer_mode.store(false); tempo_mode.store(false); }
                 change = true;
                 change_data = true;
             }
@@ -355,7 +391,7 @@ int main(int argc, char** argv) {
                     change = true;
                     change_data = true;
                 }
-                else if (pressing_project || show_project_panel) {
+                else if (pressing_project || project_mode.load() || show_project_panel) {
                     int t = proj_cursor_track.load() - 1;
                     if (t < 0) t = 15;
                     proj_cursor_track.store(t);
@@ -388,7 +424,7 @@ int main(int argc, char** argv) {
                     change = true;
                     change_data = true;
                 }
-                else if (pressing_project || show_project_panel) {
+                else if (pressing_project || project_mode.load() || show_project_panel) {
                     int t = (proj_cursor_track.load() + 1) % 16;
                     proj_cursor_track.store(t);
                     device.sendTrackSelect(opz::opz_track_id(t));
@@ -399,13 +435,6 @@ int main(int argc, char** argv) {
             else if (ch == KEY_LEFT) {
                 if ((pressing_mixer || mixer_mode.load())) {
                     mixer_cursor.store((mixer_cursor.load() + MIXER_CURSOR_COUNT - 1) % MIXER_CURSOR_COUNT);
-                    if (!mixer_cursor_is_group()) {
-                        // Keep the pattern/tracker view (and the device's own
-                        // active track) in sync with whatever track mixer mode
-                        // is currently pointed at.
-                        proj_cursor_track.store(mixer_cursor_track_index());
-                        device.sendTrackSelect(opz::opz_track_id(mixer_cursor_track_index()));
-                    }
                     change = true;
                     change_data = true;
                 }
@@ -414,7 +443,7 @@ int main(int argc, char** argv) {
                     change = true;
                     change_data = true;
                 }
-                else if (pressing_project || show_project_panel) {
+                else if (pressing_project || project_mode.load() || show_project_panel) {
                     int s = proj_cursor_step.load() - 1;
                     if (s < 0) s = 15;
                     proj_cursor_step.store(s);
@@ -425,10 +454,6 @@ int main(int argc, char** argv) {
             else if (ch == KEY_RIGHT) {
                 if ((pressing_mixer || mixer_mode.load())) {
                     mixer_cursor.store((mixer_cursor.load() + 1) % MIXER_CURSOR_COUNT);
-                    if (!mixer_cursor_is_group()) {
-                        proj_cursor_track.store(mixer_cursor_track_index());
-                        device.sendTrackSelect(opz::opz_track_id(mixer_cursor_track_index()));
-                    }
                     change = true;
                     change_data = true;
                 }
@@ -437,7 +462,7 @@ int main(int argc, char** argv) {
                     change = true;
                     change_data = true;
                 }
-                else if (pressing_project || show_project_panel) {
+                else if (pressing_project || project_mode.load() || show_project_panel) {
                     int s = (proj_cursor_step.load() + 1) % 16;
                     proj_cursor_step.store(s);
                     change = true;
@@ -521,7 +546,7 @@ int main(int argc, char** argv) {
         std::string title_name = opz::toString(track_id);
 
         if (mic_on) title_name = "MICROPHONE";
-        else if (pressing_project) title_name = "PROJECTS";
+        else if (pressing_project || project_mode.load()) title_name = "PROJECTS";
         else if ((pressing_mixer || mixer_mode.load()))   title_name = "MIXER";
         else if ((pressing_tempo || tempo_mode.load()))   title_name = "TEMPO";
         else if (edit_mode.load()) title_name = "EDIT " + title_name;
@@ -556,10 +581,11 @@ int main(int argc, char** argv) {
             size_t step_idx = i * 16 + (size_t)track_id;
             bool has_components = (step_idx < 256) && (pattern.step[step_idx].components_bitmask != 0);
 
+            uint16_t comp_mask = (step_idx < 256) ? pattern.step[step_idx].components_bitmask : 0;
             if ( pattern.note[ note ].note == 0xFF) {
                 if (has_components) {
                     attron(COLOR_PAIR(5));
-                    mvprintw(LINES-4, x, "~");
+                    mvprintw(LINES-4, x, "%c", step_component_char(comp_mask));
                     attroff(COLOR_PAIR(5));
                 }
                 else
@@ -568,12 +594,12 @@ int main(int argc, char** argv) {
             else {
                 if (has_components) {
                     attron(COLOR_PAIR(1));
-                    mvprintw(LINES-4, x, "*");
+                    mvprintw(LINES-4, x, "%c", step_component_char(comp_mask));
                     attroff(COLOR_PAIR(1));
                 }
                 else {
                     attron(COLOR_PAIR(2));
-                    mvprintw(LINES-4, x, "0");
+                    mvprintw(LINES-4, x, "o");
                     attroff(COLOR_PAIR(2));
                 }
             }
@@ -590,13 +616,13 @@ int main(int argc, char** argv) {
         attroff(COLOR_PAIR(device.isPlaying() ? 2 : 5));
         refresh();
 
-        if (pressing_project)       draw_project(windows[5]);
+        if (pressing_project || project_mode.load())       draw_project(windows[5]);
         else if ((pressing_mixer || mixer_mode.load()))    draw_mixer(windows[5]);
         else if ((pressing_tempo || tempo_mode.load()))    draw_tempo(windows[5]);
         else if (mic_on)            draw_mic(windows[5]);
         else if (show_project_panel) draw_project(windows[5]);
 
-        if ( show_project_panel || (!mic_on && !pressing_project && !(pressing_mixer || mixer_mode.load()) && !(pressing_tempo || tempo_mode.load()))){
+        if ( show_project_panel || (!mic_on && !(pressing_project || project_mode.load()) && !(pressing_mixer || mixer_mode.load()) && !(pressing_tempo || tempo_mode.load()))){
             // werase(windows[5]);
 
             if (pressing_track)
