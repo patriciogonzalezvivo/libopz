@@ -45,8 +45,10 @@ m_connected(false) {
     m_packet_recived_enabled = true;
     m_packet_recived = [&](uint8_t _cmd, uint8_t *_data, size_t _lenght) {
             std::vector<unsigned char> cmd = opz_confirm_package_cmd(_data, _lenght);
-            if (m_connected)
+            if (m_connected) {
+                std::lock_guard<std::mutex> lock(m_out_mutex);
                 m_out->sendMessage( &cmd );
+            }
     };
 
 }
@@ -122,6 +124,7 @@ void opz_rtmidi::update(){
     // Keep the connecting with the opz alive
     m_last_heartbeat += delta;
     if (m_last_heartbeat > 1.0) {
+        std::lock_guard<std::mutex> lock(m_out_mutex);
         m_out->sendMessage( opz_heartbeat() );
         m_last_heartbeat = 0.0;
     }
@@ -152,6 +155,7 @@ void opz_rtmidi::process_message(double _deltatime, std::vector<unsigned char>* 
 bool opz_rtmidi::send(const std::vector<unsigned char>& _msg) {
     if (!m_connected || m_out == NULL)
         return false;
+    std::lock_guard<std::mutex> lock(m_out_mutex);
     m_out->sendMessage(&_msg);
     return true;
 }
@@ -202,7 +206,10 @@ int opz_rtmidi::sendPattern(const opz_pattern* _bank16, uint8_t _address, uint16
         std::vector<unsigned char> frame = buildSysex(last ? 0x0a : 0x09, body);
 
         uint32_t before = m_ack_count;
-        m_out->sendMessage(&frame);
+        {
+            std::lock_guard<std::mutex> lock(m_out_mutex);
+            m_out->sendMessage(&frame);
+        }
 
         // Flow control: wait for this packet's 0x0b ACK (device applies on the last
         // data packets and may not ACK the 0x0a terminator, so don't block on it).
@@ -227,7 +234,10 @@ bool opz_rtmidi::requestPatternSync(double _timeout_sec) {
     std::vector<unsigned char> req = {
         SYSEX_HEAD, OPZ_VENDOR_ID[0], OPZ_VENDOR_ID[1], OPZ_VENDOR_ID[2],
         OPZ_MAX_PROTOCOL_VERSION, 0x08, SYSEX_END };
-    m_out->sendMessage(&req);
+    {
+        std::lock_guard<std::mutex> lock(m_out_mutex);
+        m_out->sendMessage(&req);
+    }
 
     // Spin until a fresh dump lands, keeping the heartbeat alive via update().
     double waited = 0.0;

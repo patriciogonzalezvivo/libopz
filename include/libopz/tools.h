@@ -33,7 +33,9 @@ size_t      decode(const unsigned char* inData, size_t inLength, unsigned char* 
 // Zlib compression
 std::vector<unsigned char> compress(const unsigned char* inData, size_t inLength);
 
-// zlib decompression
-std::vector<unsigned char> decompress(const unsigned char* inData, size_t inLength);
+// zlib decompression; if _complete is non-null, reports whether the stream
+// actually reached Z_STREAM_END (false means the returned data is a
+// best-effort partial decode of a truncated/corrupt input)
+std::vector<unsigned char> decompress(const unsigned char* inData, size_t inLength, bool* _complete = nullptr);
 
 };

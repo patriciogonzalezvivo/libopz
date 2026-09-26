@@ -597,7 +597,11 @@ namespace opz
                     m_packets.insert(m_packets.end(), &data[encoded_data_start], &data[encoded_data_start] + encoded_data_length);
 
                 if (!m_packets.empty()) {
-                    std::vector<unsigned char> decompressed = decompress(m_packets.data(), m_packets.size());
+                    bool complete = false;
+                    std::vector<unsigned char> decompressed = decompress(m_packets.data(), m_packets.size(), &complete);
+
+                    if (verbose && !complete)
+                        printf("    WARNING: pattern bank dump did not decompress cleanly (%zu of expected %zu bytes) - some steps may be stale/missing\n", decompressed.size(), sizeof(opz_pattern) * 16);
 
                     if (!decompressed.empty())
                         memcpy(&m_project.pattern[0], decompressed.data(), std::min(sizeof(opz_pattern) * 16, sizeof(uint8_t) * decompressed.size()));

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <mutex>
+
 #include "rtmidi/RtMidi.h"
 #include "opz_device.h"
 
@@ -43,6 +45,13 @@ private:
 
     RtMidiIn*       m_in;
     RtMidiOut*      m_out;
+
+    // RtMidiOut::sendMessage() is called both from the RtMidi input callback
+    // thread (per-package ACKs during a pattern dump) and from the main/UI
+    // thread (heartbeat, sendCmd, sendPattern); RtMidi does not guarantee
+    // sendMessage() is safe to call concurrently from multiple threads on the
+    // same port, so every call is serialized through this mutex.
+    std::mutex      m_out_mutex;
 
     double          m_last_heartbeat;
     double          m_last_time;

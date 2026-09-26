@@ -127,7 +127,7 @@ std::vector<unsigned char> compress(const unsigned char* inData, size_t inLength
 	stream.zfree = 0;
 	stream.opaque = 0;
 
-	stream.avail_in = inLength - 1;
+	stream.avail_in = inLength;
     stream.next_in = const_cast<Byte *>(&inData[0]);
 
     int res = deflateInit(&stream, 9);
@@ -151,8 +151,11 @@ std::vector<unsigned char> compress(const unsigned char* inData, size_t inLength
 	return output;
 }
 
-std::vector<unsigned char> decompress(const unsigned char* inData, size_t inLength) {
+std::vector<unsigned char> decompress(const unsigned char* inData, size_t inLength, bool* _complete) {
     std::vector<unsigned char> output;
+
+    if (_complete)
+        *_complete = false;
 
     if (inLength == 0)
         return output;
@@ -162,9 +165,9 @@ std::vector<unsigned char> decompress(const unsigned char* inData, size_t inLeng
     stream.zfree = 0;
     stream.opaque = 0;
 
-    stream.avail_in = inLength - 1;
+    stream.avail_in = inLength;
     stream.next_in = const_cast<Byte*>(&inData[0]);
-    
+
     int res = inflateInit(&stream);
     if (res != Z_OK)
         return output;
@@ -179,11 +182,23 @@ std::vector<unsigned char> decompress(const unsigned char* inData, size_t inLeng
         output.resize(oldsize + compressed);
         memcpy(output.data() + oldsize, ChunkOut, compressed);
 
-        if (res != Z_OK && res != Z_STREAM_END)
+        // Per zlib's documented contract, Z_BUF_ERROR with avail_out == 0 just means
+        // our chunk buffer was too small to hold everything in this round when
+        // Z_FINISH is used - that's expected/non-fatal, so keep looping with a
+        // fresh buffer. Z_BUF_ERROR with avail_out > 0 means input truly ran out
+        // (a real truncation), which - like any other unexpected code - is fatal.
+        bool buffer_too_small = (res == Z_BUF_ERROR && stream.avail_out == 0);
+        if (res != Z_OK && res != Z_STREAM_END && !buffer_too_small)
             break;
     }
-    while (stream.avail_out == 0);
+    while (stream.avail_out == 0 && res != Z_STREAM_END);
     inflateEnd(&stream);
+
+    // A truncated/corrupt input (e.g. a dropped packet upstream) makes inflate()
+    // stop before Z_STREAM_END; the caller can check _complete to tell a full
+    // decode apart from this best-effort partial one.
+    if (_complete)
+        *_complete = (res == Z_STREAM_END);
 
     return output;
 }
