@@ -2,6 +2,7 @@
 #include "libopz/opz_rtmidi.h"
 #include "libopz/tools.h"
 #include <algorithm>
+#include <cstddef>
 
 namespace opz {
 
@@ -180,7 +181,15 @@ bool opz_rtmidi::sendProjectSelect(uint8_t _project) {
 
     std::vector<unsigned char> body(getChainPayload(), getChainPayload() + 20);
     body[19] = _project;
-    return send(buildSysex(0x07, body));
+    if (!send(buildSysex(0x07, body)))
+        return false;
+
+    // Each project has its own 16-pattern bank, so the locally cached bank
+    // (m_project.pattern[]) is stale for the new project until a fresh 0x08
+    // dump lands - request one now instead of leaving the display showing
+    // the old project's patterns. Propagate whether that refresh actually
+    // landed, instead of unconditionally reporting success.
+    return requestPatternSync(3.0);
 }
 
 bool opz_rtmidi::sendPatternSelect(uint8_t _pattern) {
@@ -189,7 +198,13 @@ bool opz_rtmidi::sendPatternSelect(uint8_t _pattern) {
 
     std::vector<unsigned char> body(getChainPayload(), getChainPayload() + 20);
     body[0] = _pattern;
-    return send(buildSysex(0x07, body));
+    if (!send(buildSysex(0x07, body)))
+        return false;
+
+    // Guards against the same staleness if a project switch just happened
+    // and hadn't been refreshed yet; cheap no-op otherwise since the bank
+    // already holds all 16 patterns for the active project.
+    return requestPatternSync(3.0);
 }
 
 bool opz_rtmidi::sendMixerTrackLevel(opz_track_id _track, uint8_t _level) {
@@ -214,6 +229,31 @@ bool opz_rtmidi::sendMixerToggleMute(opz_track_id _track) {
     std::vector<unsigned char> body(sizeof(opz_mixer_state));
     memcpy(body.data(), &st, sizeof(opz_mixer_state));
     return send(buildSysex(0x12, body));
+}
+
+bool opz_rtmidi::sendGroupLevel(int _group, uint8_t _level) {
+    // The 0x0c payload the device actually sends only covers everything up
+    // to (not including) the 16-pattern array - patterns travel separately
+    // via 0x08/0x09/0x0a. Snapshot that header portion from the last known
+    // project state and only flip the target group's byte.
+    size_t header_size = offsetof(opz_project_data, pattern);
+
+    std::vector<unsigned char> raw(sizeof(opz_project_data));
+    memcpy(raw.data(), &getProjectData(), sizeof(opz_project_data));
+
+    opz_project_data* hdr = reinterpret_cast<opz_project_data*>(raw.data());
+    switch (_group) {
+        case 0: hdr->drum_level   = _level; break;
+        case 1: hdr->synth_level  = _level; break;
+        case 2: hdr->punch_level  = _level; break;
+        case 3: hdr->master_level = _level; break;
+        default: return false;
+    }
+
+    std::vector<unsigned char> compressed = compress(raw.data(), header_size);
+    if (compressed.empty())
+        return false;
+    return send(buildSysex(0x0c, compressed));
 }
 
 std::vector<unsigned char> opz_rtmidi::buildSysex(uint8_t _parm_id, const std::vector<unsigned char>& _body) {

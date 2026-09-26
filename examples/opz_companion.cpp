@@ -50,9 +50,17 @@ std::atomic<int> proj_cursor_track(0);
 std::atomic<int> proj_cursor_step(0);
 
 // --- MIXER view cursor (arrow keys, only while pressing_mixer) ---
-// Left/Right picks which track's channel strip is active; Up/Down nudges
-// that track's mixer level; Enter toggles its mute - all pushed live via 0x12.
-std::atomic<int> mixer_cursor_track(0);
+// Left/Right cycles through a single combined list: the 16 individual tracks
+// (0-15) followed by the 4 mixer groups drum/synth/punch/master (16-19).
+// Up/Down adjusts gain for whichever is selected: an individual track's
+// sound_param.level (part of the pattern data, written via the same proven
+// full-bank rewrite note-editing uses) or a group's level (written via 0x0c).
+// Enter always mutes/unmutes whichever track is currently selected.
+const int MIXER_CURSOR_COUNT = 20; // 16 tracks + 4 groups
+std::atomic<int> mixer_cursor(0);
+bool mixer_cursor_is_group() { return mixer_cursor.load() >= 16; }
+int mixer_cursor_group_index() { return mixer_cursor.load() - 16; } // 0=drum 1=synth 2=punch 3=master
+int mixer_cursor_track_index() { return mixer_cursor.load() % 16; }
 
 // --- Track editing / write-back state ---
 // Local editable copy of the 16-pattern bank. Edits are staged here and only
@@ -114,6 +122,46 @@ bool send_edit_bank_to_device() {
     uint16_t id      = device.getPatternId();
 
     std::lock_guard<std::mutex> lock(edit_mtx);
+    int acked = device.sendPattern(edit_bank, address, id);
+    device.loadPatternBank(edit_bank);
+    return acked > 0;
+}
+
+// Toggles mute for a single track by flipping its bit in the active pattern's
+// mute[] bitmask and pushing a full bank rewrite - mute lives in the pattern
+// data (like notes/steps), not in the unconfirmed 0x12 message, so this
+// reuses the same proven write path as note editing instead of guessing.
+bool toggle_track_mute_and_send(opz::opz_track_id _track) {
+    device.requestPatternSync(1.0);
+
+    uint8_t  address = device.getPatternAddress();
+    uint16_t id      = device.getPatternId();
+    size_t   pattern_id = device.getActivePatternId();
+
+    std::lock_guard<std::mutex> lock(edit_mtx);
+    memcpy(edit_bank, &device.getProjectData().pattern[0], sizeof(edit_bank));
+    edit_bank[pattern_id].mute[(size_t)_track / 4] ^= opz::opz_mute_masks[(size_t)_track % 4];
+
+    int acked = device.sendPattern(edit_bank, address, id);
+    device.loadPatternBank(edit_bank);
+    return acked > 0;
+}
+
+// Adjusts one track's individual channel gain (sound_param.level, the same
+// LEVEL parameter shown on page 4 for the active track) by _delta and pushes
+// a full bank rewrite - same proven write path as mute/notes.
+bool adjust_track_level_and_send(opz::opz_track_id _track, int _delta) {
+    device.requestPatternSync(1.0);
+
+    uint8_t  address = device.getPatternAddress();
+    uint16_t id      = device.getPatternId();
+    size_t   pattern_id = device.getActivePatternId();
+
+    std::lock_guard<std::mutex> lock(edit_mtx);
+    memcpy(edit_bank, &device.getProjectData().pattern[0], sizeof(edit_bank));
+    int cur = edit_bank[pattern_id].sound_param[(size_t)_track].level;
+    edit_bank[pattern_id].sound_param[(size_t)_track].level = (uint8_t)std::min(255, std::max(0, cur + _delta));
+
     int acked = device.sendPattern(edit_bank, address, id);
     device.loadPatternBank(edit_bank);
     return acked > 0;
@@ -261,9 +309,15 @@ int main(int argc, char** argv) {
             }
             else if (ch == KEY_UP) {
                 if (pressing_mixer) {
-                    int t = mixer_cursor_track.load();
-                    int lvl = device.hasMixerState() ? (int)device.getMixerState().level[t] : 0;
-                    device.sendMixerTrackLevel(opz::opz_track_id(t), (uint8_t)std::min(255, lvl + 8));
+                    if (mixer_cursor_is_group()) {
+                        int g = mixer_cursor_group_index();
+                        const opz::opz_project_data& proj = device.getProjectData();
+                        uint8_t cur = (g == 0) ? proj.drum_level : (g == 1) ? proj.synth_level : (g == 2) ? proj.punch_level : proj.master_level;
+                        device.sendGroupLevel(g, (uint8_t)std::min(255, (int)cur + 8));
+                    }
+                    else {
+                        adjust_track_level_and_send(opz::opz_track_id(mixer_cursor_track_index()), 8);
+                    }
                     change = true;
                     change_data = true;
                 }
@@ -278,9 +332,15 @@ int main(int argc, char** argv) {
             }
             else if (ch == KEY_DOWN) {
                 if (pressing_mixer) {
-                    int t = mixer_cursor_track.load();
-                    int lvl = device.hasMixerState() ? (int)device.getMixerState().level[t] : 0;
-                    device.sendMixerTrackLevel(opz::opz_track_id(t), (uint8_t)std::max(0, lvl - 8));
+                    if (mixer_cursor_is_group()) {
+                        int g = mixer_cursor_group_index();
+                        const opz::opz_project_data& proj = device.getProjectData();
+                        uint8_t cur = (g == 0) ? proj.drum_level : (g == 1) ? proj.synth_level : (g == 2) ? proj.punch_level : proj.master_level;
+                        device.sendGroupLevel(g, (uint8_t)std::max(0, (int)cur - 8));
+                    }
+                    else {
+                        adjust_track_level_and_send(opz::opz_track_id(mixer_cursor_track_index()), -8);
+                    }
                     change = true;
                     change_data = true;
                 }
@@ -294,8 +354,9 @@ int main(int argc, char** argv) {
             }
             else if (ch == KEY_LEFT) {
                 if (pressing_mixer) {
-                    int t = (mixer_cursor_track.load() + 15) % 16;
-                    mixer_cursor_track.store(t);
+                    mixer_cursor.store((mixer_cursor.load() + MIXER_CURSOR_COUNT - 1) % MIXER_CURSOR_COUNT);
+                    if (!mixer_cursor_is_group())
+                        device.sendTrackSelect(opz::opz_track_id(mixer_cursor_track_index()));
                     change = true;
                     change_data = true;
                 }
@@ -309,8 +370,9 @@ int main(int argc, char** argv) {
             }
             else if (ch == KEY_RIGHT) {
                 if (pressing_mixer) {
-                    int t = (mixer_cursor_track.load() + 1) % 16;
-                    mixer_cursor_track.store(t);
+                    mixer_cursor.store((mixer_cursor.load() + 1) % MIXER_CURSOR_COUNT);
+                    if (!mixer_cursor_is_group())
+                        device.sendTrackSelect(opz::opz_track_id(mixer_cursor_track_index()));
                     change = true;
                     change_data = true;
                 }
@@ -322,8 +384,11 @@ int main(int argc, char** argv) {
                 }
             }
             else if (ch == KEY_ENTER || ch == '\n' || ch == '\r') {
-                if (pressing_mixer) {
-                    device.sendMixerToggleMute(opz::opz_track_id(mixer_cursor_track.load()));
+                if (pressing_mixer && !mixer_cursor_is_group()) {
+                    edit_status = "toggling mute...";
+                    change = true;
+                    bool ok = toggle_track_mute_and_send(opz::opz_track_id(mixer_cursor_track_index()));
+                    edit_status = ok ? "" : "mute toggle failed (no ack from device)";
                     change = true;
                     change_data = true;
                 }
@@ -620,8 +685,11 @@ void draw_project(WINDOW* _win) {
     werase(_win);
     box(_win, 0, 0);
 
-    mvwprintw(_win, 0, 2, " PROJECT %02i ", project_id);
-    mvwprintw(_win, 0, 18, " PATTERN %02i ", pattern_id);
+    // Displayed as the 1-based label matching the keyboard's 1,2,...,9,0 row
+    // (key '1' -> slot 0 -> label 1; key '0' -> slot 9 -> label 10), even
+    // though the internal/device index (project_id/pattern_id) stays 0-based.
+    mvwprintw(_win, 0, 2, " PROJECT %02zu ", project_id + 1);
+    mvwprintw(_win, 0, 18, " PATTERN %02i ", pattern_id + 1);
     mvwprintw(_win, 0, 34, " MUTE GRP %i ", pattern.active_mute_group);
     uint8_t chain_pos = device.getActiveChainPos();
     if (chain_pos > 0)
@@ -726,36 +794,43 @@ void draw_mixer(WINDOW* _win) {
     mvwprintw(_win, 0, 2, " MIXER ");
     mvwprintw(_win, 0, cols - 16, " MUTE GRP %i ", pattern.active_mute_group);
 
-    mvwprintw(_win, 1, 2, "DRUMS               SYNTH                PUNCH                MASTER");
-    wattron(_win, COLOR_PAIR(4));
-    mvwprintw(_win, 2, 2, "%s              %s               %s               %s",
-                            hBar(7, project.drum_level).c_str(),
-                            hBar(7, project.synth_level).c_str(),
-                            hBar(7, project.punch_level).c_str(),
-                            hBar(7, project.master_level).c_str());
-    wattroff(_win, COLOR_PAIR(4));
-    mvwprintw(_win, 3, 2, "%03i                 %03i                  %03i                  %03i",
-                            (int)((int)project.drum_level / 2.55f),
-                            (int)((int)project.synth_level / 2.55f),
-                            (int)((int)project.punch_level / 2.55f),
-                            (int)((int)project.master_level / 2.55f));
+    bool cursor_is_group = mixer_cursor_is_group();
+    int cur_group = cursor_is_group ? mixer_cursor_group_index() : -1;
+    int cur_track = cursor_is_group ? -1 : mixer_cursor_track_index();
 
-    int cur_track = mixer_cursor_track.load() % 16;
-    bool have_live = device.hasMixerState();
-    const opz::opz_mixer_state& mstate = device.getMixerState();
+    const char* group_names[4] = {"DRUMS", "SYNTH", "PUNCH", "MASTER"};
+    uint8_t group_levels[4] = {project.drum_level, project.synth_level, project.punch_level, project.master_level};
+    int group_x[4] = {2, 22, 43, 64};
 
-    bool cur_muted = have_live ? (bool)((mstate.mute_mask >> cur_track) & 1) : device.getMuteTrack(pattern_id, cur_track);
-    int cur_level = have_live ? (int)mstate.level[cur_track] : -1;
+    for (int g = 0; g < 4; g++) {
+        bool is_cursor = (g == cur_group);
+        if (is_cursor) wattron(_win, A_REVERSE);
+        mvwprintw(_win, 1, group_x[g], "%s", group_names[g]);
+        if (is_cursor) wattroff(_win, A_REVERSE);
 
-    mvwprintw(_win, 4, 2, "TRACK %-7s", opz::toString(opz::opz_track_id(cur_track)).c_str());
-    if (cur_level >= 0)
-        mvwprintw(_win, 4, 20, "LEVEL %03i  %s", cur_level, hBar(10, cur_level).c_str());
-    mvwprintw(_win, 4, cols - 22, "%s   (left/right: track  up/down: level  enter: mute)", cur_muted ? "MUTED " : "ACTIVE");
+        wattron(_win, COLOR_PAIR(4));
+        mvwprintw(_win, 2, group_x[g], "%s", hBar(7, group_levels[g]).c_str());
+        wattroff(_win, COLOR_PAIR(4));
+        mvwprintw(_win, 3, group_x[g], "%03i", (int)((int)group_levels[g] / 2.55f));
+    }
+
+    if (cur_track >= 0) {
+        bool track_muted = device.getMuteTrack(pattern_id, (size_t)cur_track);
+        uint8_t track_level = pattern.sound_param[cur_track].level;
+        mvwprintw(_win, 4, 2, "TRACK %-7s LEVEL %03i  %s   %s",
+                  opz::toString(opz::opz_track_id(cur_track)).c_str(),
+                  (int)((int)track_level / 2.55f), hBar(7, track_level).c_str(),
+                  track_muted ? "MUTED " : "ACTIVE");
+    }
+    else {
+        mvwprintw(_win, 4, 2, "GROUP %-7s", group_names[cur_group]);
+    }
+    mvwprintw(_win, 4, cols - 46, "(left/right: track/group  up/down: gain  enter: mute)");
 
     int mute_col_w = std::max(4, (cols - 4) / 16);
     for (size_t t = 0; t < 16; t++) {
         int x = 2 + (int)t * mute_col_w;
-        bool muted = have_live ? (bool)((mstate.mute_mask >> t) & 1) : device.getMuteTrack(pattern_id, t);
+        bool muted = device.getMuteTrack(pattern_id, t);
         const char* short_names[] = {"KI","SN","PE","SA","BA","LE","AR","CH","F1","F2","TP","MA","PF","MO","LI","MT"};
 
         bool is_cursor = (t == (size_t)cur_track);

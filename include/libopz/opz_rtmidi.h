@@ -52,8 +52,21 @@ public:
     // from that last-known 16-level + mute-mask snapshot and only flips the
     // target track's field, leaving every other track's level/mute untouched.
     // Return false without sending if no baseline has been received yet.
+    // NOTE: unconfirmed on real hardware - 0x12 was never observed in normal
+    // device traffic in testing, so these may not correspond to anything the
+    // device actually applies. The companion UI doesn't use them; kept for
+    // future investigation.
     bool            sendMixerTrackLevel(opz_track_id _track, uint8_t _level);
     bool            sendMixerToggleMute(opz_track_id _track);
+
+    // Group gain for one of the 4 mixer groups (0=drum, 1=synth, 2=punch,
+    // 3=master), matching what holding the physical MIXER key actually
+    // exposes. Writes the project's "header" portion (everything in
+    // opz_project_data up to, but not including, the 16-pattern array - the
+    // patterns are transferred separately via 0x08/0x09/0x0a) back as a
+    // compressed 0x0c (Global Data) message, starting from the last-known
+    // project snapshot so nothing else is clobbered.
+    bool            sendGroupLevel(int _group, uint8_t _level);
 
     // Push a full 16-pattern bank to the device as a 0x09/0x0a stream (a live write).
     // Compresses + packetizes, waits for each 0x0b ACK. address/id come from the last
