@@ -35,7 +35,7 @@ int  params_x = 0;               // left edge of the left column; centered unles
 bool show_project_panel = false; // true when the pattern panel is always visible (SIDE or STACKED)
 
 const int TRACK_PROPS_WIDTH  = 80;   // width of the left column: windows 2 (66) + 4 (14)
-const int TRACK_PROPS_HEIGHT = 19;   // parameter windows span this many rows from the top
+const int TRACK_PROPS_HEIGHT = 18;   // parameter windows span this many rows from the top
 const int PROJECT_MIN_WIDTH  = 60;   // narrowest the pattern grid is still legible
 const int PROJECT_HALF_HEIGHT = 13;  // pattern panel with 8 tracks: 3 header rows + 8 tracks + 1 margin + border
 const int PROJECT_FULL_HEIGHT = 21;  // pattern panel with 16 tracks: 3 header rows + 16 tracks + 1 margin + border
@@ -728,6 +728,7 @@ struct ui_layout_t {
     rect_t       panel_rect;   // where the pattern grid / mic are drawn
     int          bar_x = 0;    // horizontal extent of the bottom block
     int          bar_w = 0;
+    int          bottom_rows = BOTTOM_ROWS;   // 3: steps+status+counts, 2: steps+status, 1: status only
 };
 
 // Panel height that closes right after the last track: 16 tracks, or 8 if short.
@@ -742,11 +743,22 @@ int snap_panel_height(int _avail) {
 ui_layout_t compute_layout() {
     ui_layout_t L;
 
-    int avail = LINES - TOP_ROW - BOTTOM_ROWS;            // rows available to panels
-    int stacked_y = TOP_ROW + TRACK_PROPS_HEIGHT + 1;
-    int stacked_avail = LINES - stacked_y - BOTTOM_ROWS;
+    int stacked_y = TOP_ROW + TRACK_PROPS_HEIGHT;   // directly below the parameters
+    bool side = COLS >= TRACK_PROPS_WIDTH + PROJECT_MIN_WIDTH;
 
-    if (COLS >= TRACK_PROPS_WIDTH + PROJECT_MIN_WIDTH)      project_layout = LAYOUT_SIDE;
+    // Short terminal: give up the bottom rows, counts first and then the step
+    // row, but only if that leaves room for the pattern panel. If even that
+    // isn't enough, keep everything (the layout falls back to COMPACT).
+    L.bottom_rows = BOTTOM_ROWS;
+    for (int rows = BOTTOM_ROWS; rows >= 1; rows--) {
+        int room = side ? LINES - TOP_ROW - rows : LINES - stacked_y - rows;
+        if (room >= PROJECT_HALF_HEIGHT) { L.bottom_rows = rows; break; }
+    }
+
+    int avail = LINES - TOP_ROW - L.bottom_rows;          // rows available to panels
+    int stacked_avail = LINES - stacked_y - L.bottom_rows;
+
+    if (side)                                               project_layout = LAYOUT_SIDE;
     else if (stacked_avail >= PROJECT_HALF_HEIGHT)          project_layout = LAYOUT_STACKED;
     else                                                    project_layout = LAYOUT_COMPACT;
     show_project_panel = (project_layout != LAYOUT_COMPACT);
@@ -760,7 +772,7 @@ ui_layout_t compute_layout() {
     bool tempo_active   = !project_active && !mixer_active && (pressing_tempo || tempo_mode.load());
 
     left_view_t overlay = project_active ? LEFT_PROJECT : mixer_active ? LEFT_MIXER : tempo_active ? LEFT_TEMPO : LEFT_PARAMS;
-    int left_h = (overlay == LEFT_TEMPO) ? TEMPO_HEIGHT : TRACK_PROPS_HEIGHT + 1;
+    int left_h = (overlay == LEFT_TEMPO) ? TEMPO_HEIGHT : TRACK_PROPS_HEIGHT;
     L.left_rect = { TOP_ROW, params_x, std::min(left_h, avail), std::min(TRACK_PROPS_WIDTH, COLS - params_x) };
 
     if (project_layout == LAYOUT_SIDE) {
@@ -887,7 +899,11 @@ void draw_chrome(const ui_layout_t& L) {
     size_t step_count = device.getActiveTrackParameters().step_count;
     size_t step_length = device.getActiveTrackParameters().step_length;
 
-    int steps_y = LINES - 3, status_y = LINES - 2, counts_y = LINES - 1;
+    bool show_counts = L.bottom_rows >= 3;
+    bool show_steps  = L.bottom_rows >= 2;
+    int counts_y = LINES - 1;
+    int status_y = LINES - 1 - (show_counts ? 1 : 0);
+    int steps_y  = status_y - 1;
 
     // Fit all 16 steps evenly within the bar, instead of a fixed spacing that
     // clips the later steps on narrower terminals.
@@ -897,7 +913,7 @@ void draw_chrome(const ui_layout_t& L) {
     int span = 15 * cell_width + 3;
     int steps_x = L.bar_x + std::max(0, (L.bar_w - span) / 2);
 
-    if (device.isPlaying() && step_count > 0 && step_length > 0) {
+    if (show_steps && device.isPlaying() && step_count > 0 && step_length > 0) {
         size_t step = (device.getActiveStepId() / step_length) % step_count;
         mvprintw(steps_y, steps_x + step * cell_width, "[ ]");
     }
@@ -906,7 +922,7 @@ void draw_chrome(const ui_layout_t& L) {
     // configured step_count - note[] has a slot for every one of the 16
     // steps no matter how many of them the track is currently sequencing,
     // so a smaller step_count would otherwise hide real note data.
-    for (size_t i = 0; i < 16; i++) {
+    for (size_t i = 0; show_steps && i < 16; i++) {
         int x = steps_x + 1 + (int)i * cell_width;
         size_t note = device.getNoteIdOffset(track_id, i);
 
@@ -936,6 +952,9 @@ void draw_chrome(const ui_layout_t& L) {
     }
 
     mvprintw(status_y, L.bar_x, "%s", edit_status.c_str());
+
+    if (!show_counts)
+        return;
 
     // STEP COUNT / LENGTH flush left, SUM / TEMPO flush right
     char right_text[64];
