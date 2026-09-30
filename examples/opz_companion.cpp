@@ -605,7 +605,7 @@ void handle_key(int ch) {
             change = true;
         }
     }
-    else if (ch == KEY_DC || ch == 127) { // DEL / Backspace
+    else if (ch == KEY_DC || ch == KEY_BACKSPACE || ch == 127 || ch == 8) { // DEL / Backspace (Linux terminals report Backspace as KEY_BACKSPACE)
         if (grid_editing_note.load()) {
             if (!grid_note_input.empty()) grid_note_input.pop_back();
             change = true;
