@@ -7,6 +7,7 @@
 #include <mutex>
 #include <math.h>
 #include <signal.h>
+#include <unistd.h>
 #include <algorithm>
 #include <cstring>
 
@@ -43,7 +44,7 @@ const int PROJECT_FULL_HEIGHT = 21;  // draw_pattern() with 16 tracks: 3 header 
 const int TEMPO_HEIGHT       = 23;   // draw_tempo()'s content never exceeds this
 const int BOTTOM_BAR_MARGIN  = 6;    // step display rows + a blank line of breathing room
 
-bool change = true;
+std::atomic<bool> change(true);
 
 // --- PROJECT view cursor (arrow keys, only while pressing_project) ---
 // Up/Down moves the highlighted track (row) and pushes a real track-select to
@@ -460,7 +461,7 @@ int main(int argc, char** argv) {
 
     signal(SIGWINCH, handle_winch);
 
-    bool change_data = true;
+    std::atomic<bool> change_data(true);
     bool was_params_overlay = false;
     bool pressing_track = false;
     bool pressing_project = false;
@@ -847,8 +848,14 @@ int main(int argc, char** argv) {
             device.send(dump_req);
         }
 
-        if (!change)
+        if (!change) {
+            usleep(5000);   // idle: don't spin the CPU
             continue;
+        }
+        // Clear the flags before drawing so a key/device event that lands mid-frame
+        // triggers another frame instead of being lost.
+        change = false;
+        bool full_redraw = change_data.exchange(false);
 
         opz::opz_track_id track_id = device.getActiveTrackId();
         opz::opz_pattern pattern = get_display_pattern();
@@ -862,7 +869,7 @@ int main(int argc, char** argv) {
         else if (screen_mode.load()) title_name = title_name;
         else if (edit_mode.load()) title_name = "EDIT " + title_name;
 
-        clear();
+        erase();   // not clear(): clear() forces a full repaint that leaves untouched windows blank
         mvprintw(0, COLS/2 - title_name.size()/2, "%s", title_name.c_str() );
 
         size_t step_count = device.getActiveTrackParameters().step_count;
@@ -885,7 +892,6 @@ int main(int argc, char** argv) {
         // so a smaller step_count would otherwise hide real note data.
         for (size_t i = 0; i < 16; i++) {
             size_t x = params_x + 3 + i * cell_width;
-            mvprintw(LINES-5, x, "%02i", i + 1 );
             size_t note = device.getNoteIdOffset(track_id, i);
 
             bool cursor_here = edit_mode.load() && (i == edit_step_cursor % std::max((size_t)1, step_count));
@@ -970,7 +976,7 @@ int main(int argc, char** argv) {
             touchwin(stdscr);
             touchwin(windows[5]);
             wrefresh(windows[5]);
-            change_data = true;
+            full_redraw = true;
         }
         was_params_overlay = params_overlay;
 
@@ -987,21 +993,22 @@ int main(int argc, char** argv) {
                 wattroff(windows[i], COLOR_PAIR(1));
             }
 
-            if (page == 0 || change_data) draw_page_one(windows[0]);
-            if (page == 1 || change_data) draw_page_two(windows[1]);
-            if (page == 2 || change_data) draw_page_three(windows[2]);
-            if (page == 3 || change_data) draw_page_four(windows[3]);
+            if (page == 0 || full_redraw) draw_page_one(windows[0]);
+            if (page == 1 || full_redraw) draw_page_two(windows[1]);
+            if (page == 2 || full_redraw) draw_page_three(windows[2]);
+            if (page == 3 || full_redraw) draw_page_four(windows[3]);
 
-            if (pressing_track || change_data) draw_track_params(windows[4]);
+            if (pressing_track || full_redraw) draw_track_params(windows[4]);
 
-            for (size_t i = 0; i < 5; i++)
+            // stdscr was just erased; force every window to repaint over it
+            for (size_t i = 0; i < 5; i++) {
+                touchwin(windows[i]);
                 wrefresh(windows[i]);
+            }
 
             touchline(stdscr, LINES - 5, 5);
             refresh();
 
-            change = false;
-            change_data = false;
         }
     }
     
