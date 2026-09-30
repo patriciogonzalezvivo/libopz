@@ -439,9 +439,14 @@ int main(int argc, char** argv) {
     windows.push_back( newwin(1, 1, 1, 0) );     //  PROJECT (placeholder, resized below)
     layout_project_window();
 
+    // Overlay that temporarily replaces the track-parameter windows (0-4) with
+    // the mixer/tempo views when the project panel is always visible.
+    windows.push_back( newwin(TRACK_PROPS_HEIGHT + 1, TRACK_PROPS_WIDTH, 1, 0) );  //  MIXER / TEMPO
+
     signal(SIGWINCH, handle_winch);
 
     bool change_data = true;
+    bool was_params_overlay = false;
     bool pressing_track = false;
     bool pressing_project = false;
     bool pressing_mixer = false;
@@ -908,13 +913,45 @@ int main(int argc, char** argv) {
 
         refresh();
 
-        if (pressing_project || project_mode.load())       draw_project(windows[5]);
-        else if ((pressing_mixer || mixer_mode.load()))    draw_mixer(windows[5]);
-        else if ((pressing_tempo || tempo_mode.load()))    draw_tempo(windows[5]);
+        bool mixer_active = (pressing_mixer || mixer_mode.load()) && !(pressing_project || project_mode.load());
+        bool tempo_active = !mixer_active && (pressing_tempo || tempo_mode.load()) && !(pressing_project || project_mode.load());
+        // With the project panel always visible, mixer/tempo take over the
+        // parameters panel on the left; otherwise they take over windows[5].
+        bool params_overlay = show_project_panel && (mixer_active || tempo_active);
+
+        if (params_overlay) {
+            // The tempo view is taller than the parameter windows; give it
+            // room for its margin (it may cover the top of a stacked project panel).
+            int overlay_h = tempo_active ? std::min(PROJECT_FULL_HEIGHT, LINES - BOTTOM_BAR_MARGIN)
+                                         : TRACK_PROPS_HEIGHT + 1;
+            int cur_h, cur_w;
+            getmaxyx(windows[6], cur_h, cur_w);
+            if (cur_h != overlay_h) {
+                wresize(windows[6], overlay_h, TRACK_PROPS_WIDTH);
+                touchwin(stdscr);
+                touchwin(windows[5]);
+            }
+            draw_project(windows[5]);
+            if (mixer_active) draw_mixer(windows[6]);
+            else              draw_tempo(windows[6]);
+        }
+        else if (pressing_project || project_mode.load())  draw_project(windows[5]);
+        else if (mixer_active)      draw_mixer(windows[5]);
+        else if (tempo_active)      draw_tempo(windows[5]);
         else if (mic_on)            draw_mic(windows[5]);
         else if (show_project_panel) draw_project(windows[5]);
 
-        if ( show_project_panel || (!mic_on && !(pressing_project || project_mode.load()) && !(pressing_mixer || mixer_mode.load()) && !(pressing_tempo || tempo_mode.load()))){
+        if (was_params_overlay && !params_overlay) {
+            for (size_t i = 0; i < 5; i++)
+                touchwin(windows[i]);
+            touchwin(stdscr);
+            touchwin(windows[5]);
+            wrefresh(windows[5]);
+            change_data = true;
+        }
+        was_params_overlay = params_overlay;
+
+        if (!params_overlay && ( show_project_panel || (!mic_on && !(pressing_project || project_mode.load()) && !(pressing_mixer || mixer_mode.load()) && !(pressing_tempo || tempo_mode.load())))){
             if (pressing_track)
                 wattron(windows[4], COLOR_PAIR(2));
 
@@ -1073,15 +1110,16 @@ void draw_project(WINDOW* _win) {
     else if (grid_editing_note.load())
         mvwprintw(_win, 1, cols - 22, " NOTE: %s_ ", grid_note_input.c_str());
 
-    // CHAINED PATTERNS
     int song_width = 4;
     int x_margin = (cols - song_width * 16) / 2;
-    for (size_t i = 0; i < 16; i++) {
-        int y = 2;
-        int x = x_margin + i * song_width;
-        mvwprintw(_win, y, x, "%02X", device.getProjectData().pattern_chain[pattern_id].pattern[i]);
-        mvwprintw(_win, y+1, x, "%02X", device.getProjectData().pattern_chain[pattern_id].pattern[i+16]);
-    }
+
+    // // CHAINED PATTERNS
+    // for (size_t i = 0; i < 16; i++) {
+    //     int y = 2;
+    //     int x = x_margin + i * song_width;
+    //     mvwprintw(_win, y, x, "%02X", device.getProjectData().pattern_chain[pattern_id].pattern[i]);
+    //     mvwprintw(_win, y+1, x, "%02X", device.getProjectData().pattern_chain[pattern_id].pattern[i+16]);
+    // }
 
     // PATTERN TRACKS
     int name_width = 12;
@@ -1101,7 +1139,7 @@ void draw_project(WINDOW* _win) {
 
     size_t tracks = 16;
     for (size_t t = 0; t < tracks; t++) {
-        int y = 5 + t;
+        int y = 3 + t;
         bool muted = device.getMuteTrack(pattern_id, t);
         bool send_tape = device.isSendToTape(pattern_id, opz::opz_track_id(t));
         bool send_master = device.isSendToMaster(pattern_id, opz::opz_track_id(t));
@@ -1210,7 +1248,7 @@ void draw_mixer(WINDOW* _win) {
     else {
         mvwprintw(_win, 4, 2, "GROUP %-7s", group_names[cur_group]);
     }
-    mvwprintw(_win, 4, cols - 46, "(left/right: track/group  up/down: gain  enter: mute)");
+    mvwprintw(_win, lines - 2, 2, "(left/right: track/group  up/down: gain  enter: mute)");
 
     int mute_col_w = std::max(4, (cols - 4) / 16);
     for (size_t t = 0; t < 16; t++) {
@@ -1295,7 +1333,7 @@ void draw_tempo(WINDOW* _win) {
     mvwprintw(_win,16, cols/2 - w, "  ---------------------");
     mvwprintw(_win,17, cols/2 - w, " #######################");
     mvwprintw(_win,18, cols/2 - w, " ######### %03i #########", project.tempo);
-    mvwprintw(_win,19, cols/2 - w, "#########################"); 
+    mvwprintw(_win,19, cols/2 - w, "#########################");
 
     wattron(_win, COLOR_PAIR(1));
     float x = w * sin( pct * 6.2831 );
