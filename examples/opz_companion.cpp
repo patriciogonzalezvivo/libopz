@@ -31,13 +31,16 @@ std::vector<WINDOW*> windows;
 // tempo/mic (COMPACT).
 enum project_layout_t { LAYOUT_SIDE, LAYOUT_STACKED, LAYOUT_COMPACT };
 project_layout_t project_layout = LAYOUT_COMPACT;
+int  params_x = 0;               // left edge of the parameter windows; centered when STACKED
 bool show_project_panel = false; // true when the panel is always visible (SIDE or STACKED)
 
 // Track property windows (0-4) occupy x:0-80, y:1-19 (fixed, regardless of layout).
 const int TRACK_PROPS_WIDTH  = 80;   // windows[2] (66 wide) + windows[4] (14 wide)
 const int TRACK_PROPS_HEIGHT = 19;   // windows[2]/[4] bottom out at y=19
 const int PROJECT_MIN_WIDTH  = 60;   // narrowest the project grid is still legible
-const int PROJECT_FULL_HEIGHT = 23;  // draw_pattern()'s content never exceeds this
+const int PROJECT_HALF_HEIGHT = 13;  // draw_pattern() with 8 tracks: 3 header rows + 8 tracks + 1 margin + border
+const int PROJECT_FULL_HEIGHT = 21;  // draw_pattern() with 16 tracks: 3 header rows + 16 tracks + 1 margin + border
+const int TEMPO_HEIGHT       = 23;   // draw_tempo()'s content never exceeds this
 const int BOTTOM_BAR_MARGIN  = 6;    // step display rows + a blank line of breathing room
 
 bool change = true;
@@ -47,6 +50,7 @@ bool change = true;
 // the device; Left/Right moves the highlighted step (column), local-only, to
 // pick a step to inspect/edit.
 std::atomic<int> proj_cursor_track(0);
+std::atomic<int> proj_visible_tracks(16);  // 8 when the pattern panel is too short for all 16
 std::atomic<int> proj_cursor_step(0);
 
 // --- MIXER view cursor (arrow keys, only while mixer mode is active) ---
@@ -364,7 +368,7 @@ void handle_winch(int sig);
 project_layout_t compute_project_layout() {
     if (COLS >= TRACK_PROPS_WIDTH + PROJECT_MIN_WIDTH)
         return LAYOUT_SIDE;
-    if (LINES >= TRACK_PROPS_HEIGHT + PROJECT_FULL_HEIGHT + BOTTOM_BAR_MARGIN)
+    if (LINES >= TRACK_PROPS_HEIGHT + PROJECT_HALF_HEIGHT + BOTTOM_BAR_MARGIN)
         return LAYOUT_STACKED;
     return LAYOUT_COMPACT;
 }
@@ -377,19 +381,21 @@ void layout_project_window() {
     show_project_panel = (project_layout != LAYOUT_COMPACT);
 
     int h, w, y, x;
+    // Snap to a height that closes right after the last track: full (16 tracks) or half (8).
+    auto snap = [](int avail) { return avail >= PROJECT_FULL_HEIGHT ? PROJECT_FULL_HEIGHT : std::min(avail, PROJECT_HALF_HEIGHT); };
     if (project_layout == LAYOUT_SIDE) {
         w = COLS - TRACK_PROPS_WIDTH;
-        h = std::min(LINES - 2, PROJECT_FULL_HEIGHT);
+        h = snap(LINES - 2);
         y = 1; x = TRACK_PROPS_WIDTH;
     }
     else if (project_layout == LAYOUT_STACKED) {
         w = COLS;
-        h = std::min(LINES - TRACK_PROPS_HEIGHT - BOTTOM_BAR_MARGIN, PROJECT_FULL_HEIGHT);
+        h = snap(LINES - TRACK_PROPS_HEIGHT - BOTTOM_BAR_MARGIN);
         y = TRACK_PROPS_HEIGHT + 2; x = 0;
     }
     else {
         w = COLS;
-        h = std::min(LINES - 2, PROJECT_FULL_HEIGHT);
+        h = snap(LINES - 2);
         y = 1; x = 0;
     }
 
@@ -398,6 +404,15 @@ void layout_project_window() {
 
     wresize(windows[5], h, w);
     mvwin(windows[5], y, x);
+
+    // Parameter windows (0-4) and their overlay (6): centered above a stacked pattern panel.
+    params_x = (project_layout == LAYOUT_STACKED) ? std::max(0, (COLS - TRACK_PROPS_WIDTH) / 2) : 0;
+    const int base_x[5] = { 0, 0, 0, 41, 66 };
+    const int base_y[5] = { 1, 6, 14, 1, 1 };
+    for (int i = 0; i < 5; i++)
+        mvwin(windows[i], base_y[i], params_x + base_x[i]);
+    if (windows.size() > 6)
+        mvwin(windows[6], 1, params_x);
 }
 
 int main(int argc, char** argv) {
@@ -438,11 +453,10 @@ int main(int argc, char** argv) {
     // below, which picks side-by-side, stacked, or hidden-until-pressed based on
     // the current terminal size.
     windows.push_back( newwin(1, 1, 1, 0) );     //  PROJECT (placeholder, resized below)
-    layout_project_window();
-
     // Overlay that temporarily replaces the track-parameter windows (0-4) with
-    // the project/mixer/tempo views when the project panel is always visible.
-    windows.push_back( newwin(TRACK_PROPS_HEIGHT + 1, TRACK_PROPS_WIDTH, 1, 0) );  //  MIXER / TEMPO
+    // the project/mixer/tempo views when the pattern panel is always visible.
+    windows.push_back( newwin(TRACK_PROPS_HEIGHT + 1, TRACK_PROPS_WIDTH, 1, 0) );  //  PROJECT / MIXER / TEMPO
+    layout_project_window();
 
     signal(SIGWINCH, handle_winch);
 
@@ -548,7 +562,7 @@ int main(int argc, char** argv) {
                 }
                 else if (pressing_project || project_mode.load() || show_project_panel) {
                     int t = proj_cursor_track.load() - 1;
-                    if (t < 0) t = 15;
+                    if (t < 0) t = proj_visible_tracks.load() - 1;
                     proj_cursor_track.store(t);
                     device.sendTrackSelect(opz::opz_track_id(t));
                     grid_sel_active.store(false);
@@ -581,7 +595,7 @@ int main(int argc, char** argv) {
                     change_data = true;
                 }
                 else if (pressing_project || project_mode.load() || show_project_panel) {
-                    int t = (proj_cursor_track.load() + 1) % 16;
+                    int t = (proj_cursor_track.load() + 1) % proj_visible_tracks.load();
                     proj_cursor_track.store(t);
                     device.sendTrackSelect(opz::opz_track_id(t));
                     grid_sel_active.store(false);
@@ -646,7 +660,7 @@ int main(int argc, char** argv) {
                     grid_sel_anchor_step = proj_cursor_step.load();
                 }
                 int t = proj_cursor_track.load() + 1;
-                if (t < 16) proj_cursor_track.store(t);
+                if (t < proj_visible_tracks.load()) proj_cursor_track.store(t);
                 change = true;
             }
             else if (ch == KEY_SLEFT || ch == 393) { // shift-left
@@ -856,11 +870,13 @@ int main(int argc, char** argv) {
 
         // Fit all 16 steps evenly within the actual terminal width, instead of a
         // fixed spacing that clips the later steps on narrower terminals.
-        int cell_width = std::max(2, (COLS - 6) / 16);
+        // When the pattern panel is stacked below, the whole column is centered.
+        int bar_width = (project_layout == LAYOUT_STACKED) ? TRACK_PROPS_WIDTH : COLS;
+        int cell_width = std::max(2, (bar_width - 6) / 16);
 
         if (device.isPlaying() && step_count > 0 && step_length > 0) {
             size_t step = (device.getActiveStepId() / step_length) % step_count;
-            mvprintw(LINES-4, 2 + step * cell_width, "[ ]");
+            mvprintw(LINES-4, params_x + 2 + step * cell_width, "[ ]");
         }
 
         // Always render all 16 physical step slots, regardless of the track's
@@ -868,7 +884,7 @@ int main(int argc, char** argv) {
         // steps no matter how many of them the track is currently sequencing,
         // so a smaller step_count would otherwise hide real note data.
         for (size_t i = 0; i < 16; i++) {
-            size_t x = 3 + i * cell_width;
+            size_t x = params_x + 3 + i * cell_width;
             mvprintw(LINES-5, x, "%02i", i + 1 );
             size_t note = device.getNoteIdOffset(track_id, i);
 
@@ -905,9 +921,13 @@ int main(int argc, char** argv) {
         }
 
         mvprintw(LINES-3, 0, "%s", edit_status.c_str());
-        mvprintw(LINES-2, 0, "STEP COUNT %2i   STEP LENGTH %2i   SUM %2i   TEMPO %3i BPM",
-                                step_count, step_length, step_count * step_length,
-                                device.getProjectData().tempo);
+        // STEP COUNT / LENGTH flush left, SUM / TEMPO flush right, within the same
+        // (possibly centered) area as the step display above.
+        char right_text[64];
+        snprintf(right_text, sizeof(right_text), "SUM %2i   TEMPO %3i BPM",
+                 (int)(step_count * step_length), (int)device.getProjectData().tempo);
+        mvprintw(LINES-2, params_x, "STEP COUNT %2i   STEP LENGTH %2i", (int)step_count, (int)step_length);
+        mvprintw(LINES-2, std::max(params_x, params_x + bar_width - (int)strlen(right_text)), "%s", right_text);
         attron(COLOR_PAIR(device.isPlaying() ? 2 : 5));
         mvprintw(LINES-1, COLS/2 - 3, "%s %02zu", ((device.isPlaying())? "|> " : "[ ]"), device.getActiveStepId() + 1 );
         attroff(COLOR_PAIR(device.isPlaying() ? 2 : 5));
@@ -924,7 +944,7 @@ int main(int argc, char** argv) {
         if (params_overlay) {
             // The tempo view is taller than the parameter windows; give it
             // room for its margin (it may cover the top of a stacked project panel).
-            int overlay_h = tempo_active ? std::min(PROJECT_FULL_HEIGHT, LINES - BOTTOM_BAR_MARGIN)
+            int overlay_h = tempo_active ? std::min(TEMPO_HEIGHT, LINES - BOTTOM_BAR_MARGIN)
                                          : TRACK_PROPS_HEIGHT + 1;
             int cur_h, cur_w;
             getmaxyx(windows[6], cur_h, cur_w);
@@ -1104,7 +1124,9 @@ void draw_pattern(WINDOW* _win) {
     if (chain_pos > 0)
         mvwprintw(_win, 0, cols - 14, " CHAIN %02i ", chain_pos);
 
-    int cur_track = proj_cursor_track.load() % 16;
+    // Only the first 8 tracks fit when the panel is short (3 header rows + 16 tracks + margin + border)
+    proj_visible_tracks.store(lines >= PROJECT_FULL_HEIGHT ? 16 : 8);
+    int cur_track = std::min(proj_cursor_track.load(), proj_visible_tracks.load() - 1);
     int cur_step = proj_cursor_step.load() % 16;
     mvwprintw(_win, 1, 2, "STEP EDIT   TRACK %-7s STEP %02i   (up/down: track   left/right: step)",
               opz::toString(opz::opz_track_id(cur_track)).c_str(), cur_step + 1);
@@ -1140,7 +1162,7 @@ void draw_pattern(WINDOW* _win) {
         sel_s1 = std::max(grid_sel_anchor_step, cur_step);
     }
 
-    size_t tracks = 16;
+    size_t tracks = (size_t)proj_visible_tracks.load();
     for (size_t t = 0; t < tracks; t++) {
         int y = 3 + t;
         bool muted = device.getMuteTrack(pattern_id, t);
