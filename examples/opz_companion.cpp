@@ -370,6 +370,12 @@ void draw_page_two(WINDOW* _window);
 void draw_page_three(WINDOW* _window);
 void draw_page_four(WINDOW* _window);
 void render_frame();
+void handle_mouse();
+
+// Horizontal layout of the pattern grid, shared by drawing and mouse hit-testing.
+const int PATTERN_NAME_WIDTH = 12;
+int pattern_grid_step_width(int _cols) { return (_cols - PATTERN_NAME_WIDTH) / 16; }
+int pattern_grid_x_margin(int _cols) { return 2 + (_cols - pattern_grid_step_width(_cols) * 16 - PATTERN_NAME_WIDTH) / 2; }
 
 // Shows a message right away: used before calls that block on the device.
 void set_status(const std::string& _msg) {
@@ -382,6 +388,9 @@ void set_status(const std::string& _msg) {
 void handle_key(int ch) {
     if (ch == KEY_RESIZE) {
         full_repaint = true;
+    }
+    else if (ch == KEY_MOUSE) {
+        handle_mouse();
     }
     else if (ch == 'x' || ch == 'q' || ch == 'Q') {
         keepRunnig.store(false);
@@ -783,6 +792,9 @@ struct slot_t {
 };
 slot_t slots[W_COUNT];
 
+// What the last frame drew in the panel, for mouse hit-testing.
+panel_view_t shown_panel = PANEL_NONE;
+
 // Creates, moves or drops a window so it matches _r (clipped to the screen).
 // An empty rect hides it. Returns the window to draw into, or null.
 WINDOW* place(int _id, rect_t _r) {
@@ -804,6 +816,63 @@ void drop_windows() {
     for (int i = 0; i < W_COUNT; i++) {
         if (slots[i].win) delwin(slots[i].win);
         slots[i] = slot_t();
+    }
+}
+
+// ---------------------------------------------------------------- mouse
+
+// Click a step to put the cursor on it, drag to select a rectangle of steps,
+// click a track name to select that track. Copy / paste / delete are then the
+// usual keys (Ctrl-C, Ctrl-V, Del) acting on the cursor / selection.
+void handle_mouse() {
+    static bool dragging = false;
+
+    MEVENT ev;
+    if (getmouse(&ev) != OK || shown_panel != PANEL_PATTERN)
+        return;
+
+    const rect_t& r = slots[W_PANEL].r;
+    int row = ev.y - r.y - 3;               // track rows start at y=3 inside the panel
+    int lx = ev.x - r.x;
+    int first_x = pattern_grid_x_margin(r.w) + PATTERN_NAME_WIDTH;
+    int step_w = pattern_grid_step_width(r.w);
+    int tracks = proj_visible_tracks.load();
+
+    bool inside = ev.y >= r.y && ev.y < r.y + r.h && ev.x >= r.x && ev.x < r.x + r.w;
+    bool on_track = row >= 0 && row < tracks;
+    int step = (step_w > 0 && lx >= first_x) ? (lx - first_x) / step_w : -1;
+    bool on_step = step >= 0 && step < 16;
+
+    if (ev.bstate & BUTTON1_PRESSED) {
+        if (!inside || !on_track) return;
+
+        if (row != proj_cursor_track.load())
+            device.sendTrackSelect(opz::opz_track_id(row));
+        proj_cursor_track.store(row);
+        if (on_step) proj_cursor_step.store(step);
+
+        grid_sel_active.store(false);
+        grid_editing_note.store(false);
+        grid_note_input.clear();
+        grid_sel_anchor_track = row;
+        grid_sel_anchor_step = proj_cursor_step.load();
+        dragging = true;
+    }
+    else if (ev.bstate & BUTTON1_RELEASED) {
+        dragging = false;
+    }
+    else if (dragging) {
+        // Motion with the button held: extend the selection, clamped to the grid.
+        int t = std::min(std::max(row, 0), tracks - 1);
+        int s = std::min(std::max(step, 0), 15);
+        if (step_w > 0 && lx >= first_x)
+            s = std::min(std::max((lx - first_x) / step_w, 0), 15);
+        else if (lx < first_x)
+            s = 0;
+
+        proj_cursor_track.store(t);
+        proj_cursor_step.store(s);
+        grid_sel_active.store(t != grid_sel_anchor_track || s != grid_sel_anchor_step);
     }
 }
 
@@ -902,6 +971,7 @@ void render_frame() {
 
     // Pattern grid / mic panel (behind the left column, which may overlap it)
     WINDOW* pw = place(W_PANEL, L.panel != PANEL_NONE ? L.panel_rect : rect_t());
+    shown_panel = pw ? L.panel : PANEL_NONE;
     if (pw) {
         if (L.panel == PANEL_MIC) draw_mic(pw);
         else                      draw_pattern(pw);
@@ -975,6 +1045,12 @@ int main(int argc, char** argv) {
     noecho();
     nodelay(stdscr, TRUE);
     curs_set(0);
+
+    // Mouse: press / release plus motion while held (for drag-selecting steps).
+    // mouseinterval(0) reports presses immediately instead of waiting to
+    // classify them as clicks.
+    mousemask(BUTTON1_PRESSED | BUTTON1_RELEASED | REPORT_MOUSE_POSITION, NULL);
+    mouseinterval(0);
 
     // Device events only flag state; all drawing happens on this thread.
     device.setEventCallback( [&](opz::opz_event_id _id, int _value) {
@@ -1146,9 +1222,9 @@ void draw_pattern(WINDOW* _win) {
     // }
 
     // PATTERN TRACKS
-    int name_width = 12;
-    int step_width = (cols - name_width) / 16;
-    x_margin = 2 + (cols - step_width * 16 - name_width) / 2;
+    int name_width = PATTERN_NAME_WIDTH;
+    int step_width = pattern_grid_step_width(cols);
+    x_margin = pattern_grid_x_margin(cols);
     size_t step_current = device.getActiveStepId();
 
     // Selection bounds
