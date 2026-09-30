@@ -35,12 +35,13 @@ int  params_x = 0;               // left edge of the left column; centered unles
 bool show_project_panel = false; // true when the pattern panel is always visible (SIDE or STACKED)
 
 const int TRACK_PROPS_WIDTH  = 80;   // width of the left column: windows 2 (66) + 4 (14)
-const int TRACK_PROPS_HEIGHT = 19;   // parameter windows occupy rows 1..18
+const int TRACK_PROPS_HEIGHT = 19;   // parameter windows span this many rows from the top
 const int PROJECT_MIN_WIDTH  = 60;   // narrowest the pattern grid is still legible
 const int PROJECT_HALF_HEIGHT = 13;  // pattern panel with 8 tracks: 3 header rows + 8 tracks + 1 margin + border
 const int PROJECT_FULL_HEIGHT = 21;  // pattern panel with 16 tracks: 3 header rows + 16 tracks + 1 margin + border
 const int TEMPO_HEIGHT       = 23;   // draw_tempo()'s content never exceeds this
-const int BOTTOM_ROWS        = 4;    // steps, status, counts, transport (last rows of the screen)
+const int TOP_ROW            = 0;    // first row used by panels
+const int BOTTOM_ROWS        = 3;    // steps, status, counts (last rows of the screen)
 
 // Set whenever something may need to be redrawn (key, device event, resize).
 // The screen is always repainted as a whole, so there is no finer granularity.
@@ -741,8 +742,8 @@ int snap_panel_height(int _avail) {
 ui_layout_t compute_layout() {
     ui_layout_t L;
 
-    int avail = LINES - 1 - BOTTOM_ROWS;                  // rows between title and bottom block
-    int stacked_y = TRACK_PROPS_HEIGHT + 2;
+    int avail = LINES - TOP_ROW - BOTTOM_ROWS;            // rows available to panels
+    int stacked_y = TOP_ROW + TRACK_PROPS_HEIGHT + 1;
     int stacked_avail = LINES - stacked_y - BOTTOM_ROWS;
 
     if (COLS >= TRACK_PROPS_WIDTH + PROJECT_MIN_WIDTH)      project_layout = LAYOUT_SIDE;
@@ -760,10 +761,10 @@ ui_layout_t compute_layout() {
 
     left_view_t overlay = project_active ? LEFT_PROJECT : mixer_active ? LEFT_MIXER : tempo_active ? LEFT_TEMPO : LEFT_PARAMS;
     int left_h = (overlay == LEFT_TEMPO) ? TEMPO_HEIGHT : TRACK_PROPS_HEIGHT + 1;
-    L.left_rect = { 1, params_x, std::min(left_h, avail), std::min(TRACK_PROPS_WIDTH, COLS - params_x) };
+    L.left_rect = { TOP_ROW, params_x, std::min(left_h, avail), std::min(TRACK_PROPS_WIDTH, COLS - params_x) };
 
     if (project_layout == LAYOUT_SIDE) {
-        L.panel_rect = { 1, TRACK_PROPS_WIDTH, snap_panel_height(avail), COLS - TRACK_PROPS_WIDTH };
+        L.panel_rect = { TOP_ROW, TRACK_PROPS_WIDTH, snap_panel_height(avail), COLS - TRACK_PROPS_WIDTH };
         L.left = overlay;
         L.panel = mic_on ? PANEL_MIC : PANEL_PATTERN;
     }
@@ -774,7 +775,7 @@ ui_layout_t compute_layout() {
     }
     else {
         // One thing at a time, using the whole screen.
-        L.panel_rect = { 1, 0, snap_panel_height(avail), COLS };
+        L.panel_rect = { TOP_ROW, 0, snap_panel_height(avail), COLS };
         if (mic_on)              L.panel = PANEL_MIC;
         else if (project_active) L.panel = PANEL_PATTERN;
         else                     L.left = overlay;
@@ -883,26 +884,22 @@ void draw_chrome(const ui_layout_t& L) {
     opz::opz_track_id track_id = device.getActiveTrackId();
     opz::opz_pattern pattern = get_display_pattern();
 
-    std::string title_name = opz::toString(track_id);
-    if (mic_on)                                       title_name = "MICROPHONE";
-    else if (L.left == LEFT_PROJECT || (L.panel == PANEL_PATTERN && L.left == LEFT_NONE)) title_name = "PROJECTS";
-    else if (L.left == LEFT_MIXER)                    title_name = "MIXER";
-    else if (L.left == LEFT_TEMPO)                    title_name = "TEMPO";
-    else if (edit_mode.load() && !screen_mode.load()) title_name = "EDIT " + title_name;
-    mvprintw(0, L.bar_x + L.bar_w/2 - (int)title_name.size()/2, "%s", title_name.c_str());
-
     size_t step_count = device.getActiveTrackParameters().step_count;
     size_t step_length = device.getActiveTrackParameters().step_length;
 
-    int steps_y = LINES - 4, status_y = LINES - 3, counts_y = LINES - 2, play_y = LINES - 1;
+    int steps_y = LINES - 3, status_y = LINES - 2, counts_y = LINES - 1;
 
     // Fit all 16 steps evenly within the bar, instead of a fixed spacing that
     // clips the later steps on narrower terminals.
     int cell_width = std::max(2, (L.bar_w - 6) / 16);
+    // Span from the left of the first "[ ]" marker to the right of the last one,
+    // centered in the bar; each step symbol sits in the middle of its marker.
+    int span = 15 * cell_width + 3;
+    int steps_x = L.bar_x + std::max(0, (L.bar_w - span) / 2);
 
     if (device.isPlaying() && step_count > 0 && step_length > 0) {
         size_t step = (device.getActiveStepId() / step_length) % step_count;
-        mvprintw(steps_y, L.bar_x + 2 + step * cell_width, "[ ]");
+        mvprintw(steps_y, steps_x + step * cell_width, "[ ]");
     }
 
     // Always render all 16 physical step slots, regardless of the track's
@@ -910,7 +907,7 @@ void draw_chrome(const ui_layout_t& L) {
     // steps no matter how many of them the track is currently sequencing,
     // so a smaller step_count would otherwise hide real note data.
     for (size_t i = 0; i < 16; i++) {
-        int x = L.bar_x + 3 + (int)i * cell_width;
+        int x = steps_x + 1 + (int)i * cell_width;
         size_t note = device.getNoteIdOffset(track_id, i);
 
         bool cursor_here = edit_mode.load() && (i == edit_step_cursor % std::max((size_t)1, step_count));
@@ -946,11 +943,6 @@ void draw_chrome(const ui_layout_t& L) {
              (int)(step_count * step_length), (int)device.getProjectData().tempo);
     mvprintw(counts_y, L.bar_x, "STEP COUNT %2i   STEP LENGTH %2i", (int)step_count, (int)step_length);
     mvprintw(counts_y, std::max(L.bar_x, L.bar_x + L.bar_w - (int)strlen(right_text)), "%s", right_text);
-
-    bool playing = device.isPlaying();
-    attron(COLOR_PAIR(playing ? 2 : 5));
-    mvprintw(play_y, L.bar_x + L.bar_w/2 - 3, "%s %02zu", playing ? "|> " : "[ ]", device.getActiveStepId() + 1);
-    attroff(COLOR_PAIR(playing ? 2 : 5));
 }
 
 // Draws the whole screen from scratch: stdscr, then every visible window in
@@ -990,11 +982,11 @@ void render_frame() {
 
     // Parameter windows
     // y, x (relative to the left column), height, width
-    const int sizes[5][4] = { {1,0,5,41}, {6,0,8,41}, {14,0,5,66}, {1,41,13,25}, {1,66,18,14} };
+    const int sizes[5][4] = { {0,0,5,41}, {5,0,8,41}, {13,0,5,66}, {0,41,13,25}, {0,66,18,14} };
     size_t page = (size_t)device.getActivePageId();
     for (int i = 0; i < 5; i++) {
         rect_t r;
-        if (L.left == LEFT_PARAMS) r = { sizes[i][0], params_x + sizes[i][1], sizes[i][2], sizes[i][3] };
+        if (L.left == LEFT_PARAMS) r = { TOP_ROW + sizes[i][0], params_x + sizes[i][1], sizes[i][2], sizes[i][3] };
         WINDOW* w = place(W_PAGE1 + i, r);
         if (!w) continue;
 
