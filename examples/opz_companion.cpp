@@ -37,7 +37,7 @@ bool show_project_panel = false; // true when the panel is always visible (SIDE 
 const int TRACK_PROPS_WIDTH  = 80;   // windows[2] (66 wide) + windows[4] (14 wide)
 const int TRACK_PROPS_HEIGHT = 19;   // windows[2]/[4] bottom out at y=19
 const int PROJECT_MIN_WIDTH  = 60;   // narrowest the project grid is still legible
-const int PROJECT_FULL_HEIGHT = 23;  // draw_project()'s content never exceeds this
+const int PROJECT_FULL_HEIGHT = 23;  // draw_pattern()'s content never exceeds this
 const int BOTTOM_BAR_MARGIN  = 6;    // step display rows + a blank line of breathing room
 
 bool change = true;
@@ -345,6 +345,7 @@ bool adjust_track_level_and_send(opz::opz_track_id _track, int _delta) {
 
 // global
 void draw_mic(WINDOW* _window);
+void draw_pattern(WINDOW* _window);
 void draw_project(WINDOW* _window);
 // pattern
 void draw_mixer(WINDOW* _window);
@@ -440,7 +441,7 @@ int main(int argc, char** argv) {
     layout_project_window();
 
     // Overlay that temporarily replaces the track-parameter windows (0-4) with
-    // the mixer/tempo views when the project panel is always visible.
+    // the project/mixer/tempo views when the project panel is always visible.
     windows.push_back( newwin(TRACK_PROPS_HEIGHT + 1, TRACK_PROPS_WIDTH, 1, 0) );  //  MIXER / TEMPO
 
     signal(SIGWINCH, handle_winch);
@@ -913,11 +914,12 @@ int main(int argc, char** argv) {
 
         refresh();
 
-        bool mixer_active = (pressing_mixer || mixer_mode.load()) && !(pressing_project || project_mode.load());
-        bool tempo_active = !mixer_active && (pressing_tempo || tempo_mode.load()) && !(pressing_project || project_mode.load());
-        // With the project panel always visible, mixer/tempo take over the
-        // parameters panel on the left; otherwise they take over windows[5].
-        bool params_overlay = show_project_panel && (mixer_active || tempo_active);
+        bool project_active = (pressing_project || project_mode.load());
+        bool mixer_active = (pressing_mixer || mixer_mode.load()) && !project_active;
+        bool tempo_active = !mixer_active && (pressing_tempo || tempo_mode.load()) && !project_active;
+        // With the pattern panel always visible, project/mixer/tempo take over
+        // the parameters panel on the left; otherwise they take over windows[5].
+        bool params_overlay = show_project_panel && (project_active || mixer_active || tempo_active);
 
         if (params_overlay) {
             // The tempo view is taller than the parameter windows; give it
@@ -931,15 +933,16 @@ int main(int argc, char** argv) {
                 touchwin(stdscr);
                 touchwin(windows[5]);
             }
-            draw_project(windows[5]);
-            if (mixer_active) draw_mixer(windows[6]);
-            else              draw_tempo(windows[6]);
+            draw_pattern(windows[5]);
+            if (project_active)    draw_project(windows[6]);
+            else if (mixer_active) draw_mixer(windows[6]);
+            else                   draw_tempo(windows[6]);
         }
-        else if (pressing_project || project_mode.load())  draw_project(windows[5]);
+        else if (pressing_project || project_mode.load())  draw_pattern(windows[5]);
         else if (mixer_active)      draw_mixer(windows[5]);
         else if (tempo_active)      draw_tempo(windows[5]);
         else if (mic_on)            draw_mic(windows[5]);
-        else if (show_project_panel) draw_project(windows[5]);
+        else if (show_project_panel) draw_pattern(windows[5]);
 
         if (was_params_overlay && !params_overlay) {
             for (size_t i = 0; i < 5; i++)
@@ -1082,7 +1085,7 @@ void draw_mic(WINDOW* _win) {
     wrefresh(_win);
 }
 
-void draw_project(WINDOW* _win) {
+void draw_pattern(WINDOW* _win) {
     size_t project_id = device.getActiveProjectId();
     uint8_t pattern_id = device.getActivePatternId();
     opz::opz_pattern pattern = device.getActivePattern();
@@ -1200,6 +1203,86 @@ void draw_project(WINDOW* _win) {
             if (is_cursor || in_sel) wattroff(_win, A_REVERSE);
         }
     }
+    wrefresh(_win);
+}
+
+// Project overview: every pattern in the current project, how much it holds
+// and the chain (song sequence) saved for it.
+void draw_project(WINDOW* _win) {
+    opz::opz_project_data project = device.getProjectData();
+    size_t project_id = device.getActiveProjectId();
+    uint8_t pattern_id = device.getActivePatternId();
+    uint8_t chain_pos = device.getActiveChainPos();
+
+    int lines, cols;
+    getmaxyx(_win, lines, cols);
+
+    werase(_win);
+    box(_win, 0, 0);
+
+    // Per-pattern content and chain length
+    size_t note_count[16] = {0};
+    size_t chain_len[16] = {0};
+    size_t used_patterns = 0, chained_patterns = 0;
+    for (size_t p = 0; p < 16; p++) {
+        for (size_t n = 0; n < 880; n++)
+            if (project.pattern[p].note[n].note != 0xFF)
+                note_count[p]++;
+        for (size_t i = 0; i < 32; i++) {
+            if (project.pattern_chain[p].pattern[i] >= 16) break;
+            chain_len[p]++;
+        }
+        if (note_count[p] > 0) used_patterns++;
+        if (chain_len[p] > 0) chained_patterns++;
+    }
+
+    mvwprintw(_win, 0, 2, " PROJECT %02zu ", project_id + 1);
+    mvwprintw(_win, 0, cols - 14, " %2zu/16 USED ", used_patterns);
+
+    mvwprintw(_win, 1, 2, "TEMPO %3i BPM   SWING %3i   PATTERN %02i   CHAINS %zu", project.tempo,
+              (int)((int)project.swing / 2.55f) - 50, pattern_id + 1, chained_patterns);
+
+    // One column per pattern
+    int label_w = 7;
+    int col_w = std::max(3, (cols - label_w - 2) / 16);
+    mvwprintw(_win, 3, 2, "PAT");
+    mvwprintw(_win, 4, 2, "NOTES");
+    mvwprintw(_win, 5, 2, "LEN");
+    mvwprintw(_win, 7, 2, "CHAIN");
+
+    int max_ids = std::max(1, lines - 2 - 8);
+    for (size_t p = 0; p < 16; p++) {
+        int x = 2 + label_w + (int)p * col_w;
+        bool is_active = (p == pattern_id);
+        bool is_empty = (note_count[p] == 0);
+
+        if (is_empty) wattron(_win, COLOR_PAIR(5));
+        else if (is_active) wattron(_win, COLOR_PAIR(1));
+
+        if (is_active) wattron(_win, A_REVERSE);
+        mvwprintw(_win, 3, x, "%02zu", p + 1);
+        if (is_active) wattroff(_win, A_REVERSE);
+        mvwprintw(_win, 4, x, "%-3zu", note_count[p]);
+        if (chain_len[p] > 0) mvwprintw(_win, 5, x, "%-3zu", chain_len[p]);
+        else                  mvwprintw(_win, 5, x, "-");
+
+        if (is_empty) wattroff(_win, COLOR_PAIR(5));
+        else if (is_active) wattroff(_win, COLOR_PAIR(1));
+
+        // Chained patterns, in play order, going down
+        size_t shown = std::min(chain_len[p], (size_t)max_ids);
+        bool truncated = chain_len[p] > (size_t)max_ids;
+        if (truncated) shown = max_ids - 1;
+        for (size_t i = 0; i < shown; i++) {
+            bool playing = (is_active && chain_pos > 0 && i == (size_t)chain_pos - 1);
+            if (playing) wattron(_win, A_REVERSE);
+            mvwprintw(_win, 8 + i, x, "%02i", project.pattern_chain[p].pattern[i] + 1);
+            if (playing) wattroff(_win, A_REVERSE);
+        }
+        if (truncated)
+            mvwprintw(_win, 8 + shown, x, "+%zu", chain_len[p] - shown);
+    }
+
     wrefresh(_win);
 }
 
